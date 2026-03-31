@@ -47,11 +47,11 @@ For commercial partnerships or licensing questions, contact `business@mangou.art
 If you are using an Agent capable of running tools and shell commands, just copy & paste the following prompt to your AI:
 
 ```text
-下载技能包：https://www.mangou.art/downloads/mangou.zip 
-请帮我安装并配置 Mangou AI 漫剧导演插件。
+Download skill package: https://www.mangou.art/downloads/mangou.zip 
+Please install and set up the Mangou AI Comic Director skill for me.
 ```
 
-*(This prompt is kept in Chinese to ensure the AI uses the correct paths, but you can interact with it in English afterwards. The AI will download, extract, and configure everything automatically).*
+*(The AI will download, extract, and configure everything automatically).*
 
 ## For Developers
 
