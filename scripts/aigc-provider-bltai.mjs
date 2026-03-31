@@ -51,15 +51,17 @@ export const BLTAI_PROVIDER = {
       const images = Array.isArray(params.images)
         ? params.images.filter(Boolean)
         : (params.images ? [params.images] : []);
-      return {
+      const payload = {
         model: params.model || 'doubao-seedance-1-0-pro-fast-251015',
         prompt: params.prompt || '',
         images,
         duration: params.duration || 5,
-        enhance_prompt: params.enhance_prompt !== false,
       };
+      if (params.ratio || params.aspect_ratio) {
+        payload.ratio = params.ratio || params.aspect_ratio;
+      }
+      return payload;
     }
-
     return params;
   },
   async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetch }) {
@@ -77,13 +79,12 @@ export const BLTAI_PROVIDER = {
       body: JSON.stringify(payload),
     });
 
+    const data = await response.json();
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Submit failed: ${response.status} ${response.statusText} ${text}`);
+      throw new Error(`Submit failed: ${response.status} ${JSON.stringify(data)}`);
     }
 
-    const data = await response.json();
-    const taskId = data.id || data.task_id || data.data?.id || data.data?.task_id || (Array.isArray(data.data) ? 'instant' : null);
+    const taskId = data.id || data.task_id || data.data?.id || data.data?.task_id || data.task?.id || (Array.isArray(data.data) ? 'instant' : null);
     
     if (taskId === 'instant' || (data.data && Array.isArray(data.data) && data.data[0]?.url)) {
       return { instantData: data };
@@ -99,36 +100,47 @@ export const BLTAI_PROVIDER = {
       return taskId.instantData;
     }
 
-
     const normalizedBase = normalizeBaseUrl(baseUrl);
     const endpoint = scope === 'images'
-      ? joinUrl(normalizedBase, 'v1', 'images', 'generations', taskId)
+      ? joinUrl(normalizedBase, 'v1', 'images', 'tasks', taskId)
       : joinUrl(normalizedBase, 'v2', 'videos', 'generations', taskId);
+
     const startedAt = Date.now();
     let delayMs = 2000;
 
     for (;;) {
       const response = await fetchImpl(endpoint, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers: { Authorization: `Bearer ${apiKey}` },
       });
-
+      
       if (!response.ok) {
+        if (response.status === 404 && scope === 'videos') {
+           // Fallback for some proxies that use V1 task polling for V2 tasks
+           const v1Endpoint = joinUrl(normalizedBase, 'v1', 'images', 'tasks', taskId);
+           const v1Resp = await fetchImpl(v1Endpoint, { headers: { Authorization: `Bearer ${apiKey}` } });
+           if (v1Resp.ok) {
+              const data = await v1Resp.json();
+              const rawStatus = data.status || data.state || data.task_status || data.data?.status || '';
+              const statusStr = String(rawStatus).toUpperCase();
+              if (statusStr) return this.poll({ baseUrl, apiKey, scope: 'images', taskId, timeoutMs, debug, fetchImpl });
+           }
+        }
         const text = await response.text();
-        throw new Error(`Poll failed: ${response.status} ${response.statusText} ${text}`);
+        throw new Error(`Poll failed: ${response.status} ${text}`);
       }
 
       const data = await response.json();
-      const status = String(data.status || data.data?.status || '').toUpperCase();
+      const rawStatus = data.status || data.state || data.task_status || data.data?.status || data.task?.status || '';
+      const statusStr = String(rawStatus).toUpperCase();
+      
       if (debug) {
-        console.error('[bltai] poll status:', status || '(empty)');
+        console.error('[bltai] poll status:', statusStr || '(empty)');
       }
 
-      if (['SUCCESS', 'SUCCEEDED', 'COMPLETED', 'DONE', 'FINISHED'].includes(status)) {
+      if (['SUCCESS', 'SUCCEEDED', 'COMPLETED', 'DONE', 'FINISHED'].includes(statusStr)) {
         return data;
       }
-      if (['FAILED', 'FAILURE', 'ERROR', 'CANCELLED', 'CANCELED', 'TIMEOUT', 'EXPIRED'].includes(status)) {
+      if (['FAILED', 'FAILURE', 'ERROR', 'CANCELLED', 'CANCELED', 'TIMEOUT', 'EXPIRED'].includes(statusStr)) {
         throw new Error(data.error?.message || data.fail_reason || data.data?.fail_reason || 'Provider task failed');
       }
       if (Date.now() - startedAt > timeoutMs) {

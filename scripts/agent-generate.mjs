@@ -94,7 +94,8 @@ export async function materializeOutputs(projectRoot, yamlPath, type, taskId, ou
 
     const ext = getRemoteExtension(output, type === 'image' ? 'png' : 'mp4');
     const subDir = type === 'image' ? 'images' : 'videos';
-    const filename = `${path.basename(yamlPath, '.yaml')}-${taskId.slice(0, 8)}-${index}.${ext}`;
+    const taskIdStr = typeof taskId === 'string' ? taskId : crypto.randomUUID();
+    const filename = `${path.basename(yamlPath, '.yaml')}-${taskIdStr.slice(0, 8)}-${index}.${ext}`;
     const relativePath = path.posix.join('assets', subDir, filename);
     await downloadFile(output, path.join(projectRoot, relativePath));
     localized.push(relativePath);
@@ -115,57 +116,47 @@ export async function inferContext(absoluteYamlPath) {
   const normalized = path.resolve(absoluteYamlPath);
   const segments = normalized.split(path.sep).filter(Boolean);
   const projectsIndex = segments.lastIndexOf('projects');
-  const projectId = projectsIndex >= 0 ? segments[projectsIndex + 1] : '';
-  const section = projectsIndex >= 0 ? segments[projectsIndex + 2] : '';
-  if (projectsIndex < 1 || !projectId || !section) {
-    throw new Error(`YAML must live under <workspace>/projects/<projectId>/(storyboards|asset_defs)/: ${normalized}`);
-  }
 
-  if (section !== 'storyboards' && section !== 'asset_defs') {
-    throw new Error(`YAML must live under <workspace>/projects/<projectId>/(storyboards|asset_defs)/: ${normalized}`);
-  }
+  // Attempt to infer standard workspace structure (workspace/projects/id/...)
+  if (projectsIndex >= 1 && segments.length > projectsIndex + 2) {
+    const projectId = segments[projectsIndex + 1];
+    const section = segments[projectsIndex + 2];
+    if (section === 'storyboards' || section === 'asset_defs') {
+        const projectsSegments = segments.slice(0, projectsIndex + 1);
+        const projectsRoot = `${path.sep}${projectsSegments.join(path.sep)}`;
+        const workspaceRoot = path.dirname(projectsRoot);
+        const projectRoot = path.join(projectsRoot, projectId);
+        const yamlSegments = segments.slice(projectsIndex + 2);
+        const yamlPath = yamlSegments.join('/');
 
-  if (section === 'asset_defs' && segments.length < projectsIndex + 5) {
-    throw new Error(`Asset definition YAML must live under <workspace>/projects/<projectId>/asset_defs/<group>/: ${normalized}`);
-  }
-
-  const projectsSegments = segments.slice(0, projectsIndex + 1);
-  const projectsRoot = `${path.sep}${projectsSegments.join(path.sep)}`;
-  const workspaceRoot = path.dirname(projectsRoot);
-  const yamlSegments = segments.slice(projectsIndex + 2);
-  if (yamlSegments.length === 0) {
-    throw new Error(`Invalid project YAML path: ${normalized}`);
-  }
-
-  const projectPath = projectId;
-  const projectRoot = path.join(projectsRoot, projectId);
-  const yamlPath = yamlSegments.join('/');
-
-  const explicitProjectsRoot = process.env.MANGOU_WORKSPACE_ROOT
-    ? path.resolve(process.env.MANGOU_WORKSPACE_ROOT)
-    : null;
-  if (explicitProjectsRoot && projectsRoot !== explicitProjectsRoot) {
-    throw new Error(`YAML must live under projects root ${explicitProjectsRoot}: ${normalized}`);
-  }
-
-  const explicitWorkspaceRoot = process.env.MANGOU_HOME ? path.resolve(process.env.MANGOU_HOME) : null;
-  if (explicitWorkspaceRoot && workspaceRoot !== explicitWorkspaceRoot) {
-    throw new Error(`YAML must live under workspace root ${explicitWorkspaceRoot}: ${normalized}`);
-  }
-
-  if (!explicitProjectsRoot && !explicitWorkspaceRoot) {
-    const hasWorkspaceMarker =
-      path.basename(projectsRoot) === 'projects' && (
-        (await fileExists(path.join(workspaceRoot, 'projects.json'))) ||
-        (await fileExists(path.join(workspaceRoot, 'config.json'))) ||
-        (await fileExists(path.join(workspaceRoot, '.mangou')))
-      );
-    if (!hasWorkspaceMarker) {
-      throw new Error(`Cannot infer workspace root from YAML path: ${normalized}`);
+        // Verify workspace marker for confidence
+        const hasWorkspaceMarker = (
+            (await fileExists(path.join(workspaceRoot, 'projects.json'))) ||
+            (await fileExists(path.join(workspaceRoot, 'config.json'))) ||
+            (await fileExists(path.join(workspaceRoot, '.mangou')))
+          );
+          
+        if (hasWorkspaceMarker) {
+            return { workspaceRoot, projectId, projectPath: projectId, projectRoot, yamlPath };
+        }
     }
   }
 
-  return { workspaceRoot, projectId, projectPath, projectRoot, yamlPath };
+  // PORTABLE FALLBACK:
+  // If no standard workspace structure detected, use the directory containing the YAML as the project root
+  // and the current working directory as the workspace root.
+  const portableProjectRoot = path.dirname(normalized);
+  const portableProjectId = path.basename(portableProjectRoot);
+  const portableYamlPath = path.basename(normalized);
+
+  return {
+    workspaceRoot: process.cwd(),
+    projectId: portableProjectId,
+    projectPath: portableProjectId,
+    projectRoot: portableProjectRoot,
+    yamlPath: portableYamlPath,
+    isPortable: true,
+  };
 }
 
 async function readWorkspaceConfig(workspaceRoot) {
@@ -236,7 +227,7 @@ async function collectRefImageInputs(projectRoot, refs) {
     .filter((value) => typeof value === 'string' && value.length > 0);
 }
 
-async function resolveImageInput(workspaceRoot, projectId, value, allowYaml = false, depth = 0) {
+async function resolveImageInput(workspaceRoot, projectId, projectRoot, value, allowYaml = false, depth = 0) {
   if (typeof value !== 'string' || !value.trim()) return null;
   if (depth > 1) {
     log(`Warning: Maximum YAML resolution depth reached for ${value}`);
@@ -246,7 +237,7 @@ async function resolveImageInput(workspaceRoot, projectId, value, allowYaml = fa
   const normalized = normalizeWorkspaceRelativePath(value.trim());
   if (normalized.startsWith('data:')) return normalized;
   if (isHttpUrl(normalized)) {
-    return fetchMediaAsDataUrl(normalized);
+    return normalized;
   }
 
   if (allowYaml && normalized.endsWith('.yaml')) {
@@ -259,14 +250,25 @@ async function resolveImageInput(workspaceRoot, projectId, value, allowYaml = fa
       const doc = yaml.load(raw);
       const latestOutput = doc?.tasks?.image?.latest?.output;
       if (latestOutput && typeof latestOutput === 'string') {
-        return resolveImageInput(workspaceRoot, projectId, latestOutput, false, depth + 1);
+        return resolveImageInput(workspaceRoot, projectId, projectRoot, latestOutput, false, depth + 1);
       }
     } catch (error) {
       log(`Warning: Failed to resolve YAML linkage ${normalized}:`, error.message);
     }
   }
 
-  return readLocalMediaAsDataUrl(workspaceRoot, projectId, normalized);
+  // Portable resolution: try absolute path relative to projectRoot first
+  const candidatePath = path.resolve(projectRoot, normalized.replace(/^\.\//, ''));
+  
+  try {
+     // If the file exists at this resolved location, read it directly
+     const buffer = await fs.readFile(candidatePath);
+     const contentType = String(normalized).endsWith('.png') ? 'image/png' : 'image/jpeg'; // naive fallback
+     return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch {
+     // Fallback to standard registry structure
+     return readLocalMediaAsDataUrl(workspaceRoot, projectId, normalized);
+  }
 }
 
 async function postJson(url, body, method = 'POST') {
@@ -379,26 +381,52 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
   const refs = ensureArray(doc?.refs);
   const refImages = type === 'image' ? await collectRefImageInputs(projectRoot, refs) : [];
 
+  // Resolve template variables like {{tasks.image.latest.output}}
+  function resolveTemplateVar(value) {
+    if (typeof value !== 'string') return value;
+    return value.replace(/\{\{(tasks\.[^}]+)\}\}/g, (_match, dotPath) => {
+      const parts = dotPath.split('.');
+      let current = doc;
+      for (const part of parts) {
+        if (current == null || typeof current !== 'object') return '';
+        current = current[part];
+      }
+      return typeof current === 'string' ? current : '';
+    });
+  }
+
   const rawImages = [
     ...ensureArray(params.images),
-    ...(params.image_url ? [params.image_url] : []),
+    ...(params.image_url ? [resolveTemplateVar(params.image_url)] : []),
+    ...(params.image ? [resolveTemplateVar(params.image)] : []),
     ...refImages,
   ];
+
+  // For video tasks: auto-inject the image task's latest output if no explicit images
+  if (type === 'video' && rawImages.filter(Boolean).length === 0) {
+    const imageOutput = doc?.tasks?.image?.latest?.output;
+    if (imageOutput && typeof imageOutput === 'string') {
+      rawImages.push(imageOutput);
+    }
+  }
+
   const uniqueImages = Array.from(new Set(rawImages.filter(Boolean)));
   const resolvedImages = [];
   for (const input of uniqueImages) {
-    resolvedImages.push(await resolveImageInput(workspaceRoot, projectId, input, isStoryboard));
+    resolvedImages.push(await resolveImageInput(workspaceRoot, projectId, projectRoot, input, isStoryboard));
   }
 
   if (resolvedImages.length > 0) {
     params.images = resolvedImages.filter(Boolean);
     delete params.image_url;
+    delete params.image;
   }
 
   const payload = providerToUse.buildPayload(scope, params);
   const localTaskId = crypto.randomUUID();
   let upstreamTaskId = resolveResumeTaskId(taskConfig);
   const resuming = Boolean(upstreamTaskId);
+  let submitResult;
 
   if (!resuming) {
     await upsertTask(origin, localTaskId, {
@@ -417,7 +445,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
   try {
     if (!resuming) {
       log(`Submitting ${type} task`, { projectPath, yamlPath });
-      upstreamTaskId = await providerToUse.submit({
+      submitResult = await providerToUse.submit({
         baseUrl,
         apiKey,
         scope,
@@ -427,6 +455,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
         projectRoot,
         yamlPath,
       });
+      upstreamTaskId = typeof submitResult === 'string' ? submitResult : localTaskId;
 
       await upsertTask(origin, localTaskId, {
         projectPath,
@@ -459,7 +488,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
       baseUrl,
       apiKey,
       scope,
-      taskId: upstreamTaskId,
+      taskId: submitResult ?? upstreamTaskId,
       timeoutMs: 30 * 60 * 1000,
       debug,
       workspaceRoot,

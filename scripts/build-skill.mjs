@@ -173,6 +173,7 @@ export async function buildSkillBundle({
       sourcemap: false,
       logLevel: 'silent',
       define,
+      external: ['undici'],
     });
 
     const bundledSource = await fs.readFile(outputPath, 'utf-8');
