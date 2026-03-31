@@ -100,11 +100,7 @@ export async function resolveProjectsRoot(workspaceRoot) {
   return path.join(resolvedWorkspaceRoot, workspaceDir);
 }
 
-async function ensureProjectIndex(workspaceRoot) {
-  const projectIndexPath = path.join(workspaceRoot, PROJECT_INDEX_FILE);
-  if (await pathExists(projectIndexPath)) return;
-  await fs.writeFile(projectIndexPath, `${JSON.stringify({ projects: [] }, null, 2)}\n`, 'utf-8');
-}
+// Removed redundant ensureProjectIndex function. Template now provides projects.json.
 
 export async function initWorkspace({ workspaceRoot, packageRoot = DEFAULT_PACKAGE_ROOT }) {
   const resolvedWorkspaceRoot = path.resolve(workspaceRoot);
@@ -114,8 +110,10 @@ export async function initWorkspace({ workspaceRoot, packageRoot = DEFAULT_PACKA
   await fs.mkdir(resolvedWorkspaceRoot, { recursive: true });
   await copyTemplateDir(templateRoot, resolvedWorkspaceRoot);
   await fs.mkdir(resolveRuntimeDir(resolvedWorkspaceRoot), { recursive: true });
+  
+  // Repair/ensure config is well-formed
   await ensureWorkspaceConfig(resolvedWorkspaceRoot);
-  await ensureProjectIndex(resolvedWorkspaceRoot);
+  
   const projectsRoot = await resolveProjectsRoot(resolvedWorkspaceRoot);
   await fs.mkdir(projectsRoot, { recursive: true });
 
