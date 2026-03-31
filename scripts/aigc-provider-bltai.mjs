@@ -114,17 +114,6 @@ export const BLTAI_PROVIDER = {
       });
       
       if (!response.ok) {
-        if (response.status === 404 && scope === 'videos') {
-           // Fallback for some proxies that use V1 task polling for V2 tasks
-           const v1Endpoint = joinUrl(normalizedBase, 'v1', 'images', 'tasks', taskId);
-           const v1Resp = await fetchImpl(v1Endpoint, { headers: { Authorization: `Bearer ${apiKey}` } });
-           if (v1Resp.ok) {
-              const data = await v1Resp.json();
-              const rawStatus = data.status || data.state || data.task_status || data.data?.status || '';
-              const statusStr = String(rawStatus).toUpperCase();
-              if (statusStr) return this.poll({ baseUrl, apiKey, scope: 'images', taskId, timeoutMs, debug, fetchImpl });
-           }
-        }
         const text = await response.text();
         throw new Error(`Poll failed: ${response.status} ${text}`);
       }
