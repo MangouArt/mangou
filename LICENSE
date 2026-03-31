@@ -1,0 +1,31 @@
+Functional Source License, Version 1.1
+
+Copyright (C) 2026 Mangou AI Studio
+
+Specification: FSL-1.1-Apache-2.0
+
+Change Date: 2028-01-01
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use 
+this file except in compliance with the License. You may obtain a copy of the 
+License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed 
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+specific language governing permissions and limitations under the License.
+
+Additional Permission under the Functional Source License, Version 1.1:
+
+You are granted a non-exclusive, world-wide, no-charge, royalty-free license to 
+use, copy, modify, and distribute the Software, provided that you do not 
+provide a "Competing SaaS Service" (as defined below).
+
+A "Competing SaaS Service" is a service that provides the Software, or a 
+substantially similar software, via a web browser or other network interface 
+to users who are not employees of the licensee.
+
+The Change Date is the date on which the Software automatically becomes 
+licensed solely under the Apache License, Version 2.0.

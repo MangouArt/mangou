@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mango AI Comic</title>
+    <script>
+      if ('serviceWorker' in navigator) {
+        const cleanedKey = 'mangou-sw-cleaned';
+        const cleaned = sessionStorage.getItem(cleanedKey);
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => registration.unregister());
+        });
+        if (!cleaned && 'caches' in window) {
+          sessionStorage.setItem(cleanedKey, '1');
+          caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).finally(() => {
+            location.reload();
+          });
+        }
+      }
+    </script>
+  </head>
+  <body class="dark">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
