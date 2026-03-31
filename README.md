@@ -1,33 +1,29 @@
-# Mangou AI Studio
+# 🎬 Mangou AI Comic Director Plugin
 
-[中文版本](./README.zh-CN.md)
+[中文版本](./README.zh-CN.md) | 🌐 [www.mangou.art](https://www.mangou.art)
 
-Mangou is an AI comic production workspace for local agent workflows.
+**Mangou** is a powerful plugin (skill bundle) for AI Agents (like Cursor, Claude Desktop, Cline) that transforms your local workspace into a fully automated AI Comic production studio.
 
-It packages project bootstrapping, YAML organization, task tracking, local visualization, image generation, and video stitching into an installable `SKILL + scripts + web` bundle for repeatable creation inside your own workspace.
+Instead of wrestling with complex UIs online, you simply ask your AI assistant to generate characters, design storyboards, and stitch videos together. Mangou handles the heavy lifting by injecting local workflow tools directly into your Agent's toolkit.
 
-Website: `https://www.mangou.art`
+## ✨ What Mangou Empowers Your Agent To Do
 
-## License
+- **Local Projects:** Automatically bootstrap standardized comic project directories in your workspace.
+- **YAML Driven:** Organize characters, props, scenes, and storyboards as simple YAML files that your Agent can easily read and write.
+- **Visual Dashboard:** Launch a real-time local Web UI for you to inspect the Agent's Generation progress.
+- **AIGC Generation:** Equip your Agent with the ability to call scripts for rendering images and videos automatically.
+- **Video Stitching:** Let your Agent stitch all the generated scene clips into a final comic video.
+
+## 📄 License
 
 This project is released under [`FSL-1.1-Apache-2.0`](./LICENSE).
 
 That means:
-
-- Source code is visible, modifiable, and redistributable
-- Competitive SaaS commercial hosting is not allowed
-- The license automatically converts to Apache-2.0 on the change date
+- Source code is visible, modifiable, and redistributable.
+- Competitive SaaS commercial hosting is not allowed.
+- The license automatically converts to Apache-2.0 on the change date.
 
 For commercial partnerships or licensing questions, contact `business@mangou.art`.
-
-## What Mangou Does
-
-- Initialize a local Mangou workspace
-- Create projects with a standard directory structure
-- Maintain `tasks.jsonl` as the task source of truth
-- Run a local web UI for inspection and control
-- Generate images or videos from YAML definitions
-- Stitch scene outputs into final videos
 
 ## Who It Is For
 
