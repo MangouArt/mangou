@@ -99,7 +99,7 @@ describe('AIGC provider registry', () => {
       prompt: 'camera push in',
       model: 'doubao-seedance-1-0-pro-fast-251015',
       images: ['assets/images/a.png', 'assets/images/b.png'],
-      duration: 4,
+      duration: 5,
       enhance_prompt: true,
     });
   });
