@@ -48,12 +48,18 @@ describe('agent-generate path inference', () => {
     });
   });
 
-  it('rejects yaml files outside initialized workspace project directory', async () => {
+  it('supports portable mode for yaml files outside standard workspace', async () => {
     const badWorkspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'mangou-bad-workspace-'));
     tempDirs.push(badWorkspaceRoot);
     const badPath = path.join(badWorkspaceRoot, 'storyboards', 'scene-001.yaml');
-    await expect(inferContext(badPath)).rejects.toThrow(
-      'YAML must live under <workspace>/projects/<projectId>/(storyboards|asset_defs)/'
-    );
+    
+    const context = await inferContext(badPath);
+    expect(context).toMatchObject({
+      isPortable: true,
+      projectId: 'storyboards',
+      projectPath: 'storyboards',
+      projectRoot: path.join(badWorkspaceRoot, 'storyboards'),
+      yamlPath: 'scene-001.yaml',
+    });
   });
 });

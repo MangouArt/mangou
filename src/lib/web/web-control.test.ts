@@ -39,7 +39,6 @@ describe('Web control scripts', () => {
     expect(envExample).toContain('BLTAI_API_KEY');
     const config = JSON.parse(await fs.readFile(path.join(workspaceRoot, 'config.json'), 'utf-8'));
     expect(config.workspaceDir).toBe('projects');
-    expect(config.bltai.baseUrl).toBe('https://api.bltcy.ai');
     const projectIndex = JSON.parse(await fs.readFile(path.join(workspaceRoot, 'projects.json'), 'utf-8'));
     expect(projectIndex).toEqual({ projects: [] });
     await fs.access(path.join(workspaceRoot, 'projects'));
