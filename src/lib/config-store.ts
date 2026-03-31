@@ -1,5 +1,5 @@
 export interface AppConfig {
-  bltai: {
+  bltai?: {
     apiKey: string;
     baseUrl: string;
   };
@@ -8,10 +8,6 @@ export interface AppConfig {
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  bltai: {
-    apiKey: '',
-    baseUrl: 'https://api.bltcy.ai',
-  },
   workspaceDir: 'projects',
 };
 

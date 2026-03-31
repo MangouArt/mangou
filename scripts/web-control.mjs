@@ -76,13 +76,8 @@ async function ensureWorkspaceConfig(workspaceRoot) {
   }
 
   const next = {
-    bltai: {
-      apiKey: current?.bltai?.apiKey ?? '',
-      baseUrl: current?.bltai?.baseUrl ?? 'https://api.bltcy.ai',
-    },
     workspaceDir: current?.workspaceDir || DEFAULT_WORKSPACE_DIR,
     ...current,
-    workspaceDir: current?.workspaceDir || DEFAULT_WORKSPACE_DIR,
   };
 
   await fs.writeFile(configPath, `${JSON.stringify(next, null, 2)}\n`, 'utf-8');
