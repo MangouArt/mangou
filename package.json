@@ -60,7 +60,8 @@
     "test:frontend": "vitest run src/lib/frontend/vite-build.test.ts",
     "test:web": "vitest run src/lib/web/web-control.test.ts",
     "test:bltai": "vitest run src/lib/aigc/bltai-mvp.test.ts",
-    "test:skill": "vitest run src/lib/skill/skill-packaging.test.ts"
+    "test:skill": "vitest run src/lib/skill/skill-packaging.test.ts",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.15",
@@ -108,6 +109,7 @@
     "tailwindcss": "4.2.2",
     "typescript": "5.6.3",
     "vite": "5.4.21",
-    "vitest": "2.1.9"
+    "vitest": "2.1.9",
+    "husky": "^8.0.0"
   }
 }

@@ -97,7 +97,7 @@ describe('AIGC provider registry', () => {
 
     expect(payload).toMatchObject({
       prompt: 'camera push in',
-      model: 'doubao-seedance-1-0-lite-i2v-250428',
+      model: 'doubao-seedance-1-0-pro-fast-251015',
       images: ['assets/images/a.png', 'assets/images/b.png'],
       duration: 5,
     });
