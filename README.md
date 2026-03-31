@@ -44,10 +44,22 @@ For commercial partnerships or licensing questions, contact `business@mangou.art
 
 ## Quick Start
 
+If you are using an Agent capable of running tools and shell commands, just copy & paste the following prompt to your AI:
+
+```text
+下载技能包：https://www.mangou.art/downloads/mangou.zip 
+请帮我安装并配置 Mangou AI 漫剧导演插件。
+```
+
+*(This prompt is kept in Chinese to ensure the AI uses the correct paths, but you can interact with it in English afterwards. The AI will download, extract, and configure everything automatically).*
+
+## For Developers
+
+If you want to hack on the source code or build the skill manually, follow these steps:
+
 ### 1. Install dependencies
 
 ```bash
-cd mangou
 npm install
 ```
 
@@ -194,3 +206,7 @@ This is the bundle intended for agents that support local skill installation.
 Issue tracker:
 
 - `https://github.com/MangouArt/mangou/issues`
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=MangouArt/mangou&type=Date)](https://star-history.com/#MangouArt/mangou&Date)

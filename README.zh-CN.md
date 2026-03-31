@@ -44,10 +44,22 @@ Mangou 是一个面向本地 Agent 工作流的 AI 漫剧工作台。
 
 ## 快速开始
 
+如果你使用的是支持工具调用、能够执行本地脚本的 Agent，你可以直接将以下指令复制并发送给 AI：
+
+```text
+下载技能包：https://www.mangou.art/downloads/mangou.zip 
+请帮我安装并配置 Mangou AI 漫剧导演插件。
+```
+
+AI 会自动帮你完成下载、解压和工作区安装。
+
+## 开发者指南
+
+如果你是开发者，希望深入修改源码或手动构建，请参考以下步骤：
+
 ### 1. 安装依赖
 
 ```bash
-cd mangou
 npm install
 ```
 
@@ -194,3 +206,7 @@ npm run ci
 问题反馈请提交 GitHub Issue：
 
 - `https://github.com/MangouArt/mangou/issues`
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=MangouArt/mangou&type=Date)](https://star-history.com/#MangouArt/mangou&Date)
