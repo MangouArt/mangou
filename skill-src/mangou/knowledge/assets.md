@@ -2,7 +2,7 @@
 
 ## 默认 Provider 配置 (Default Provider Setup)
 - **默认提供商**：当前默认图片/视频生成提供商是 `BLTAI`。
-- **账号注册**：先访问 `https://api.bltcy.ai/` 注册账号。
+- **账号注册**：先访问 [https://api.bltcy.ai/register?aff=HL8b](https://api.bltcy.ai/register?aff=HL8b) 注册账号。
 - **获取密钥**：再打开 `https://api.bltcy.ai/token`，创建或复制一个形如 `sk-xxxx` 的 API Key。
 - **环境变量**：将密钥写入工作区根目录的 `.env.local`：
 
