@@ -20,7 +20,11 @@
     "agent",
     "skill",
     "local-first",
-    "aigc"
+    "aigc",
+    "claude-skill",
+    "mcp-plugin",
+    "mangou",
+    "video-generation"
   ],
   "engines": {
     "node": ">=18.18"
