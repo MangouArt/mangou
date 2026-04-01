@@ -3,7 +3,6 @@ import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  joinUrl,
   materializeOutputs,
   resolveResumeTaskId,
   updateYamlProjection,
@@ -47,11 +46,6 @@ describe('agent-generate output materialization', () => {
     await expect(fs.readFile(path.join(projectRoot, outputs[0]))).resolves.toBeTruthy();
   });
 
-  it('normalizes urls without duplicate slashes', () => {
-    expect(joinUrl('https://api.example.com/', '/v1/images/', '/generations')).toBe(
-      'https://api.example.com/v1/images/generations'
-    );
-  });
 
   it('resumes polling from existing latest.task_id when previous run did not succeed', () => {
     expect(
@@ -85,8 +79,7 @@ describe('agent-generate output materialization', () => {
       'utf-8'
     );
 
-    await updateYamlProjection('http://127.0.0.1:9', {
-      projectPath: 'demo',
+    await updateYamlProjection({
       taskId: 'provider-task-001',
       upstreamTaskId: 'provider-task-001',
       status: 'processing',

@@ -10,6 +10,7 @@ import {
 } from './bltai-lib.mjs';
 import { getAIGCProvider } from './aigc-provider-registry.mjs';
 import { updateGenerationStatus } from '../src/lib/vfs/yaml.ts';
+import { appendTaskEvent } from './tasks-jsonl.mjs';
 import {
   fetchMediaAsDataUrl,
   normalizeWorkspaceRelativePath,
@@ -29,21 +30,6 @@ if (proxyUrl) {
 
 function log(...args) {
   console.error('[mangou]', ...args);
-}
-
-export function joinUrl(base, ...parts) {
-  const normalizedBase = String(base || '').replace(/\/+$/, '');
-  const normalizedPath = parts
-    .map((part) => String(part || '').replace(/^\/+/, '').replace(/\/+$/, ''))
-    .filter(Boolean)
-    .join('/');
-  return normalizedPath ? `${normalizedBase}/${normalizedPath}` : normalizedBase;
-}
-
-function resolveWebOrigin() {
-  if (process.env.MANGOU_WEB_ORIGIN) return process.env.MANGOU_WEB_ORIGIN;
-  const port = process.env.MANGOU_WEB_PORT || '3000';
-  return `http://127.0.0.1:${port}`;
 }
 
 function isHttpUrl(value) {
@@ -289,22 +275,12 @@ async function resolveImageInput(workspaceRoot, projectId, projectRoot, value, a
   }
 }
 
-async function postJson(url, body, method = 'POST') {
-  const response = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`HTTP ${response.status} ${response.statusText}: ${text}`);
-  }
-  return response.json();
+async function postJson(url, body, method = 'POST', timeout = 2000) {
+  return { skipped: true };
 }
 
-export async function updateYamlProjection(origin, payload) {
+export async function updateYamlProjection(payload) {
   const {
-    projectPath,
     projectRoot,
     taskId,
     upstreamTaskId,
@@ -331,28 +307,17 @@ export async function updateYamlProjection(origin, payload) {
       log(`Warning: failed to update YAML directly: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
     }
   }
-
-  try {
-    await postJson(joinUrl(origin, 'api', 'yaml', 'sync-latest'), {
-      projectPath,
-      taskId,
-      upstreamTaskId,
-      status,
-      output,
-      yamlPath,
-      taskType,
-      error,
-    }, 'POST');
-  } catch {
-    // direct YAML write is the source of durability; web sync is best effort
-  }
 }
 
-async function upsertTask(origin, id, payload, method = 'POST') {
-  const url = method === 'POST'
-    ? joinUrl(origin, 'api', 'tasks')
-    : joinUrl(origin, 'api', 'tasks', id);
-  return postJson(url, payload, method);
+async function upsertTask(projectRoot, id, payload) {
+  try {
+    return await appendTaskEvent(projectRoot, {
+      ...payload,
+      id,
+    });
+  } catch (err) {
+    log(`Warning: failed to append task event: ${err.message}`);
+  }
 }
 
 function isTimeoutError(error) {
@@ -373,7 +338,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
   }
 
   const absoluteYamlPath = path.resolve(process.cwd(), yamlArg);
-  const { workspaceRoot, projectId, projectPath, projectRoot, yamlPath } = await inferContext(absoluteYamlPath);
+  const { workspaceRoot, projectId, projectRoot, yamlPath } = await inferContext(absoluteYamlPath);
   
   const raw = await fs.readFile(absoluteYamlPath, 'utf-8');
   const doc = yaml.load(raw);
@@ -382,7 +347,6 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
     throw new Error(`Missing tasks.${type}.params in ${yamlArg}`);
   }
 
-  const origin = resolveWebOrigin();
   const providerId = taskConfig.provider || process.env.MANGOU_AIGC_PROVIDER || 'bltai';
   const providerToUse = provider || getAIGCProvider(providerId);
   const workspaceConfig = await readWorkspaceConfig(workspaceRoot);
@@ -449,8 +413,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
 
   if (!resuming) {
     try {
-      await upsertTask(origin, localTaskId, {
-        projectPath,
+      await upsertTask(projectRoot, localTaskId, {
         id: localTaskId,
         type,
         status: 'processing',
@@ -467,7 +430,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
 
   try {
     if (!resuming) {
-      log(`Submitting ${type} task`, { projectPath, yamlPath });
+      log(`Submitting ${type} task`, { projectId, yamlPath });
       submitResult = await providerToUse.submit({
         baseUrl,
         apiKey,
@@ -481,8 +444,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
       upstreamTaskId = typeof submitResult === 'string' ? submitResult : localTaskId;
 
       try {
-        await upsertTask(origin, localTaskId, {
-          projectPath,
+        await upsertTask(projectRoot, localTaskId, {
           upstreamTaskId,
           type,
           status: 'processing',
@@ -491,13 +453,12 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
           ref: { yamlPath, taskType: type },
           worker: 'mangou',
           event: 'accepted',
-        }, 'PATCH');
+        });
       } catch {
         // best effort
       }
 
-      await updateYamlProjection(origin, {
-        projectPath,
+      await updateYamlProjection({
         projectRoot,
         taskId: upstreamTaskId,
         upstreamTaskId,
@@ -508,7 +469,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
         error: null,
       });
     } else {
-      log(`Resuming ${type} task`, { projectPath, yamlPath, upstreamTaskId });
+      log(`Resuming ${type} task`, { projectId, yamlPath, upstreamTaskId });
     }
 
     const result = await providerToUse.poll({
@@ -528,8 +489,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
     const primaryOutput = finalOutputs[0] || '';
 
     try {
-      await upsertTask(origin, localTaskId, {
-        projectPath,
+      await upsertTask(projectRoot, localTaskId, {
         upstreamTaskId,
         type,
         status: 'success',
@@ -539,13 +499,12 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
         ref: { yamlPath, taskType: type },
         worker: 'mangou',
         event: 'completed',
-      }, 'PATCH');
+      });
     } catch {
       // best effort
     }
 
-    await updateYamlProjection(origin, {
-      projectPath,
+    await updateYamlProjection({
       projectRoot,
       taskId: upstreamTaskId,
       upstreamTaskId,
@@ -570,8 +529,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
     const event = timeout ? 'timeout' : 'failed';
 
     try {
-      await upsertTask(origin, localTaskId, {
-        projectPath,
+      await upsertTask(projectRoot, localTaskId, {
         upstreamTaskId,
         type,
         status: taskStatus,
@@ -581,13 +539,12 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
         error: { message },
         worker: 'mangou',
         event,
-      }, 'PATCH').catch(() => null);
+      }).catch(() => null);
     } catch {
       // best effort
     }
 
-    await updateYamlProjection(origin, {
-      projectPath,
+    await updateYamlProjection({
       projectRoot,
       taskId: upstreamTaskId ?? null,
       upstreamTaskId: upstreamTaskId ?? null,
