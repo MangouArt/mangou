@@ -29,7 +29,7 @@
 
 ### tasks
 - 以任务类型为 key，如 `image`、`video`。
-- 每个任务包含 `params` 与 `latest`。
+- 每个任务包含 `provider`, `params` 与 `latest`。
 
 `params` 常见字段：
 - `prompt`
@@ -38,17 +38,13 @@
 - `duration`
 
 规则：
+- `provider`: 可选。指定 AIGC 服务商（如 `bltai`, `kie`）。若不指定则使用系统默认。
 - 如需参考图片或已有图片，统一放在 `params.images`。
 - `params.images` 中的路径必须是相对项目根目录的可读图片路径。
 - 脚本执行时会自动把本地图片路径转换为 Data URL 后再提交给上游 Provider，YAML 中仍保留相对路径。
 - 需要做角色锁定、画面继承或首帧参考时，也统一使用 `params.images`，不要新增其他输入字段。
 - 做连续镜头时，优先把上一条分镜的静帧产物放入当前分镜的 `params.images`，而不是只依赖抽象文字描述。
 - `refs` 仅用于前端展示参考资料，不作为 AIGC 生成输入。
-
-推荐做法：
-- 在视频任务里优先使用“单张分镜图 + 动作/镜头指令”的方式生成，尤其是在转场幅度较大时，不要强行做两张构图差异很大的图片之间的 morph。
-- 如需强调角色对应关系，可在 `prompt` 中使用 `image1 is XXX`、`image2 is XXX` 这类明确指代。
-- 如需规避模型误识别，可在 `prompt` 中补充明确排除约束，例如 `NO electric tools`、`NO headlamps`。
 
 `latest` 常见字段：
 - `task_id`
@@ -62,7 +58,6 @@
 - `latest` 是由 `tasks.jsonl` 投影得到的展示缓存，不是任务状态真相源。
 - `latest` 丢失后可从 `tasks.jsonl` 重建。
 - 脚本会先把最新结果直接写回 YAML，再通知本地 Web 服务同步 UI。
-- 如轮询超时但 `latest.task_id` 已存在，下次脚本运行应恢复轮询，而不是重复提交新任务。
 
 ## 示例
 ```yaml
@@ -79,23 +74,25 @@ content:
   duration: 4s
 tasks:
   image:
+    provider: "bltai"  # 指定服务商
     params:
+      model: "nano-banana"
       prompt: Underwater volcanic vent...
       aspect_ratio: "16:9"
     latest:
-      task_id: "4c5a9d4b-8a2c-4bd0-9fd2-2d0bc9b4701a"
-      upstream_task_id: "img_123"
       status: success
       output:
         files:
           - assets/images/image_001.png
-      updated_at: "2026-03-18T11:59:52.604Z"
-      error: null
   video:
+    provider: "kie"    # 指定服务商
     params:
+      model: "bytedance/v1-pro-fast-image-to-video"
       prompt: Camera slowly zooms...
       images:
         - assets/images/image_001.png
       duration: 4
+    latest:
+      status: pending
 refs: {}
 ```
