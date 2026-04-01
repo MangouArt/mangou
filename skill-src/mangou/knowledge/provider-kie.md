@@ -9,13 +9,14 @@ KIE AI 提供了高性能的图像/视频生成与编辑能力，特别适合处
 | 模型标识 (model) | 描述 |
 | :--- | :--- |
 | `nano-banana-2` | 下一代高性能生图模型，细节丰富，构图精准。 |
-| `nano-banana` | 经典性价比模型，生成速度快。 |
+| `nano-banana-v2` | 下一代高性能生图模型，细节丰富，构图精准。 |
+| `nano-banana-v1` | 经典性价比模型，生成速度快。 |
 
 ### 1.1 params 字段规范
 - **prompt** (string, **必需**): 描述画面的文字。支持中英文。支持描述场景、人物、走位、光效等。最大 20000 字符。
 - **images** (array<string>, **可选**): 指定参考图路径。支持引用本地相对路径（如 `assets/images/char.png`）。
 - **aspect_ratio** (string, **默认: "auto"**): 图片比例。
-  - 可选值: `1:1`, `9:16`, `16:9`, `3:4`, `4:3`, `3:2`, `2:3`, `5:4`, `4:5`, `21:9`, `auto`。
+  - 可选值: `1:1`, `9:16`, `16:9`, `4:3`, `3:4`, `3:2`, `2:3`, `5:4`, `4:5`, `21:9`, `auto`。
 - **resolution** (string, **默认: "1K"**): 画质分辨率。
   - 可选值: `1K` (推荐), `2K`, `4K`。
 - **output_format** (string, **默认: "jpg"**): 产物格式。
@@ -58,5 +59,25 @@ KIE AI 提供了高性能的图像/视频生成与编辑能力，特别适合处
 ---
 
 ## 4. 关键原则 (Implementation Rule)
-1. **自动上传**: Agent 只需填写本地相对路径，`KIE_PROVIDER` 脚本会自动将图片上传至 KIE 临时服务器 (`https://kieai.redpandaai.co`) 并替换为远程 URL 后再提交任务。
-2. **异步轮询**: 视频任务通常需要 1-5 分钟。Agent 应通过读取 `latest.status` 确认任务状态，而不是阻塞等待。
+
+1. **Provider 字段位置**: `provider` 字段必须位于 **task 级别**，而不是 `params` 内部。
+   ```yaml
+   tasks:
+     video:
+       provider: kie  # 正确位置
+       params:
+         model: bytedance/v1-pro-fast-image-to-video
+         prompt: "A cinematic zoom in"
+         images: ["assets/images/scene-01.png"]
+   ```
+2. **自动上传**: Agent 只需填写本地相对路径，`KIE_PROVIDER` 脚本会自动将图片上传至 KIE 临时服务器 (`https://kieai.redpandaai.co`) 并替换为远程 URL 后再提交任务。
+3. **异步轮询**: 视频任务通常需要 1-5 分钟。Agent 应通过读取 `latest.status` 确认任务状态，而不是阻塞等待。
+
+---
+
+## 5. 环境依赖
+
+运行 KIE 脚本需要以下依赖（已包含在 `mangou` 核心包中）：
+- `js-yaml`: YAML 文件解析
+- `undici`: 现代 HTTP 客户端 (Node 18+ 原生 fetch 亦可)
+- `node-fetch` 或 `undici` 的 Proxy 支持
