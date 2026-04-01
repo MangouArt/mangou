@@ -102,6 +102,48 @@ export async function resolveProjectsRoot(workspaceRoot) {
 
 // Removed redundant ensureProjectIndex function. Template now provides projects.json.
 
+async function ensureDotEnvSync(workspaceRoot, packageRoot) {
+  const envExamplePath = path.join(packageRoot, '.env.example');
+  const envLocalPath = path.join(workspaceRoot, '.env.local');
+  
+  if (!(await pathExists(envExamplePath))) return;
+
+  const exampleContent = await fs.readFile(envExamplePath, 'utf-8');
+  let localContent = '';
+  const exists = await pathExists(envLocalPath);
+  if (exists) {
+    localContent = await fs.readFile(envLocalPath, 'utf-8');
+  }
+
+  const exampleLines = exampleContent.split('\n');
+  const localLines = localContent.split('\n');
+  const localKeys = new Set(
+    localLines
+      .map(line => line.split('=')[0].trim())
+      .filter(key => key && !key.startsWith('#'))
+  );
+
+  let updated = false;
+  const newLines = [...localLines];
+
+  for (const line of exampleLines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const key = trimmed.split('=')[0].trim();
+    if (key && !localKeys.has(key)) {
+      if (newLines.length > 0 && newLines[newLines.length - 1].trim() !== '') {
+        // add newline if needed
+      }
+      newLines.push(line);
+      updated = true;
+    }
+  }
+
+  if (updated || !exists) {
+    await fs.writeFile(envLocalPath, newLines.join('\n').replace(/\n\n\n+/g, '\n\n'), 'utf-8');
+  }
+}
+
 export async function initWorkspace({ workspaceRoot, packageRoot = DEFAULT_PACKAGE_ROOT }) {
   const resolvedWorkspaceRoot = path.resolve(workspaceRoot);
   const resolvedPackageRoot = resolvePackageRoot(packageRoot);
@@ -113,6 +155,9 @@ export async function initWorkspace({ workspaceRoot, packageRoot = DEFAULT_PACKA
   
   // Repair/ensure config is well-formed
   await ensureWorkspaceConfig(resolvedWorkspaceRoot);
+
+  // Sync .env.local from .env.example
+  await ensureDotEnvSync(resolvedWorkspaceRoot, resolvedPackageRoot);
   
   const projectsRoot = await resolveProjectsRoot(resolvedWorkspaceRoot);
   await fs.mkdir(projectsRoot, { recursive: true });

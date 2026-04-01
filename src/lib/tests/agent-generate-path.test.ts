@@ -48,18 +48,22 @@ describe('agent-generate path inference', () => {
     });
   });
 
-  it('supports portable mode for yaml files outside standard workspace', async () => {
-    const badWorkspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'mangou-bad-workspace-'));
-    tempDirs.push(badWorkspaceRoot);
-    const badPath = path.join(badWorkspaceRoot, 'storyboards', 'scene-001.yaml');
-    
-    const context = await inferContext(badPath);
-    expect(context).toMatchObject({
-      isPortable: true,
-      projectId: 'storyboards',
-      projectPath: 'storyboards',
-      projectRoot: path.join(badWorkspaceRoot, 'storyboards'),
-      yamlPath: 'scene-001.yaml',
+  it('supports explicit projectRoot and workspaceRoot overrides', async () => {
+    const customProjectRoot = '/tmp/custom-project';
+    const customWorkspaceRoot = '/tmp/custom-workspace';
+    const yamlPath = '/tmp/custom-project/storyboards/scene.yaml';
+
+    const context = await inferContext(yamlPath, {
+      projectRoot: customProjectRoot,
+      workspaceRoot: customWorkspaceRoot,
+    });
+
+    expect(context).toEqual({
+      workspaceRoot: customWorkspaceRoot,
+      projectId: 'custom-project',
+      projectPath: 'custom-project', // standardized field
+      projectRoot: customProjectRoot,
+      yamlPath: 'storyboards/scene.yaml',
     });
   });
 });

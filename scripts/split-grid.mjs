@@ -15,38 +15,93 @@ function parseGrid(gridStr) {
   return { cols, rows };
 }
 
-async function inferContext(absoluteYamlPath) {
+async function fileExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function inferContext(absoluteYamlPath, overrides = {}) {
   const normalized = path.resolve(absoluteYamlPath);
+
+  if (overrides.projectRoot) {
+    const projectRoot = path.resolve(overrides.projectRoot);
+    const workspaceRoot = overrides.workspaceRoot ? path.resolve(overrides.workspaceRoot) : path.dirname(path.dirname(projectRoot));
+    const projectId = path.basename(projectRoot);
+    return { workspaceRoot, projectId, projectRoot };
+  }
+
   const segments = normalized.split(path.sep).filter(Boolean);
   const projectsIndex = segments.lastIndexOf('projects');
-  const projectId = projectsIndex >= 0 ? segments[projectsIndex + 1] : '';
-  if (!projectId) throw new Error('Cannot infer project context from YAML path');
 
-  const projectsRoot = segments.slice(0, projectsIndex + 1).join(path.sep);
-  const projectRoot = path.join(`${path.sep}${projectsRoot}`, projectId);
+  // Attempt to infer standard workspace structure (workspace/projects/id/...)
+  if (projectsIndex >= 1 && segments.length > projectsIndex + 1) {
+    const projectId = segments[projectsIndex + 1];
+    const projectsSegments = segments.slice(0, projectsIndex + 1);
+    const projectsRoot = `${path.sep}${projectsSegments.join(path.sep)}`;
+    const workspaceRoot = path.dirname(projectsRoot);
+    const projectRoot = path.join(projectsRoot, projectId);
 
-  return { projectId, projectRoot };
+    // Verify workspace marker for confidence
+    const hasWorkspaceMarker = (
+        (await fileExists(path.join(workspaceRoot, 'projects.json'))) ||
+        (await fileExists(path.join(workspaceRoot, 'config.json'))) ||
+        (await fileExists(path.join(workspaceRoot, '.mangou')))
+      );
+      
+    if (hasWorkspaceMarker) {
+        return { workspaceRoot, projectId, projectRoot };
+    }
+  }
+
+  // PORTABLE FALLBACK:
+  const portableProjectRoot = path.dirname(normalized);
+  const portableProjectId = path.basename(portableProjectRoot);
+
+  return {
+    workspaceRoot: process.cwd(),
+    projectId: portableProjectId,
+    projectRoot: portableProjectRoot,
+  };
 }
 
 async function main() {
   const args = process.argv.slice(2);
-  const parentYamlArg = args[0];
+  const parentYamlArg = args.find(a => !a.startsWith('--'));
+  
   const gridArgIndex = args.indexOf('--grid');
   const gridStr = gridArgIndex !== -1 ? args[gridArgIndex + 1] : '2x2';
+  
   const targetsArgIndex = args.indexOf('--targets');
   const targetsStr = targetsArgIndex !== -1 ? args[targetsArgIndex + 1] : '';
 
+  const projectRootArgIndex = args.indexOf('--project-root');
+  const overrideProjectRoot = projectRootArgIndex !== -1 ? args[projectRootArgIndex + 1] : '';
+
+  const workspaceRootArgIndex = args.indexOf('--workspace-root');
+  const overrideWorkspaceRoot = workspaceRootArgIndex !== -1 ? args[workspaceRootArgIndex + 1] : '';
+
   if (!parentYamlArg) {
-    console.error('Usage: node split-grid.mjs <parent-yaml> --grid NxM [--targets yaml1,yaml2,...]');
+    console.error('Usage: node split-grid.mjs <parent-yaml> --grid NxM [--targets yaml1,yaml2,...] [--project-root <path>] [--workspace-root <path>]');
     process.exit(1);
   }
 
-  const { projectRoot } = await inferContext(path.resolve(process.cwd(), parentYamlArg));
+  const absoluteParentYamlPath = path.resolve(process.cwd(), parentYamlArg);
+  const { projectRoot } = await inferContext(absoluteParentYamlPath, {
+    projectRoot: overrideProjectRoot,
+    workspaceRoot: overrideWorkspaceRoot,
+  });
+
   const { cols, rows } = parseGrid(gridStr);
   const parentYamlRaw = await fs.readFile(parentYamlArg, 'utf-8');
-  const parentDoc = yaml.load(parentYamlRaw);
+  const parentDocs = yaml.loadAll(parentYamlRaw).filter(Boolean);
+  const parentDoc = parentDocs[0];
+  
   const parentImagePathRelative = parentDoc?.tasks?.image?.latest?.output;
-  if (!parentImagePathRelative) throw new Error(`Parent YAML ${parentYamlArg} has no tasks.image.latest.output`);
+  if (!parentImagePathRelative) throw new Error(`Parent YAML ${parentYamlArg} has no tasks.image.latest.output in first document`);
 
   const parentImagePath = path.join(projectRoot, parentImagePathRelative);
   log(`Processing parent image: ${parentImagePath}`);
@@ -81,26 +136,47 @@ async function main() {
     }
   }
 
-  const targetYamlPaths = targetsStr ? targetsStr.split(',').map((s) => s.trim()) : [];
-  for (let i = 0; i < Math.min(subImagesPaths.length, targetYamlPaths.length); i += 1) {
-    const targetYaml = targetYamlPaths[i];
-    const subPath = subImagesPaths[i];
-    const absTargetYaml = path.resolve(process.cwd(), targetYaml);
+  // Back-filling logic
+  let targetYamlPaths = targetsStr ? targetsStr.split(',').map((s) => s.trim()) : [];
+  
+  // If no targets provided, but parent is multi-doc, use parent as target
+  if (targetYamlPaths.length === 0 && parentDocs.length > 1) {
+    targetYamlPaths = [parentYamlArg];
+  }
 
+  let subImageIndex = 0;
+  for (const targetYaml of targetYamlPaths) {
+    if (subImageIndex >= subImagesPaths.length) break;
+
+    const absTargetYaml = path.resolve(process.cwd(), targetYaml);
     try {
       const raw = await fs.readFile(absTargetYaml, 'utf-8');
-      const doc = yaml.load(raw);
+      const docs = yaml.loadAll(raw).filter(Boolean);
+      let changed = false;
 
-      if (!doc.tasks) doc.tasks = {};
-      if (!doc.tasks.image) doc.tasks.image = {};
-      if (!doc.tasks.image.latest) doc.tasks.image.latest = {};
+      for (let docIdx = 0; docIdx < docs.length; docIdx += 1) {
+        if (subImageIndex >= subImagesPaths.length) break;
+        
+        const doc = docs[docIdx];
+        const subPath = subImagesPaths[subImageIndex];
 
-      doc.tasks.image.latest.status = 'success';
-      doc.tasks.image.latest.output = subPath;
-      doc.tasks.image.latest.updated_at = new Date().toISOString();
+        if (!doc.tasks) doc.tasks = {};
+        if (!doc.tasks.image) doc.tasks.image = {};
+        if (!doc.tasks.image.latest) doc.tasks.image.latest = {};
 
-      await fs.writeFile(absTargetYaml, yaml.dump(doc), 'utf-8');
-      log(`Back-filled ${targetYaml} with ${subPath}`);
+        doc.tasks.image.latest.status = 'success';
+        doc.tasks.image.latest.output = subPath;
+        doc.tasks.image.latest.updated_at = new Date().toISOString();
+        
+        subImageIndex += 1;
+        changed = true;
+        log(`Back-filled ${targetYaml} (doc ${docIdx}) with ${subPath}`);
+      }
+
+      if (changed) {
+        const updatedYaml = docs.map(d => yaml.dump(d, { indent: 2, lineWidth: -1, noRefs: true, sortKeys: false })).join('---\n');
+        await fs.writeFile(absTargetYaml, updatedYaml, 'utf-8');
+      }
     } catch (error) {
       log(`Error back-filling ${targetYaml}: ${error.message}`);
     }
