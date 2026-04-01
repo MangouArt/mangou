@@ -115,4 +115,18 @@ describe('BLTAI Provider Script', () => {
     const urls = BLTAI_PROVIDER.extractOutputs('videos', mockResult);
     expect(urls).toEqual(['https://example.com/video.mp4']);
   });
+
+  it('buildPayload should throw informative error if model is missing for images', () => {
+    const params = { prompt: 'test' };
+    expect(() => BLTAI_PROVIDER.buildPayload('images', params)).toThrow(
+      /缺失 'model' 参数。可用图像模型: nano-banana, nano-banana-2/
+    );
+  });
+
+  it('buildPayload should throw informative error if model is missing for videos', () => {
+    const params = { prompt: 'test' };
+    expect(() => BLTAI_PROVIDER.buildPayload('videos', params)).toThrow(
+      /缺失 'model' 参数。可用视频模型: doubao-seedance-1-0-pro-fast-251015, veo3.1-fast/
+    );
+  });
 });

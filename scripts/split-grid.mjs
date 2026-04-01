@@ -90,13 +90,20 @@ async function main() {
   }
 
   const absoluteParentYamlPath = path.resolve(process.cwd(), parentYamlArg);
+  
+  if (!(await fileExists(absoluteParentYamlPath))) {
+    console.error(`Error: Cannot find parent YAML at ${absoluteParentYamlPath}`);
+    console.error(`Please ensure the path is relative to your CWD: ${process.cwd()}`);
+    process.exit(1);
+  }
+
   const { projectRoot } = await inferContext(absoluteParentYamlPath, {
     projectRoot: overrideProjectRoot,
     workspaceRoot: overrideWorkspaceRoot,
   });
 
   const { cols, rows } = parseGrid(gridStr);
-  const parentYamlRaw = await fs.readFile(parentYamlArg, 'utf-8');
+  const parentYamlRaw = await fs.readFile(absoluteParentYamlPath, 'utf-8');
   const parentDocs = yaml.loadAll(parentYamlRaw).filter(Boolean);
   const parentDoc = parentDocs[0];
   
@@ -149,6 +156,11 @@ async function main() {
     if (subImageIndex >= subImagesPaths.length) break;
 
     const absTargetYaml = path.resolve(process.cwd(), targetYaml);
+    if (!(await fileExists(absTargetYaml))) {
+      console.warn(`[Warning] 找不到回填目标文件: ${absTargetYaml}\n请确保路径相对于 CWD 正确。跳过此文件的回填。`);
+      continue;
+    }
+
     try {
       const raw = await fs.readFile(absTargetYaml, 'utf-8');
       const docs = yaml.loadAll(raw).filter(Boolean);
