@@ -30,10 +30,20 @@ export const BLTAI_PROVIDER = {
     video: 'videos',
   },
   buildPayload(scope, params) {
+    const prompt = (params.prompt || '').trim();
+    if (!prompt) {
+      throw new Error(`[bltai] Missing required parameter: 'prompt'`);
+    }
+
+    const model = params.model;
+    if (!model) {
+      throw new Error(`[bltai] Missing required parameter: 'model'. Please specify a valid model in tasks.${scope}.params.model`);
+    }
+
     if (scope === 'images') {
       const payload = {
-        prompt: params.prompt || '',
-        model: params.model || 'nano-banana',
+        prompt,
+        model,
         response_format: 'url',
       };
       if (params.aspect_ratio) {
@@ -54,9 +64,14 @@ export const BLTAI_PROVIDER = {
       const images = Array.isArray(params.images)
         ? params.images.filter(Boolean)
         : (params.images ? [params.images] : []);
+      
+      if (images.length === 0) {
+        throw new Error(`[bltai] Missing required input: 'images' or 'image_url' is required for video generation`);
+      }
+
       const payload = {
-        model: params.model || 'doubao-seedance-1-0-pro-fast-251015',
-        prompt: params.prompt || '',
+        model,
+        prompt,
         images,
         duration: params.duration || 5,
       };

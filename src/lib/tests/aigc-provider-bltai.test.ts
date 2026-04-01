@@ -8,6 +8,7 @@ describe('BLTAI Provider Script', () => {
 
   it('buildPayload should correctly format image request', () => {
     const params = {
+      model: 'nano-banana',
       prompt: 'A comic style hero',
       aspect_ratio: '16:9'
     };
@@ -23,6 +24,7 @@ describe('BLTAI Provider Script', () => {
 
   it('buildPayload should correctly format video request', () => {
     const params = {
+      model: 'doubao-seedance-1-0-pro-fast-251015',
       prompt: 'Motion of sea waves',
       images: ['https://example.com/img1.png'],
       duration: 5

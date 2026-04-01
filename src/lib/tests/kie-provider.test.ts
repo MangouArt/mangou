@@ -8,8 +8,9 @@ describe('KIE AI Provider', () => {
 
   it('buildPayload should correctly format video request', () => {
     const params = {
+      model: 'bytedance/v1-pro-fast-image-to-video',
       prompt: 'A cinematic coffee pour',
-      image: 'https://example.com/image.png'
+      images: ['https://example.com/image.png']
     };
     const payload = KIE_PROVIDER.buildPayload('videos', params);
 
@@ -17,7 +18,7 @@ describe('KIE AI Provider', () => {
       model: 'bytedance/v1-pro-fast-image-to-video',
       input: {
         prompt: 'A cinematic coffee pour',
-        image_url: 'https://example.com/image.png',
+        images: ['https://example.com/image.png'],
         resolution: '720p',
         duration: '5',
         nsfw_checker: true
@@ -82,7 +83,10 @@ describe('KIE AI Provider', () => {
       baseUrl: 'https://api.kie.ai',
       apiKey: 'test-key',
       scope: 'videos',
-      payload: {},
+      payload: {
+        model: 'test-model',
+        input: { prompt: 'test' }
+      },
       fetchImpl
     });
 
@@ -173,10 +177,10 @@ describe('KIE AI Provider', () => {
     consoleSpy.mockRestore();
   });
 
-  it('submit should upload base64 images to KIE first', async () => {
+  it('submit should upload images via stream to KIE first', async () => {
     const mockUploadResponse = {
       success: true,
-      data: { fileUrl: 'https://cdn.kie.ai/uploaded.png' }
+      data: { downloadUrl: 'https://cdn.kie.ai/uploaded.png' }
     };
     const mockSubmitResponse = {
       code: 200,
@@ -198,15 +202,25 @@ describe('KIE AI Provider', () => {
       apiKey: 'test-key',
       scope: 'videos',
       payload: {
-        input: { image_url: 'data:image/png;base64,xxxx' }
+        model: 'test-video-model',
+        input: { 
+          prompt: 'test',
+          images: ['data:image/png;base64,xxxx'] 
+        }
       },
       fetchImpl
     });
 
     expect(taskId).toBe('task-after-upload');
     expect(fetchImpl).toHaveBeenCalledWith(
-      expect.stringContaining('file-base64-upload'),
-      expect.any(Object)
+      expect.stringContaining('file-stream-upload'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-key'
+        }),
+        body: expect.any(Object) // FormData
+      })
     );
   });
 
