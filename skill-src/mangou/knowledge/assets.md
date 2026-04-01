@@ -1,29 +1,55 @@
-# 资产管理 (Asset Management)
+# 资产管理与 AIGC 供应商 (Assets & Providers)
 
-## 默认 Provider 配置 (Default Provider Setup)
-- **默认提供商**：当前默认图片/视频生成提供商是 `BLTAI`。
-- **账号注册**：先访问 [https://api.bltcy.ai/register?aff=HL8b](https://api.bltcy.ai/register?aff=HL8b) 注册账号。
-- **获取密钥**：再打开 `https://api.bltcy.ai/token`，创建或复制一个形如 `sk-xxxx` 的 API Key。
-- **环境变量**：将密钥写入工作区根目录的 `.env.local`：
+本模块描述了如何定义和生成 Manga AIGC 资产，以及通过 YAML 指定服务商。
 
-```env
-BLTAI_API_KEY=sk-xxxx
-BLTAI_BASE_URL=https://api.bltcy.ai
+## 1. 资产引用与路径 (Core Asset Paths)
+
+- **物理存储**: 产物统一存放于 `<project-root>/assets/` 下的 `images/` 和 `videos/`。
+- **YAML 引用**: 在分镜或资产 YAML 中，通过相对路径引用，例如 `assets/images/astronaut.png`。
+- **动态引用**: 使用 `${asset_defs/astronaut.yaml:tasks.image.latest.output}` 语法实现资产与分镜的视觉联动。
+
+## 2. 供应商详情 (AIGC Provider Details)
+
+Mangou 是一款解耦的软件，通过在 YAML 中指定 `provider`，可以使用不同供应商。Agent 在构建 YAML `tasks` 任务时，应严格参考以下各供应商的模型名、必填参数与特有字段。
+
+详见：
+- **[BLTAI (ID: bltai)](provider-bltai.md)**: 默认低延迟供应商。支持 `nano-banana`, `doubao-...`。
+- **[KIE AI (ID: kie)](provider-kie.md)**: 高性能、大模型供应商。支持 `nano-banana-2`, `nano-banana-edit`, `v1-pro-fast-...`。
+
+---
+
+## 3. 在 YAML 中定义任务 (Task Structure)
+
+Agent 在创建 YAML 文件时，可以在 `tasks` 键下指定 `provider`：
+
+```yaml
+tasks:
+  image:
+    provider: "kie"                 # 显式指定使用的供应商 ID
+    params:
+      model: "nano-banana-2"        # 对应供应商的模型标识
+      prompt: "一位穿着宇航服的少女"
+      aspect_ratio: "16:9"          # KIE 特有的比例参数
+      resolution: "1K"              # KIE 特有的画质参数
 ```
 
-- **执行前检查**：如果 `BLTAI_API_KEY` 为空，Agent 应先提示用户完成配置，再执行 `agent-generate.mjs`。
+## 4. 环境变量同步
 
-## 资产 YAML 回填规范 (Asset Back-fill)
-- **回填真相源**：生成的资产图（角色基准、场景背景、关键道具）必须及时同步回填到 `asset_defs/` 目录下的 YAML 文件中。
-- **YAML 字段更新**：在 `tasks.image.latest` 中记录 `status: success` 和 `output.files` 路径。
-- **引用关系**：后续分镜引用这些资产图时，路径应为 `projects/<projectId>/assets/images/...`。
+开发者或用户需在 `.env.local` 文件中配置 API KEY：
 
-## AIGC 提供商扩展接口 (Provider Extension)
-- **标准接口规范**：所有 AIGC 任务均通过 Provider 接口处理。
-- **核心方法**：
-    - `buildPayload`：从任务参数（Prompt, Images 等）构建特定 Provider 的请求体。
-    - `submit`：提交生成任务，返回 `upstream_task_id`。
-    - `poll`：周期性轮询任务状态。
-    - `extractOutputs`：任务完成后，将 Provider 返回的产物（URL 或 base64）保存为本地文件。
-- **Provider 实例**：目前已内置了 `BLTAI`（默认）等提供商。后续如需接入 Midjourney, Stable Diffusion 等新渠道，只需实现上述接口并注册到 Registry。
-- **YAML 联动引用**：在 `tasks.image.params.images` 中，支持直接填入资产 YAML 路径（例如 `projects/demo/asset_defs/chars/hero.yaml`）。脚本会自动递归解析该 YAML，提取其 `latest.output` 图片路径。
+```env
+# 核心设置
+MANGOU_AIGC_PROVIDER=bltai    # 未在 YAML 中指定时的全局默认值
+
+# 提供商密钥
+BLTAI_API_KEY=xxx
+KIE_API_KEY=xxx
+```
+
+---
+
+## 5. Agent 自动化原则 (Agent Rule)
+
+1. **先读再写**: 在生成新任务前，先读取对应的 `provider-*.md` 了解参数规范。
+2. **精准回填**: 确保 `model` 名与文档完全一致，不要凭空猜测模型名。
+3. **静默上传**: 在调用基于 `kie` 的视频模型时，Agent 只需要提供本地图片路径，底层的 `KIE_PROVIDER` 逻辑会自动先行处理二进制上传。

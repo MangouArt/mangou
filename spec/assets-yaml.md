@@ -58,7 +58,9 @@ content:
   reference_images: []
 tasks:
   image:
+    provider: "bltai"  # 可选：指定 AIGC 服务商 (bltai | kie)
     params:
+      model: "nano-banana"
       prompt: Modern astronaut character design...
       aspect_ratio: "1:1"
     latest:

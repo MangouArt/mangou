@@ -25,7 +25,7 @@ disable-model-invocation: true
 - `init-workspace.mjs`：初始化 Mangou 工作区骨架和根目录必需文件。
 - `create-project.mjs`：在 `projects/<projectId>/` 下创建项目。参数固定使用 `--project`。
 - `start-web.mjs` / `stop-web.mjs` / `web-status.mjs`：本地可视化 Web 服务控制。
-- `agent-generate.mjs`：读取 YAML 并执行图片/视频生成（支持 Provider 扩展与 YAML 联动引用）。
+- `agent-generate.mjs`：读取 YAML 并执行图片/视频生成（支持 Provider 扩展、YAML 级 `provider` 指定与联动引用）。
 - `agent-stitch.mjs`：将已生成的视频素材拼接成最终输出。
 - `split-grid.mjs`：处理 2x2, 3x3, 4x4, 5x5 宫格的物理切分与 YAML 回填。
 
@@ -44,7 +44,7 @@ disable-model-invocation: true
 1.  **[导演思维 (knowledge/director.md)]**：确立了原始剧本保留规则（`story` 字段必须原封不动），明确了空间位次与视线一致性标准。
 2.  **[提示词工程 (knowledge/prompts.md)]**：确立了 `[主体/环境/走位/风格]` 的结构化提示词标准。引入了角色锁定索引 (`image1 是 角色A`) 机制。
 3.  **[一致性策略 (knowledge/consistency.md)]**：引入 NxM 宫格策略。规定在生成密集宫格前必须与用户确认，并支持视觉连续性继承（引用上一镜生成图）。
-4.  **[资产管理 (knowledge/assets.md)]**：定义了资产 YAML 回填规范、BLTAI 默认接入方式及 AIGC 提供商扩展接口。支持在 YAML 中直接引用其他资产 YAML。
+4.  **[资产管理 (knowledge/assets.md)]**：定义了资产 YAML 回填规范、BLTAI 与 KIE 接入方式及 AIGC 提供商扩展接口。支持在 YAML 任务中使用 `provider` 字段覆盖系统默认设置。
 
 ## 强制执行策略 (Mandatory Policies)
 

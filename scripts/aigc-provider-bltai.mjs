@@ -39,6 +39,9 @@ export const BLTAI_PROVIDER = {
       if (params.aspect_ratio) {
         payload.aspect_ratio = params.aspect_ratio;
       }
+      if (params.image_size) {
+        payload.image_size = params.image_size;
+      }
       if (Array.isArray(params.images) && params.images.length > 0) {
         payload.image = params.images;
       } else if (params.image) {

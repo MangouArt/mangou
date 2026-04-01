@@ -356,8 +356,17 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
 
   const absoluteYamlPath = path.resolve(process.cwd(), yamlArg);
   const { workspaceRoot, projectId, projectPath, projectRoot, yamlPath } = await inferContext(absoluteYamlPath);
+  
+  const raw = await fs.readFile(absoluteYamlPath, 'utf-8');
+  const doc = yaml.load(raw);
+  const taskConfig = doc?.tasks?.[type];
+  if (!taskConfig?.params || typeof taskConfig.params !== 'object') {
+    throw new Error(`Missing tasks.${type}.params in ${yamlArg}`);
+  }
+
   const origin = resolveWebOrigin();
-  const providerToUse = provider || getAIGCProvider(process.env.MANGOU_AIGC_PROVIDER || 'bltai');
+  const providerId = taskConfig.provider || process.env.MANGOU_AIGC_PROVIDER || 'bltai';
+  const providerToUse = provider || getAIGCProvider(providerId);
   const workspaceConfig = await readWorkspaceConfig(workspaceRoot);
   const { apiKey, baseUrl } = resolveProviderEnv(
     providerToUse,
@@ -367,14 +376,6 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
   if (!apiKey) {
     throw new Error(`Missing ${providerToUse.env.apiKey}`);
   }
-
-  const raw = await fs.readFile(absoluteYamlPath, 'utf-8');
-  const doc = yaml.load(raw);
-  const taskConfig = doc?.tasks?.[type];
-  if (!taskConfig?.params || typeof taskConfig.params !== 'object') {
-    throw new Error(`Missing tasks.${type}.params in ${yamlArg}`);
-  }
-
   const isStoryboard = yamlPath.startsWith('storyboards/');
   const params = { ...taskConfig.params };
   const scope = providerToUse.scopes?.[type] || (type === 'image' ? 'images' : 'videos');
