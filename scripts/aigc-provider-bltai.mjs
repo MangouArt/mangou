@@ -16,6 +16,23 @@ function normalizeBaseUrl(baseUrl) {
   return normalized;
 }
 
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  let lastError;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (err) {
+      lastError = err;
+      console.error(`[bltai] fetch failed (attempt ${i + 1}/${maxRetries}): ${err.message}`);
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 export const BLTAI_PROVIDER = {
   ...AIGC_PROVIDER_TEMPLATE,
   id: 'bltai',
@@ -65,10 +82,6 @@ export const BLTAI_PROVIDER = {
         ? params.images.filter(Boolean)
         : (params.images ? [params.images] : []);
       
-      if (images.length === 0) {
-        throw new Error(`[bltai] Missing required input: 'images' or 'image_url' is required for video generation`);
-      }
-
       const payload = {
         model,
         prompt,
@@ -78,15 +91,25 @@ export const BLTAI_PROVIDER = {
       if (params.ratio || params.aspect_ratio) {
         payload.ratio = params.ratio || params.aspect_ratio;
       }
+      if (params.resolution) {
+        payload.resolution = params.resolution;
+      }
       return payload;
     }
     return params;
   },
-  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetch }) {
+  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }) {
     const normalizedBase = normalizeBaseUrl(baseUrl);
     const endpoint = scope === 'images'
       ? joinUrl(normalizedBase, 'v1', 'images', 'generations')
       : joinUrl(normalizedBase, 'v2', 'videos', 'generations');
+
+    const loggedPayload = {
+      ...payload,
+      images: payload.images?.map(img => typeof img === 'string' && img.startsWith('data:') ? img.substring(0, 100) + '...' : img),
+      image_url: payload.image_url ? (payload.image_url.startsWith('data:') ? payload.image_url.substring(0, 100) + '...' : payload.image_url) : undefined
+    };
+    console.error(`[bltai] Submit payload for ${scope}:`, JSON.stringify(loggedPayload, null, 2));
 
     const response = await fetchImpl(endpoint, {
       method: 'POST',
@@ -98,6 +121,8 @@ export const BLTAI_PROVIDER = {
     });
 
     const data = await response.json();
+    console.error(`[bltai] Submit response for ${scope}:`, JSON.stringify(data, null, 2));
+
     if (!response.ok) {
       throw new Error(`Submit failed: ${response.status} ${JSON.stringify(data)}`);
     }
@@ -113,7 +138,7 @@ export const BLTAI_PROVIDER = {
     }
     return taskId;
   },
-  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetch }) {
+  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }) {
     if (taskId && typeof taskId === 'object' && taskId.instantData) {
       return taskId.instantData;
     }
@@ -137,6 +162,8 @@ export const BLTAI_PROVIDER = {
       }
 
       const data = await response.json();
+      console.error(`[bltai] Poll response for ${taskId}:`, JSON.stringify(data, null, 2));
+
       const rawStatus = data.status || data.state || data.task_status || data.data?.status || data.task?.status || '';
       const statusStr = String(rawStatus).toUpperCase();
       
@@ -159,6 +186,7 @@ export const BLTAI_PROVIDER = {
     }
   },
   extractOutputs(scope, result) {
+    console.error(`[bltai] Extracting outputs from ${scope}:`, JSON.stringify(result, null, 2));
     if (scope === 'images') {
       const records = result?.data?.data || result?.data || [];
       return records.map((item) => item.url).filter(Boolean);

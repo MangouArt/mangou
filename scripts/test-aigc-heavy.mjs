@@ -62,7 +62,7 @@ async function run() {
     },
     content: 'A detailed 3D render of a cute yellow mango character wearing sunglasses on a beach.',
     params: {
-      prompt: 'A cute yellow mango character wearing sunglasses on a sunny beach, 3D render, Pixar style, high quality.',
+      prompt: 'cat',
       negative_prompt: 'blurry, low quality, distorted anatomy, text, watermark',
       width: 1024,
       height: 1024,
@@ -71,8 +71,8 @@ async function run() {
       image: {
         provider: provider,
         params: {
-          model: provider === 'kie' ? 'nano-banana-2' : undefined,
-          prompt: 'A cute yellow mango character wearing sunglasses on a sunny beach, 3D render, Pixar style, high quality.',
+          model: provider === 'kie' ? 'nano-banana-2' : 'nano-banana',
+          prompt: 'cat',
           width: 512,
           height: 512,
           steps: 20
@@ -81,8 +81,8 @@ async function run() {
       video: {
         provider: provider,
         params: {
-          model: provider === 'kie' ? 'bytedance/v1-pro-fast-image-to-video' : undefined,
-          prompt: 'The mango character smiles and waves at the camera.',
+          model: provider === 'kie' ? 'bytedance/v1-pro-fast-image-to-video' : 'doubao-seedance-1-0-pro-250528',
+          prompt: 'mango waving',
           image_url: '{{tasks.image.latest.output}}',
           duration: 5,
           resolution: '720p'
@@ -130,7 +130,7 @@ async function run() {
   }
   console.log(`📸 Found ${imageFiles.length} generated images:`, imageFiles);
 
-  // 8. Run Video Generation (uses the image output from the YAML)
+  /* Skip video generation for now as requested
   console.log('🎬 Generating VIDEO (this may take several minutes)...');
   try {
     const videoOutput = execFileSync('node', [generateScript, storyboardPath, 'video', '--debug'], {
@@ -145,24 +145,16 @@ async function run() {
     console.error('STDERR:', err.stderr);
     process.exit(1);
   }
+  */
+  console.log('🚧 Video generation skipped (upstream API issues).');
 
-  // 9. Verify Video Downloaded
-  const videoAssetsDir = path.join(projectRoot, 'assets', 'videos');
-  const videoFiles = await fs.readdir(videoAssetsDir);
-  if (videoFiles.length === 0) {
-    throw new Error('No video was downloaded to assets/videos');
-  }
-  console.log(`🎥 Found ${videoFiles.length} generated videos:`, videoFiles);
-
-  // 10. Check YAML update
+  // 9. Verify Image Downloaded (Verified in step 7, but double check in YAML)
   const updatedYaml = yaml.load(await fs.readFile(storyboardPath, 'utf-8'));
   console.log('📊 Task Status Check:');
   console.log(`   Image Status: ${updatedYaml.tasks?.image?.latest?.status}`);
-  console.log(`   Video Status: ${updatedYaml.tasks?.video?.latest?.status}`);
   
-  if (updatedYaml.tasks?.image?.latest?.status !== 'completed' || 
-      updatedYaml.tasks?.video?.latest?.status !== 'completed') {
-    throw new Error('One or more tasks did not finish with "completed" status in YAML');
+  if (updatedYaml.tasks?.image?.latest?.status !== 'completed') {
+    throw new Error('Image task did not finish with "completed" status in YAML');
   }
 
   // 11. Optional Cleanup

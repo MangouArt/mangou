@@ -154,7 +154,15 @@ export const KIE_PROVIDER = {
   async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }) {
     // Deep clone payload to avoid mutating original
     const finalPayload = JSON.parse(JSON.stringify(payload));
-    console.error(`[kie] Submit payload for ${scope}:`, JSON.stringify(finalPayload, null, 2));
+    const loggedPayload = {
+      ...finalPayload,
+      input: {
+        ...finalPayload.input,
+        image_url: finalPayload.input?.image_url?.startsWith('data:') ? finalPayload.input.image_url.substring(0, 100) + '...' : finalPayload.input?.image_url,
+        image_urls: finalPayload.input?.image_urls?.map(url => url.startsWith('data:') ? url.substring(0, 100) + '...' : url)
+      }
+    };
+    console.error(`[kie] Submit payload for ${scope}:`, JSON.stringify(loggedPayload, null, 2));
 
     // Handle file uploads for KIE
     if (scope === 'videos') {
