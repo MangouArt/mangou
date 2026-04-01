@@ -22,7 +22,7 @@ disable-model-invocation: true
 
 从 `${CLAUDE_SKILL_DIR}/scripts/` 里选择合适的 bundled script。每个脚本都有单一明确的职责：
 
-- `init-workspace.mjs`：初始化 Mangou 工作区骨架和根目录必需文件。
+- `init-workspace.mjs`：初始化 Mangou 工作区骨架和根目录必需文件。**初始化后请务必在工作区根目录执行 `npm install` 以安装必要依赖（如 `sharp`）。**
 - `create-project.mjs`：在 `projects/<projectId>/` 下创建项目。参数固定使用 `--project`。
 - `start-web.mjs` / `stop-web.mjs` / `web-status.mjs`：本地可视化 Web 服务控制。
 - `agent-generate.mjs`：读取 YAML 并执行图片/视频生成（支持 Provider 扩展、YAML 级 `provider` 指定与联动引用）。
