@@ -1,6 +1,10 @@
 import { BLTAI_PROVIDER } from './aigc-provider-bltai.mjs';
+import { KIE_PROVIDER } from './aigc-provider-kie.mjs';
 
-const PROVIDERS = new Map([[BLTAI_PROVIDER.id, BLTAI_PROVIDER]]);
+const PROVIDERS = new Map([
+  [BLTAI_PROVIDER.id, BLTAI_PROVIDER],
+  [KIE_PROVIDER.id, KIE_PROVIDER],
+]);
 
 export function registerAIGCProvider(provider) {
   if (!provider || typeof provider !== 'object') {
