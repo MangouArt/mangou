@@ -63,6 +63,14 @@ graph TD
 - **[任务追踪与真相源](knowledge/tasks.md)**: `tasks.jsonl` 的 Schema 与状态回填逻辑。
 - **[供应商模型参数 (BLTAI)](knowledge/provider-bltai.md)**: 获取 `nano-banana` 等核心模型名。
 - **[供应商模型参数 (KIE AI)](knowledge/provider-kie.md)**: 获取高性能模型与视频生成参数。
+- **[商业化计费与充值](knowledge/billing.md)**: 了解如何登录、查询余额及支付宝充值。
+
+## 商业化支持 (Commercialization)
+
+Agent 应引导用户通过以下命令管理账户：
+- **登录**: `login-email <email>` 发送验证码，`login-verify <email> <code>` 完成登录。
+- **充值**: `recharge` 获取支付二维码。
+- **余额**: `balance` 查看当前 Gems 剩余。
 
 ## 执行规范 (Strict Policies)
 
