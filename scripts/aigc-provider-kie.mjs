@@ -10,27 +10,38 @@ function joinUrl(base, ...parts) {
 }
 
 async function uploadToKie(apiKey, dataUrl, fetchImpl = fetch) {
-  const uploadBaseUrl = 'https://kieai.redpandaai.co';
-  const endpoint = joinUrl(uploadBaseUrl, 'api/file-base64-upload');
+  const uploadBaseUrl = 'https://api.kie.ai';
+  const endpoint = joinUrl(uploadBaseUrl, 'api/file-stream-upload');
+
+  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches) {
+    throw new Error('Invalid Data URL: expected data:<mime>;base64,<data>');
+  }
+
+  const mimeType = matches[1];
+  const base64Data = matches[2];
+  const buffer = Buffer.from(base64Data, 'base64');
+  const blob = new Blob([buffer], { type: mimeType });
+
+  const formData = new FormData();
+  // Using 'image.png' as default filename; the server will accept it or overwrite based on content
+  formData.append('file', blob, 'upload.png');
+  formData.append('uploadPath', 'mangou-uploads');
 
   const response = await fetchImpl(endpoint, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      base64Data: dataUrl,
-      uploadPath: 'mangou-uploads',
-    }),
+    body: formData,
   });
 
   const result = await response.json();
   if (!response.ok || !result.success) {
-    throw new Error(`KIE upload failed: ${response.status} ${JSON.stringify(result)}`);
+    throw new Error(`KIE stream upload failed: ${response.status} ${JSON.stringify(result)}`);
   }
 
-  return result.data.fileUrl;
+  return result.data.downloadUrl;
 }
 
 export const KIE_PROVIDER = {
@@ -47,19 +58,30 @@ export const KIE_PROVIDER = {
     video: 'videos',
   },
   buildPayload(scope, params) {
-    // Note: buildPayload is now mainly for structuring.
-    // The actual URL replacement happens in submit because it requires async upload.
+    const prompt = (params.prompt || '').trim();
+    if (!prompt) {
+      throw new Error(`[kie] Missing required parameter: 'prompt'`);
+    }
+
+    const model = params.model;
+    if (!model) {
+      throw new Error(`[kie] Missing required parameter: 'model'. Please specify a valid model in tasks.${scope}.params.model`);
+    }
+
     if (scope === 'videos') {
       const images = Array.isArray(params.images)
         ? params.images.filter(Boolean)
-        : (params.images ? [params.images] : []);
-      const imageUrl = params.image_url || images[0] || params.image;
+        : (params.images ? [params.images] : (params.image_url ? [params.image_url] : (params.image ? [params.image] : [])));
+      
+      if (images.length === 0) {
+        throw new Error(`[kie] Missing required input: 'images' or 'image_url' is required for video generation`);
+      }
 
       return {
-        model: params.model || 'bytedance/v1-pro-fast-image-to-video',
+        model,
         input: {
-          prompt: params.prompt || '',
-          image_url: imageUrl,
+          prompt,
+          images,
           resolution: params.resolution || '720p',
           duration: String(params.duration || '5'),
           nsfw_checker: params.nsfw_checker !== undefined ? params.nsfw_checker : true,
@@ -68,16 +90,15 @@ export const KIE_PROVIDER = {
     }
 
     if (scope === 'images') {
-      const model = params.model || 'nano-banana-2';
       const images = Array.isArray(params.images)
         ? params.images.filter(Boolean)
         : (params.images ? [params.images] : []);
 
-      if (model === 'nano-banana' || model === 'nano-banana-2') {
+      if (model === 'nano-banana' || model === 'nano-banana-2' || model === 'nano-banana-v1' || model === 'nano-banana-v2') {
         return {
           model,
           input: {
-            prompt: params.prompt || '',
+            prompt,
             image_input: images.length > 0 ? images : undefined,
             aspect_ratio: params.aspect_ratio || params.ratio || 'auto',
             resolution: params.resolution || '1K',
@@ -87,16 +108,28 @@ export const KIE_PROVIDER = {
       }
 
       if (model === 'google/nano-banana-edit') {
+        if (images.length === 0) {
+          throw new Error(`[kie] Missing required input: 'images' is required for an 'edit' model`);
+        }
         return {
           model,
           input: {
-            prompt: params.prompt || '',
-            image_urls: images.length > 0 ? images : undefined,
+            prompt,
+            image_urls: images,
             output_format: params.output_format || 'png',
             image_size: params.aspect_ratio || params.ratio || params.image_size || '1:1',
           },
         };
       }
+      
+      // Fallback for custom/new models with basic input structure
+      return {
+        model,
+        input: {
+            prompt,
+            images,
+        },
+      };
     }
 
     return params;
@@ -107,10 +140,12 @@ export const KIE_PROVIDER = {
 
     // Handle file uploads for KIE
     if (scope === 'videos') {
-      const imageUrl = finalPayload.input?.image_url;
-      if (imageUrl && imageUrl.startsWith('data:')) {
-        console.error('[kie] Uploading image to KIE...');
-        finalPayload.input.image_url = await uploadToKie(apiKey, imageUrl, fetchImpl);
+      const images = finalPayload.input?.images || [];
+      for (let i = 0; i < images.length; i++) {
+        if (images[i] && images[i].startsWith('data:')) {
+          console.error(`[kie] Uploading video ref image ${i + 1} to KIE...`);
+          images[i] = await uploadToKie(apiKey, images[i], fetchImpl);
+        }
       }
     } else if (scope === 'images') {
       const model = finalPayload.model;

@@ -92,6 +92,7 @@ describe('AIGC provider registry', () => {
     const provider = getAIGCProvider('bltai');
     const payload = provider.buildPayload('videos', {
       prompt: 'camera push in',
+      model: 'doubao-seedance-1-0-pro-fast-251015',
       images: ['assets/images/a.png', 'assets/images/b.png'],
     });
 
