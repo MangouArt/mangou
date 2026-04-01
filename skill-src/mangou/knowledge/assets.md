@@ -1,55 +1,59 @@
-# 资产管理与 AIGC 供应商 (Assets & Providers)
+# 资产定义 YAML 规范 (Asset Specification)
 
-本模块描述了如何定义和生成 Manga AIGC 资产，以及通过 YAML 指定服务商。
+本文件描述了角色、场景及道具资产的定义标准及其在 AIGC 流水线中的作用。
 
-## 1. 资产引用与路径 (Core Asset Paths)
+## 1. 资产分类与路径
 
-- **物理存储**: 产物统一存放于 `<project-root>/assets/` 下的 `images/` 和 `videos/`。
-- **YAML 引用**: 在分镜或资产 YAML 中，通过相对路径引用，例如 `assets/images/astronaut.png`。
-- **动态引用**: 使用 `${asset_defs/astronaut.yaml:tasks.image.latest.output}` 语法实现资产与分镜的视觉联动。
+资产定义文件按类型存放于：
+- `asset_defs/chars/`: 角色定义。
+- `asset_defs/scenes/`: 场景定义。
+- `asset_defs/props/`: 道具/物品定义。
 
-## 2. 供应商详情 (AIGC Provider Details)
+所有资产生成产物统一存放在 `assets/` 目录下。
 
-Mangou 是一款解耦的软件，通过在 YAML 中指定 `provider`，可以使用不同供应商。Agent 在构建 YAML `tasks` 任务时，应严格参考以下各供应商的模型名、必填参数与特有字段。
+## 2. 结构定义
 
-详见：
-- **[BLTAI (ID: bltai)](provider-bltai.md)**: 默认低延迟供应商。支持 `nano-banana`, `doubao-...`。
-- **[KIE AI (ID: kie)](provider-kie.md)**: 高性能、大模型供应商。支持 `nano-banana-2`, `nano-banana-edit`, `v1-pro-fast-...`。
+### 2.1 meta
+- `id` (必需): 资产的唯一标识符（如 `mangou-girl`）。
+- `type` (必需): `character`, `scene`, 或 `prop`。
+- `version`: 当前建议为 `"1.0"`。
 
----
+### 2.2 content
+- `name`: 资产显示的中文名称。
+- `name_en`: 方便 AIGC 使用的英文名称。
+- `description`: 资产的基础描述。
+- `appearance`: 具体的视觉外貌特征描述。
+- `setting`: 环境或性格设定。
 
-## 3. 在 YAML 中定义任务 (Task Structure)
+### 2.3 tasks
+资产可直接承载 AIGC 任务，用于生成视觉基准（Key Visual）。
+- 结构与分镜 YAML 一致，包含 `params` 和 `latest`。
+- 建议先生成资产基准图，并在分镜 YAML 中通过路径引用该图。
 
-Agent 在创建 YAML 文件时，可以在 `tasks` 键下指定 `provider`：
+## 3. 业务规则
+
+1. **视觉一致性原则**: 推荐先通过资产 YAML 的 `tasks.image` 生成稳定的角色/场景原画，记录在 `assets/` 下。
+2. **解耦存储**: `asset_defs/` 仅存放配置文件，严禁将生成的图片或大型二进制文件放入此目录。
+3. **引用链条**: 在分镜 YAML (`storyboards/*.yaml`) 中引用资产时，应在 `content.characters` 标注 ID，并手动将资产的 `latest.output` 图片路径填入分镜任务的 `params.images`。
+
+## 4. 示例 (角色资产)
 
 ```yaml
+meta:
+  id: "hero-lee"
+  type: "character"
+  version: "1.0"
+content:
+  name: "李英雄"
+  name_en: "Hero Lee"
+  appearance: "黑色短发，穿着银色轻型动力装甲，眼神坚定。"
 tasks:
   image:
-    provider: "kie"                 # 显式指定使用的供应商 ID
+    provider: "bltai"
     params:
-      model: "nano-banana-2"        # 对应供应商的模型标识
-      prompt: "一位穿着宇航服的少女"
-      aspect_ratio: "16:9"          # KIE 特有的比例参数
-      resolution: "1K"              # KIE 特有的画质参数
+      model: "nano-banana-2"
+      prompt: "Character concept art, a brave warrior in silver armor, white background."
+    latest:
+      status: "completed"
+      output: "assets/images/hero-lee-ref.png"
 ```
-
-## 4. 环境变量同步
-
-开发者或用户需在 `.env.local` 文件中配置 API KEY：
-
-```env
-# 核心设置
-MANGOU_AIGC_PROVIDER=bltai    # 未在 YAML 中指定时的全局默认值
-
-# 提供商密钥
-BLTAI_API_KEY=xxx
-KIE_API_KEY=xxx
-```
-
----
-
-## 5. Agent 自动化原则 (Agent Rule)
-
-1. **先读再写**: 在生成新任务前，先读取对应的 `provider-*.md` 了解参数规范。
-2. **精准回填**: 确保 `model` 名与文档完全一致，不要凭空猜测模型名。
-3. **静默上传**: 在调用基于 `kie` 的视频模型时，Agent 只需要提供本地图片路径，底层的 `KIE_PROVIDER` 逻辑会自动先行处理二进制上传。
