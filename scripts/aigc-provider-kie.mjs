@@ -9,8 +9,8 @@ function joinUrl(base, ...parts) {
   return normalizedPath ? `${normalizedBase}/${normalizedPath}` : normalizedBase;
 }
 
-async function uploadToKie(apiKey, dataUrl, fetchImpl = fetch) {
-  const uploadBaseUrl = 'https://api.kie.ai';
+async function uploadToKie(apiKey, dataUrl, fetchImpl = fetchWithRetry) {
+  const uploadBaseUrl = 'https://kieai.redpandaai.co';
   const endpoint = joinUrl(uploadBaseUrl, 'api/file-stream-upload');
 
   const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
@@ -42,6 +42,23 @@ async function uploadToKie(apiKey, dataUrl, fetchImpl = fetch) {
   }
 
   return result.data.downloadUrl;
+}
+
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  let lastError;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (err) {
+      lastError = err;
+      console.error(`[kie] fetch failed (attempt ${i + 1}/${maxRetries}): ${err.message}`);
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
 }
 
 export const KIE_PROVIDER = {
@@ -81,7 +98,7 @@ export const KIE_PROVIDER = {
         model,
         input: {
           prompt,
-          images,
+          image_url: images[0] || '', // KIE expects single image_url string for this model
           resolution: params.resolution || '720p',
           duration: String(params.duration || '5'),
           nsfw_checker: params.nsfw_checker !== undefined ? params.nsfw_checker : true,
@@ -134,18 +151,17 @@ export const KIE_PROVIDER = {
 
     return params;
   },
-  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetch }) {
+  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }) {
     // Deep clone payload to avoid mutating original
     const finalPayload = JSON.parse(JSON.stringify(payload));
+    console.error(`[kie] Submit payload for ${scope}:`, JSON.stringify(finalPayload, null, 2));
 
     // Handle file uploads for KIE
     if (scope === 'videos') {
-      const images = finalPayload.input?.images || [];
-      for (let i = 0; i < images.length; i++) {
-        if (images[i] && images[i].startsWith('data:')) {
-          console.error(`[kie] Uploading video ref image ${i + 1} to KIE...`);
-          images[i] = await uploadToKie(apiKey, images[i], fetchImpl);
-        }
+      const imageUrl = finalPayload.input?.image_url;
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        console.error(`[kie] Uploading video ref image to KIE...`);
+        finalPayload.input.image_url = await uploadToKie(apiKey, imageUrl, fetchImpl);
       }
     } else if (scope === 'images') {
       const model = finalPayload.model;
@@ -180,6 +196,7 @@ export const KIE_PROVIDER = {
     });
 
     const data = await response.json();
+    console.error(`[kie] Submit response for ${scope}:`, JSON.stringify(data, null, 2));
     if (!response.ok) {
       throw new Error(`Submit failed: ${response.status} ${JSON.stringify(data)}`);
     }
@@ -190,7 +207,7 @@ export const KIE_PROVIDER = {
     }
     return taskId;
   },
-  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetch }) {
+  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }) {
     const endpoint = joinUrl(baseUrl, `api/v1/jobs/recordInfo?taskId=${taskId}`);
 
     const startedAt = Date.now();
@@ -207,6 +224,7 @@ export const KIE_PROVIDER = {
       }
 
       const data = await response.json();
+      console.error(`[kie] Poll response for ${taskId}:`, JSON.stringify(data, null, 2));
       const state = String(data.data?.state || '').toLowerCase();
 
       if (debug) {
