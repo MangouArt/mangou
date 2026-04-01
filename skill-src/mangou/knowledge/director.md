@@ -1,6 +1,7 @@
 # 导演思维 (Director Thinking)
 
 ## 剧本完整性 (Script Integrity)
+- **一 YAML 一 Shot**：每一个 `storyboards/*.yaml` 文件必须仅代表**物理上的一个分镜（Single Shot/Frame）**。根请求层级应直接包含 `meta`, `content`, `tasks` 等必需字段。
 - **严禁擅自改写**：Agent 在处理剧本时，严禁自行概括或“优化”原始剧情。
 - **原文存储**：在 `storyboards/*.yaml` 的 `content.story` 字段中，必须原封不动地存储剧本原文。这确保了 AIGC 生成时能理解原始语境，并为后续人工校对提供依据。
 

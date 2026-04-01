@@ -12,7 +12,7 @@ disable-model-invocation: true
 - 创建或维护项目目录结构
 - 启动或停止本地可视化 Web 服务
 - 检查 Web 服务状态
-- 编写或修改 `storyboards/*.yaml` 或 `asset_defs/*.yaml`
+- 编写或修改 `storyboards/*.yaml` 或 `asset_defs/*.yaml` (注：每个 YAML 仅限描述一个分镜)
 - 根据分镜 YAML 生成图片或视频
 - 将项目中的视频素材拼接成最终输出
 
@@ -60,6 +60,39 @@ disable-model-invocation: true
 - **工作区根目录**：由 `--workspace` 参数指定。
 - **项目根目录**：固定为 `<workspace-root>/projects/<projectId>/`。
 - **YAML 文件位置**：必须位于 `<project-root>/storyboards/` 或 `<project-root>/asset_defs/` 下。
-- **资产输出位置**：统一写入 `<project-root>/assets/`。
+- **YAML 核心结构**：每个文件必须是单一分镜对象。
+  - **分镜 (storyboards/*.yaml)**:
+    ```yaml
+    meta:
+      id: "s1"
+      type: "storyboard"
+      version: "1.0"
+    content:
+      sequence: 1
+      story: "剧情原文"
+      action: "画面动作描述"
+      scene: "场景说明"
+      duration: "4s"
+    tasks:
+      image:
+        provider: "bltai"
+        params:
+          prompt: "..."
+    ```
+  - **资产 (asset_defs/*.yaml)**:
+    ```yaml
+    meta:
+      id: "char-a"
+      type: "character"
+      version: "1.0"
+    content:
+      name: "角色名称"
+      description: "外貌与性格描述"
+    tasks:
+      image:
+        provider: "bltai"
+        params:
+          prompt: "..."
+    ```
 
-更多详细规范请参考 `spec/` 目录下的文档。
+更多详细规范请参考 `spec/` 目录下的文档，特别是 [故事分镜规范 (spec/storyboard-yaml.md)](spec/storyboard-yaml.md)。
