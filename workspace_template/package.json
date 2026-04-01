@@ -1,0 +1,12 @@
+{
+  "name": "mangou-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mangou AI Comic Workspace",
+  "scripts": {
+    "install:deps": "npm install sharp --no-save"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
+  }
+}
