@@ -18,7 +18,7 @@ describe('KIE AI Provider', () => {
       model: 'bytedance/v1-pro-fast-image-to-video',
       input: {
         prompt: 'A cinematic coffee pour',
-        images: ['https://example.com/image.png'],
+        image_url: 'https://example.com/image.png',
         resolution: '720p',
         duration: '5',
         nsfw_checker: true
@@ -205,7 +205,7 @@ describe('KIE AI Provider', () => {
         model: 'test-video-model',
         input: { 
           prompt: 'test',
-          images: ['data:image/png;base64,xxxx'] 
+          image_url: 'data:image/png;base64,xxxx' 
         }
       },
       fetchImpl

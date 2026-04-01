@@ -73,8 +73,26 @@ export function resolveResumeTaskId(taskConfig) {
   return taskId;
 }
 
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  let lastError;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (err) {
+      lastError = err;
+      log(`fetch failed (attempt ${i + 1}/${maxRetries}): ${err.message}`);
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 export async function downloadFile(url, targetPath) {
-  const response = await fetch(url);
+  log(`Downloading asset: ${url}`);
+  const response = await fetchWithRetry(url);
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
@@ -430,17 +448,21 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
   let submitResult;
 
   if (!resuming) {
-    await upsertTask(origin, localTaskId, {
-      projectPath,
-      id: localTaskId,
-      type,
-      status: 'processing',
-      provider: providerToUse.id,
-      input: params,
-      ref: { yamlPath, taskType: type },
-      worker: 'mangou',
-      event: 'submitted',
-    });
+    try {
+      await upsertTask(origin, localTaskId, {
+        projectPath,
+        id: localTaskId,
+        type,
+        status: 'processing',
+        provider: providerToUse.id,
+        input: params,
+        ref: { yamlPath, taskType: type },
+        worker: 'mangou',
+        event: 'submitted',
+      });
+    } catch {
+      // best effort
+    }
   }
 
   try {
@@ -458,17 +480,21 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
       });
       upstreamTaskId = typeof submitResult === 'string' ? submitResult : localTaskId;
 
-      await upsertTask(origin, localTaskId, {
-        projectPath,
-        upstreamTaskId,
-        type,
-        status: 'processing',
-        provider: providerToUse.id,
-        input: params,
-        ref: { yamlPath, taskType: type },
-        worker: 'mangou',
-        event: 'accepted',
-      }, 'PATCH');
+      try {
+        await upsertTask(origin, localTaskId, {
+          projectPath,
+          upstreamTaskId,
+          type,
+          status: 'processing',
+          provider: providerToUse.id,
+          input: params,
+          ref: { yamlPath, taskType: type },
+          worker: 'mangou',
+          event: 'accepted',
+        }, 'PATCH');
+      } catch {
+        // best effort
+      }
 
       await updateYamlProjection(origin, {
         projectPath,
@@ -501,18 +527,22 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
     const finalOutputs = await materializeOutputs(projectRoot, yamlPath, type, upstreamTaskId, outputs);
     const primaryOutput = finalOutputs[0] || '';
 
-    await upsertTask(origin, localTaskId, {
-      projectPath,
-      upstreamTaskId,
-      type,
-      status: 'success',
-      provider: providerToUse.id,
-      input: params,
-      output: { urls: finalOutputs },
-      ref: { yamlPath, taskType: type },
-      worker: 'mangou',
-      event: 'completed',
-    }, 'PATCH');
+    try {
+      await upsertTask(origin, localTaskId, {
+        projectPath,
+        upstreamTaskId,
+        type,
+        status: 'success',
+        provider: providerToUse.id,
+        input: params,
+        output: { urls: finalOutputs },
+        ref: { yamlPath, taskType: type },
+        worker: 'mangou',
+        event: 'completed',
+      }, 'PATCH');
+    } catch {
+      // best effort
+    }
 
     await updateYamlProjection(origin, {
       projectPath,
@@ -539,18 +569,22 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
     const taskStatus = timeout ? 'processing' : 'failed';
     const event = timeout ? 'timeout' : 'failed';
 
-    await upsertTask(origin, localTaskId, {
-      projectPath,
-      upstreamTaskId,
-      type,
-      status: taskStatus,
-      provider: providerToUse.id,
-      input: params,
-      ref: { yamlPath, taskType: type },
-      error: { message },
-      worker: 'mangou',
-      event,
-    }, 'PATCH').catch(() => null);
+    try {
+      await upsertTask(origin, localTaskId, {
+        projectPath,
+        upstreamTaskId,
+        type,
+        status: taskStatus,
+        provider: providerToUse.id,
+        input: params,
+        ref: { yamlPath, taskType: type },
+        error: { message },
+        worker: 'mangou',
+        event,
+      }, 'PATCH').catch(() => null);
+    } catch {
+      // best effort
+    }
 
     await updateYamlProjection(origin, {
       projectPath,

@@ -176,7 +176,9 @@ export async function buildSkillBundle({
       sourcemap: false,
       logLevel: 'silent',
       define,
-      external: ['undici'],
+      banner: {
+        js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+      },
     });
 
     const bundledSource = await fs.readFile(outputPath, 'utf-8');
