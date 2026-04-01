@@ -16,6 +16,18 @@ import {
   normalizeWorkspaceRelativePath,
   readLocalMediaAsDataUrl,
 } from '../src/lib/agent/image-input.ts';
+import os from 'os';
+
+const BILLING_URL = process.env.BILLING_URL || 'http://localhost:8008';
+const TOKEN_PATH = path.join(os.homedir(), '.mangou', 'token');
+
+async function getAuthToken() {
+  try {
+    return await fs.readFile(TOKEN_PATH, 'utf-8');
+  } catch {
+    return null;
+  }
+}
 
 const proxyUrl =
   process.env.https_proxy ||
@@ -444,6 +456,53 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
     }
 
     const taskConfig = doc.tasks[type];
+
+    const authToken = await getAuthToken();
+    if (authToken && BILLING_URL) {
+      log(`Using Billing Proxy for ${type} task`, { provider: providerId });
+      try {
+        const response = await fetch(`${BILLING_URL}/v1/aigc/task`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            type,
+            provider: providerId,
+            params
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(`Billing Proxy Error: ${err.detail || response.statusText}`);
+        }
+
+        const proxyResult = await response.json();
+        const providerResponse = proxyResult.provider_response;
+        const outputs = providerToUse.extractOutputs(scope, providerResponse);
+        const finalOutputs = await materializeOutputs(projectRoot, yamlPath, type, crypto.randomUUID(), outputs);
+        const primaryOutput = finalOutputs[0] || '';
+
+        await updateYamlProjection({
+          projectRoot,
+          taskId: 'proxy-task',
+          status: 'completed',
+          output: primaryOutput,
+          yamlPath,
+          taskType: type,
+          docIndex,
+        });
+
+        log(`Completed ${type} task via Proxy`, { output: primaryOutput, remaining: proxyResult.remaining_balance });
+        continue; // Next document
+      } catch (proxyError) {
+        log(`Proxy Step Failed, falling back to direct (if allowed): ${proxyError.message}`);
+        // Optionally throw or fallback. Given consumer request, we probably should fail if proxy fails.
+        throw proxyError;
+      }
+    }
 
     const providerToUse = provider || getAIGCProvider(providerId);
     const workspaceConfig = await readWorkspaceConfig(workspaceRoot);
