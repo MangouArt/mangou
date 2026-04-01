@@ -54,7 +54,11 @@ export const BLTAI_PROVIDER = {
 
     const model = params.model;
     if (!model) {
-      throw new Error(`[bltai] Missing required parameter: 'model'. Please specify a valid model in tasks.${scope}.params.model`);
+      if (scope === 'images') {
+        throw new Error(`[bltai] 缺失 'model' 参数。可用图像模型: nano-banana, nano-banana-2。请在 YAML 的 tasks.image.params.model 中指定。`);
+      } else {
+        throw new Error(`[bltai] 缺失 'model' 参数。可用视频模型: doubao-seedance-1-0-pro-fast-251015, veo3.1-fast。请在 YAML 的 tasks.video.params.model 中指定。`);
+      }
     }
 
     if (scope === 'images') {

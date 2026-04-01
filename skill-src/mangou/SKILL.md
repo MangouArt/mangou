@@ -20,45 +20,32 @@ disable-model-invocation: true
 
 ## 核心能力入口 (Command Hub)
 
-从 `${CLAUDE_SKILL_DIR}/scripts/` 里选择合适的 bundled script。每个脚本都有单一明确的职责：
+从 `${CLAUDE_SKILL_DIR}/scripts/` 里选择合适的 bundled script 执行任务。推荐的**标准工作流 (Happy Path)** 如下：
 
-- `init-workspace.mjs`：初始化 Mangou 工作区骨架和根目录必需文件。**初始化后请务必在工作区根目录执行 `npm install` 以安装必要依赖（如 `sharp`）。**
-- `create-project.mjs`：在 `projects/<projectId>/` 下创建项目。参数固定使用 `--project`。
-- `start-web.mjs` / `stop-web.mjs` / `web-status.mjs`：本地可视化 Web 服务控制。
-- `agent-generate.mjs`：读取 YAML 并执行图片/视频生成（支持 Provider 扩展、YAML 级 `provider` 指定与联动引用）。
-- `agent-stitch.mjs`：将已生成的视频素材拼接成最终输出。
-- `split-grid.mjs`：处理 2x2, 3x3, 4x4, 5x5 宫格的物理切分与 YAML 回填。
+1.  **初始化**：运行 `init-workspace.mjs`。完成后执行 `npm install` 安装 `sharp` 等必需依赖。
+2.  **配置验证**：检查 `.env.local`。确保 `BLTAI_API_KEY` 已填入。
+3.  **创建项目**：通过 `create-project.mjs --project <id>` 建立目录结构。
+4.  **编写任务**：在 `projects/<id>/storyboards/` 下创建 YAML 文件。
+    - **必须**为每个分镜分配唯一的 `meta.id`。
+    - **必须**在 `tasks` 中指定 `model`（如 `bltai` 推荐使用 `nano-banana-2`）。
+5.  **执行生成**：运行 `agent-generate.mjs <path> <image|video>`。支持使用绝对路径或相对于当前目录 (CWD) 的相对路径。
+6.  **物理切分 (可选)**：若使用宫格生图，运行 `split-grid.mjs`。
+    - `--targets` 参数请提供相对于当前目录 (CWD) 的 YAML 路径列表。
+7.  **视频拼接**：运行 `agent-stitch.mjs` 合成全片。
 
-## Provider 配置前置条件
+## 核心脚本说明
 
-在调用 `agent-generate.mjs` 之前，先确认工作区里的 `.env.local` 已配置可用的 AIGC 提供商。
+- `init-workspace.mjs`：初始化工作区。
+- `create-project.mjs`：创建项目。使用 `--project` 指定 ID。
+- `agent-generate.mjs`：执行 AIGC 任务。**请确保 YAML 中已包含对应 Provider 的 `model` 参数。**
+- `split-grid.mjs`：自动化宫格切分。**请使用相对于 CWD 的明确路径。**
 
-当前默认提供商是 `BLTAI`。详细的注册、取 token 和环境变量填写方式统一以 [knowledge/assets.md](knowledge/assets.md) 为准。
+## 导演执行规范 (Strict Policies)
 
-如果 `BLTAI_API_KEY` 缺失，不要继续执行生成任务，先提醒用户完成配置。
-
-## 实战知识库 (Knowledge Hub)
-
-详细的生产实践经验和一致性策略已剥离到以下模块，**在动手前请务必阅读对应模块**：
-
-1.  **[导演思维 (knowledge/director.md)]**：确立了原始剧本保留规则（`story` 字段必须原封不动），明确了空间位次与视线一致性标准。
-2.  **[提示词工程 (knowledge/prompts.md)]**：确立了 `[主体/环境/走位/风格]` 的结构化提示词标准。引入了角色锁定索引 (`image1 是 角色A`) 机制。
-3.  **[一致性策略 (knowledge/consistency.md)]**：引入 NxM 宫格策略。规定在生成密集宫格前必须与用户确认，并支持视觉连续性继承（引用上一镜生成图）。
-4.  **[资产管理 (knowledge/assets.md)]**：定义了资产 YAML 回填规范、BLTAI 与 KIE 接入方式及 AIGC 提供商扩展接口。支持在 YAML 任务中使用 `provider` 字段覆盖系统默认设置。
-
-## 强制执行策略 (Mandatory Policies)
-
-1.  **Script-First**：优先执行 bundled scripts，不要手工重写 workspace/project 目录结构或 tasks.jsonl。
-2.  **真相源一致性**：`tasks.jsonl` 是任务状态唯一真相源，所有写入必须由脚本完成。
-3.  **剧本完整性**：严禁擅自改写剧本，必须在 YAML 中维持剧本原文的语境。
-4.  **视觉自检 (Self-Verification)**：若 Agent 具备 Vision 能力，必须主动读取生成后的产物图，并与 `story` 原文、`action` 描述进行对比，确保画面内容完整精确，没有出现逻辑跳变或现代元素干扰。
-5.  **负向约束持久化**：在 Prompt 中必须加入针对题材的负向约束管理，自动剔除 AI 生成中的现代干扰元素。
-6.  **Grid 策略确认**：在使用 Grid 技巧前必须统一询问用户采用何种规格（2x2, 3x3 等）。
-
-## 路径与结构约束
-
-- **工作区根目录**：由 `--workspace` 参数指定。
-- **项目根目录**：固定为 `<workspace-root>/projects/<projectId>/`。
+1.  **显式定义**：始终在 YAML 中明确 `meta.id` 和 `model`。对于 BLTAI 图像任务，推荐 `nano-banana-2`。
+2.  **路径确定性**：在执行脚本参数（如 `--targets`）时，始终提供相对于当前执行目录 (CWD) 的路径。
+3.  **脚本驱动**：始终通过 `scripts/` 下的工具维护 `tasks.jsonl` 和项目结构，确保数据一致性。
+4.  **真相源自考**：`tasks.jsonl` 是唯一真相源。生成失败时，请检查 YAML 中回填的 `error` 字段以获取详细的修复建议。
 - **YAML 文件位置**：必须位于 `<project-root>/storyboards/` 或 `<project-root>/asset_defs/` 下。
 - **YAML 核心结构**：每个文件必须是单一分镜对象。
   - **分镜 (storyboards/*.yaml)**:

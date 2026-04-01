@@ -359,6 +359,33 @@ function parseGenerationArgs(argv) {
   return args;
 }
 
+function validateTask(doc, docIndex, taskType, providerId) {
+  const id = doc.meta?.id || `(索引 ${docIndex})`;
+  
+  if (!doc.meta?.id) {
+    throw new Error(`YAML 错误: 文档索引 ${docIndex} 缺失 'meta.id'。每个分镜任务必须有唯一的 ID。`);
+  }
+  
+  const task = doc.tasks?.[taskType];
+  if (!task) {
+    throw new Error(`YAML 错误 (ID ${id}): 缺失 'tasks.${taskType}' 任务定义。`);
+  }
+  
+  if (!task.params || typeof task.params !== 'object') {
+    throw new Error(`YAML 错误 (ID ${id}): 'tasks.${taskType}.params' 必须是一个对象且包含必要参数。`);
+  }
+
+  if (providerId === 'bltai' || providerId === 'kie') {
+    if (!task.params.model) {
+      throw new Error(`YAML 错误 (ID ${id}): 使用 ${providerId} 时必须指定 'model' 参数。请检查 tasks.${taskType}.params.model。`);
+    }
+  }
+
+  if (!task.params.prompt && taskType === 'image') {
+    throw new Error(`YAML 错误 (ID ${id}): 任务缺失 'prompt' 描述。`);
+  }
+}
+
 export async function runAIGC(provider, argv = process.argv.slice(2)) {
   await loadDotEnv();
 
@@ -373,6 +400,11 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
   }
 
   const absoluteYamlPath = path.resolve(process.cwd(), yamlArg);
+  
+  if (!(await fileExists(absoluteYamlPath))) {
+    throw new Error(`无法找到 YAML 文件。尝试访问路径: ${absoluteYamlPath}\n请确认路径相对于当前工作目录 (CWD) 正确，且文件确实存在。`);
+  }
+
   const context = await inferContext(absoluteYamlPath, {
     projectRoot: overrideProjectRoot,
     workspaceRoot: overrideWorkspaceRoot,
@@ -394,13 +426,25 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
       log(`--- Document ${docIndex + 1}/${docs.length} ---`);
     }
 
-    const taskConfig = doc?.tasks?.[type];
-    if (!taskConfig?.params || typeof taskConfig.params !== 'object') {
-      log(`Warning: Skipping document ${docIndex + 1} - missing tasks.${type}.params`);
+    const providerId = doc.tasks?.[type]?.provider || process.env.MANGOU_AIGC_PROVIDER || 'bltai';
+
+    try {
+      validateTask(doc, docIndex, type, providerId);
+    } catch (validatorError) {
+      log(`[Doc ${docIndex}] Validation Error: ${validatorError.message}`);
+      await updateYamlProjection({
+        projectRoot,
+        yamlPath,
+        taskType: type,
+        status: 'failed',
+        error: validatorError.message,
+        docIndex,
+      });
       continue;
     }
 
-    const providerId = taskConfig.provider || process.env.MANGOU_AIGC_PROVIDER || 'bltai';
+    const taskConfig = doc.tasks[type];
+
     const providerToUse = provider || getAIGCProvider(providerId);
     const workspaceConfig = await readWorkspaceConfig(workspaceRoot);
     const { apiKey, baseUrl } = resolveProviderEnv(
