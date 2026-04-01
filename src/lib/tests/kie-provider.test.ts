@@ -160,4 +160,85 @@ describe('KIE AI Provider', () => {
     const urls = KIE_PROVIDER.extractOutputs('images', mockResult);
     expect(urls).toEqual(['https://example.com/img1.png']);
   });
+
+  it('extractOutputs should handle invalid JSON and log error', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const mockResult = {
+      resultJson: 'invalid-json'
+    };
+
+    const urls = KIE_PROVIDER.extractOutputs('images', mockResult);
+    expect(urls).toEqual([]);
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('submit should upload base64 images to KIE first', async () => {
+    const mockUploadResponse = {
+      success: true,
+      data: { fileUrl: 'https://cdn.kie.ai/uploaded.png' }
+    };
+    const mockSubmitResponse = {
+      code: 200,
+      data: { taskId: 'task-after-upload' }
+    };
+
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUploadResponse
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSubmitResponse
+      });
+
+    const taskId = await KIE_PROVIDER.submit({
+      baseUrl: 'https://api.kie.ai',
+      apiKey: 'test-key',
+      scope: 'videos',
+      payload: {
+        input: { image_url: 'data:image/png;base64,xxxx' }
+      },
+      fetchImpl
+    });
+
+    expect(taskId).toBe('task-after-upload');
+    expect(fetchImpl).toHaveBeenCalledWith(
+      expect.stringContaining('file-base64-upload'),
+      expect.any(Object)
+    );
+  });
+
+  it('poll should throw on timeout', async () => {
+    const mockPollResponse = {
+      code: 200,
+      data: { state: 'processing' }
+    };
+
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockPollResponse
+    });
+
+    // Mock Date.now to simulate timeout
+    const startTime = 1000;
+    const endTime = startTime + 31 * 60 * 1000; // Over 30 mins
+    let nowCalled = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => {
+      nowCalled++;
+      return nowCalled === 1 ? startTime : endTime;
+    });
+
+    await expect(KIE_PROVIDER.poll({
+      baseUrl: 'https://api.kie.ai',
+      apiKey: 'test-key',
+      scope: 'videos',
+      taskId: 'test-task-id',
+      timeoutMs: 30 * 60 * 1000,
+      fetchImpl
+    })).rejects.toThrow('Provider polling timeout');
+
+    vi.restoreAllMocks();
+  });
 });

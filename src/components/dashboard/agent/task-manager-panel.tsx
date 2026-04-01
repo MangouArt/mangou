@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ImageIcon, Video, CheckCircle, XCircle, Loader2, History } from 'lucide-react';
-import { DEFAULT_MODELS } from '@/lib/aigc/model-config';
+import { DEFAULT_MODELS } from '@/lib/aigc-config';
 
 interface TaskManagerPanelProps {
   projectId: string;

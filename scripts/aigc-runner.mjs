@@ -1,22 +1,23 @@
+import { fileURLToPath } from 'url';
 import path from 'path';
 import { appendTaskEvent, listLatestTasks } from './tasks-jsonl.mjs';
 
-function log(...args) {
+export function log(...args) {
   console.error('[aigc-runner]', ...args);
 }
 
-function getArg(name) {
+export function getArg(name) {
   const index = process.argv.indexOf(name);
   if (index === -1) return null;
   return process.argv[index + 1] || null;
 }
 
-function normalizeInput(input) {
+export function normalizeInput(input) {
   if (!input || typeof input !== 'object') return {};
   return input;
 }
 
-async function runTask(projectPath, task) {
+export async function runTask(projectPath, task, { fetchImpl = fetch } = {}) {
   const input = normalizeInput(task.input);
   const endpoint = input.endpoint;
   const method = (input.method || 'POST').toUpperCase();
@@ -48,7 +49,7 @@ async function runTask(projectPath, task) {
   }
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetchImpl(endpoint, {
       method,
       headers,
       body: method === 'GET' ? undefined : JSON.stringify(payload),
@@ -91,7 +92,7 @@ async function runTask(projectPath, task) {
   }
 }
 
-async function main() {
+export async function main() {
   const projectArg = getArg('--project');
   if (!projectArg) {
     log('Usage: node scripts/aigc-runner.mjs --project <project-path>');
@@ -114,8 +115,14 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  log('Runner failed:', error);
-  process.exit(1);
-});
+const isEntrypoint =
+  typeof process.argv[1] === 'string' &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  main().catch((error) => {
+    log('Runner failed:', error);
+    process.exit(1);
+  });
+}
 
