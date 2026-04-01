@@ -26,7 +26,7 @@ import {
   History,
   ExternalLink
 } from 'lucide-react';
-import { MODEL_OPTIONS, DEFAULT_MODELS, ASPECT_RATIO_OPTIONS } from '@/lib/aigc/model-config';
+import { MODEL_OPTIONS, DEFAULT_MODELS, ASPECT_RATIO_OPTIONS } from '@/lib/aigc-config';
 import { getTaskRefPath, normalizeHistoryTask } from '@/lib/task-history';
 
 interface ResourcePanelProps {

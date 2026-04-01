@@ -44,3 +44,12 @@ workspace/**/*.mp4
 workspace/**/*.mov
 workspace/**/*.avi
 workspace/**/*.mkv
+
+# Testing
+coverage/
+*-coverage.txt
+final-coverage.txt
+projects/
+coverage-output.txt
+*.txt
+projects.json
