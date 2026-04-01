@@ -13,6 +13,7 @@ const execFileAsync = promisify(execFile);
 const RUNTIME_SCRIPT_FILES = [
   'aigc-provider-template.mjs',
   'aigc-provider-bltai.mjs',
+  'aigc-provider-kie.mjs',
   'aigc-provider-registry.mjs',
   'aigc-runner.mjs',
   'agent-generate.mjs',
@@ -33,6 +34,7 @@ const RUNTIME_SCRIPT_FILES = [
 const RAW_SCRIPT_FILES = new Set([
   'aigc-provider-template.mjs',
   'aigc-provider-bltai.mjs',
+  'aigc-provider-kie.mjs',
   'agent-stitch.mjs',
   'create-project.mjs',
   'init-workspace.mjs',
@@ -129,6 +131,7 @@ export async function buildSkillBundle({
   const entries = [
     'aigc-provider-template.mjs',
     'aigc-provider-bltai.mjs',
+    'aigc-provider-kie.mjs',
     'http-server.mjs',
     'web-control.mjs',
     'init-workspace.mjs',
