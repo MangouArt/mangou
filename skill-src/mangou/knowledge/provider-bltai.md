@@ -2,6 +2,12 @@
 
 BLTAI 作为系统的默认服务商，提供了极其迅速的响应和极高的性价比。
 
+## 0. 注册与 API Key
+
+- **官方网站**: [https://bltcy.ai](https://bltcy.ai)
+- **获取 API Key**: [https://api.bltcy.ai/token](https://api.bltcy.ai/token)
+- **环境变量**: `BLTAI_API_KEY`, `BLTAI_BASE_URL`
+
 ## 1. 图像生成 (image.gen)
 
 用于生成资产的基础原画。

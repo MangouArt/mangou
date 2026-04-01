@@ -2,6 +2,12 @@
 
 KIE AI 提供了高性能的图像/视频生成与编辑能力，特别适合处理超长 Prompt 和复杂的多图参考任务。
 
+## 0. 注册与 API Key
+
+- **官方网站**: [https://kie.ai](https://kie.ai)
+- **获取 API Key**: [https://kie.ai/api-key](https://kie.ai/api-key)
+- **环境变量**: `KIE_API_KEY`
+
 ## 1. 图像生成 (image.gen)
 
 用于生成资产原画、分镜图或关键帧。
