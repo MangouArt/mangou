@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
+import { appendTaskEvent } from './tasks-jsonl.mjs';
 
 let sharp;
 try {
@@ -32,6 +33,10 @@ function parseGrid(gridStr) {
   const [cols, rows] = gridStr.toLowerCase().split('x').map(Number);
   if (isNaN(cols) || isNaN(rows)) throw new Error(`Invalid grid format: ${gridStr}. Use NxM (e.g., 2x2)`);
   return { cols, rows };
+}
+
+function toPosixRelative(projectRoot, targetPath) {
+  return path.relative(projectRoot, targetPath).split(path.sep).join('/');
 }
 
 async function fileExists(targetPath) {
@@ -200,7 +205,9 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
                         id: doc.meta?.id || file
                       });
                   }
-              } catch (e) { /* 忽略损坏的 YAML */ }
+              } catch (error) {
+                  log(`[ERROR] Failed to parse target YAML during sibling discovery: ${filePath} (${error.message})`);
+              }
           }
       }
       
@@ -229,8 +236,15 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
       continue;
     }
 
-    const raw = await fs.readFile(absTargetYaml, 'utf-8');
-    const docs = yaml.loadAll(raw).filter(Boolean);
+    let raw;
+    let docs;
+    try {
+      raw = await fs.readFile(absTargetYaml, 'utf-8');
+      docs = yaml.loadAll(raw).filter(Boolean);
+    } catch (error) {
+      log(`[ERROR] Failed to parse target YAML: ${absTargetYaml} (${error.message})`);
+      continue;
+    }
     const assignments = new Array(docs.length).fill(null);
 
     for (let docIdx = 0; docIdx < docs.length; docIdx += 1) {
@@ -268,6 +282,9 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
   for (const state of targetDocs) {
     try {
       let changed = false;
+      const targetYamlPath = toPosixRelative(projectRoot, state.absTargetYaml);
+      const parentYamlPath = toPosixRelative(projectRoot, absoluteParentYamlPath);
+      const taskEvents = [];
 
       for (let docIdx = 0; docIdx < state.docs.length; docIdx += 1) {
         const assignedIndex = state.assignments[docIdx];
@@ -290,6 +307,25 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
 
         changed = true;
         log(`已成功回填 ${path.basename(state.targetYaml)} (doc ${docIdx}): ${subPath}`);
+        taskEvents.push({
+          type: 'image',
+          status: 'success',
+          provider: 'grid-split',
+          input: {
+            parentYamlPath,
+            gridIndex: assignedIndex + 1,
+            docIndex: docIdx,
+          },
+          output: {
+            files: [subPath],
+          },
+          ref: {
+            yamlPath: targetYamlPath,
+            taskType: 'image',
+          },
+          worker: 'mangou',
+          event: 'grid-split',
+        });
       }
 
       if (changed) {
@@ -297,6 +333,9 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
           yaml.dump(doc, { indent: 2, lineWidth: -1, noRefs: true, sortKeys: false })
         ).join('---\n');
         await fs.writeFile(state.absTargetYaml, updatedYaml, 'utf-8');
+        for (const taskEvent of taskEvents) {
+          await appendTaskEvent(projectRoot, taskEvent);
+        }
       }
     } catch (error) {
       log(`[ERROR] 回填 ${state.targetYaml} 失败 (逻辑继续执行): ${error.message}`);

@@ -7,12 +7,14 @@ import { listLatestTasks } from '../../../scripts/tasks-jsonl.mjs';
 vi.mock('fs/promises', () => ({
   default: {
     readdir: vi.fn(),
+    readFile: vi.fn(),
     mkdir: vi.fn().mockResolvedValue(undefined),
     writeFile: vi.fn().mockResolvedValue(undefined),
     unlink: vi.fn().mockResolvedValue(undefined),
     access: vi.fn().mockResolvedValue(undefined),
   },
   readdir: vi.fn(),
+  readFile: vi.fn(),
   mkdir: vi.fn().mockResolvedValue(undefined),
   writeFile: vi.fn().mockResolvedValue(undefined),
   unlink: vi.fn().mockResolvedValue(undefined),
@@ -33,6 +35,7 @@ describe('scripts/agent-stitch.mjs', () => {
     vi.clearAllMocks();
     vi.mocked(fs.unlink).mockResolvedValue(undefined);
     vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+    vi.mocked(fs.readFile).mockResolvedValue('');
   });
 
   it('stitch should find videos from tasks and call ffmpeg', async () => {
@@ -75,5 +78,41 @@ describe('scripts/agent-stitch.mjs', () => {
     vi.mocked(listLatestTasks).mockResolvedValue([] as any);
 
     await expect(stitch('/tmp/empty')).rejects.toThrow('No completed video tasks found');
+  });
+
+  it('stitch should fall back to image outputs and synthesize preview clips', async () => {
+    const projectRoot = '/tmp/project';
+
+    vi.mocked(fs.readdir).mockResolvedValue(['001.yaml'] as any);
+    vi.mocked(fs.readFile).mockResolvedValue(
+      [
+        'meta:',
+        '  id: s1',
+        'content:',
+        '  duration: "5s"',
+        'tasks:',
+        '  image:',
+        '    latest:',
+        '      output: assets/images/s1.png',
+        '',
+      ].join('\n')
+    );
+    vi.mocked(listLatestTasks).mockResolvedValue([
+      {
+        ref: { yamlPath: 'storyboards/001.yaml', taskType: 'image' },
+        type: 'image',
+        status: 'success',
+        output: { files: ['assets/images/s1.png'] },
+      },
+    ] as any);
+
+    const result = await stitch(projectRoot, 'preview.mp4');
+
+    expect(result).toContain('preview.mp4');
+    expect(mockExec).toHaveBeenCalledTimes(2);
+    expect(mockExec.mock.calls[0][0]).toContain('-loop 1');
+    expect(mockExec.mock.calls[0][0]).toContain('assets/images/s1.png');
+    expect(mockExec.mock.calls[0][0]).toContain('-t 5');
+    expect(mockExec.mock.calls[1][0]).toContain('ffmpeg -f concat');
   });
 });

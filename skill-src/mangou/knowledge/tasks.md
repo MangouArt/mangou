@@ -37,3 +37,4 @@
 
 - **失败诊断**: 当 `agent-generate` 报错时，Agent 应检查 YAML 中的 `latest.error` 或 `tasks.jsonl` 的末尾记录，以判断是 API 密钥失效、Prompt 违规还是网络超时。
 - **防止重复**: 脚本具备一定的断点续传能力。如果 YAML 中已有处理中的 `task_id`，Agent 再次调用生成时脚本会尝试轮询而非重新提交。
+- **Grid 回填不是例外**: `split-grid.mjs` 成功回填子镜后，也会向 `tasks.jsonl` 追加 `image/success` 记录。不要假设只有远程 AIGC 任务才会写入真相源。

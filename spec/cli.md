@@ -11,6 +11,7 @@ CLI 采用两级命令树，类似 `aws <domain> <action>`：
 ```text
 mangou workspace init
 mangou project create
+mangou project scaffold
 mangou web start
 mangou web stop
 mangou web status
@@ -43,6 +44,18 @@ mangou grid split <parentYaml>
   - `--name`
   - `--description`
 
+### `project scaffold`
+- 用于批量生成项目内的占位 YAML。
+- 当前首个内置动作是 `--grid <masterYaml>`：
+  - 读取母图 YAML 的 `meta.grid`
+  - 在同目录下生成 `N*M` 个子分镜 YAML 占位文件
+  - 自动写入 `meta.parent` 与 `meta.grid_index`
+  - 已存在的目标文件不得被静默覆盖
+- 参数：
+  - `--workspace`
+  - `--project-root`
+  - `--grid <masterYaml>`
+
 ### `web start|stop|status`
 - 分别调用 `web-control.mjs` 暴露的对应实现。
 - `web start` 支持 `--port`。
@@ -60,6 +73,12 @@ mangou grid split <parentYaml>
 - 调用 `agent-stitch.mjs` 的核心实现。
 - 当显式提供 `<projectRoot>` 时优先使用该路径。
 - 未提供时允许维持当前“从 CWD 推断项目根目录”的兼容行为。
+- 读取顺序按 `storyboards/*.yaml` 排序。
+- 产物选择优先级：
+  1. 已完成的视频任务
+  2. 已完成的图片任务
+  3. YAML `tasks.image.latest.output`
+- 当只拿到静态图片时，`stitch` 必须自动生成定长视频片段后再参与合成，方便导演预览全片节奏。
 
 ### `grid split <parentYaml>`
 - 调用 `split-grid.mjs` 的核心实现。

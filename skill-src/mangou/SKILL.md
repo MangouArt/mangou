@@ -1,9 +1,9 @@
 ---
 name: Mangou AI Comic Director
 description: A comprehensive AI comic production skill for directors. Supports workspace management, asset definition, and automated AIGC production pipelines (Image/Video). | 导演视角漫剧创作全流程技能，支持工作区管理、资产定义及全自动 AIGC 生产流水线。
-version: 1.2.1
+version: 1.2.2
 tags: [aigc, comic, director, storyboard, video-generation, automation, workflow, claude-skill, mcp-plugin]
-argument-hint: <workspace init|project create|web start|web stop|web status|generate image|generate video|stitch|grid split> [...args]
+argument-hint: <workspace init|project create|project scaffold|web start|web stop|web status|generate image|generate video|stitch|grid split> [...args]
 disable-model-invocation: true
 ---
 
@@ -44,14 +44,15 @@ graph TD
 统一调用 `${CLAUDE_SKILL_DIR}/scripts/mangou.mjs`，内部再分发到对应模块。
 - **初始化工作区**: `mangou.mjs workspace init --workspace <path>`。确保必要的运行时目录（如 `.mangou`）存在。
 - **创建/配置项目**: `mangou.mjs project create --project <id> --name <name>`。
+- **宫格子镜脚手架**: `mangou.mjs project scaffold --grid <master_yaml>`。根据母图的 `meta.grid` 自动生成子分镜占位 YAML，并写入 `meta.parent` / `meta.grid_index`。
 
 ### 2. AIGC 生产流水线 (AIGC Pipeline)
 基于 YAML 任务定义执行异步渲染。
 - **任务执行**: `mangou.mjs generate image <yaml_path>` 或 `mangou.mjs generate video <yaml_path>`。支持多供应商（BLTAI, KIE），支持断点续传。
-- **宫格流水线**: `mangou.mjs grid split <parent_yaml>`。自动读取 `meta.grid` 尺寸并根据 `meta.parent` 自动扫描关联的子分镜文件进行图片回填。
+- **宫格流水线**: `mangou.mjs grid split <parent_yaml>`。自动读取 `meta.grid` 尺寸并根据 `meta.parent` 自动扫描关联的子分镜文件进行图片回填；回填成功后会同步追加 `tasks.jsonl` 的 `image/success` 事件。
 
 ### 3. 媒体后期与监控 (Post-Processing)
-- **全片合成**: `mangou.mjs stitch [projectRoot]`。按 `sequence` 顺序且尊重父子层级（Grid 先于子镜）进行拼接。
+- **全片合成**: `mangou.mjs stitch [projectRoot]`。优先拼接视频；若某镜还没有视频，则自动把静态图转成定长预览片段后再拼接，便于导演先看节奏。
 - **分布式组织**: 推荐采用 **“一个 Grid 母图文件 + 多个子分镜文件”** 的架构，通过 `meta.parent` 字段显式关联。
 
 ## 导演知识库索引 (Knowledge Base)

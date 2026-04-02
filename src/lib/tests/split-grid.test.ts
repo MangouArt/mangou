@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import yaml from 'js-yaml';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runSplitGrid } from '../../../scripts/split-grid.mjs';
+import { listLatestTasks } from '../../../scripts/tasks-jsonl.mjs';
 
 async function readYamlDoc(filePath: string) {
   const raw = await fs.readFile(filePath, 'utf-8');
@@ -99,9 +100,30 @@ describe('split-grid', () => {
 
     const childA = await readYamlDoc(childAPath);
     const childB = await readYamlDoc(childBPath);
+    const tasks = await listLatestTasks(projectRoot);
 
     expect(childA.tasks.image.latest.output).toBe('assets/images/parent-grid-sub-04.png');
     expect(childB.tasks.image.latest.output).toBe('assets/images/parent-grid-sub-02.png');
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'image',
+          status: 'success',
+          ref: {
+            yamlPath: 'storyboards/child-a.yaml',
+            taskType: 'image',
+          },
+        }),
+        expect.objectContaining({
+          type: 'image',
+          status: 'success',
+          ref: {
+            yamlPath: 'storyboards/child-b.yaml',
+            taskType: 'image',
+          },
+        }),
+      ])
+    );
   });
 
   it('uses only cli --grid or yaml meta.grid and ignores prompt-based grid hints', async () => {
