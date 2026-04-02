@@ -2,6 +2,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 
 let sharp;
@@ -76,8 +77,7 @@ async function inferContext(absoluteYamlPath, overrides = {}) {
   };
 }
 
-async function main() {
-  const args = process.argv.slice(2);
+export async function runSplitGrid(args = process.argv.slice(2)) {
   const parentYamlArg = args.find(a => !a.startsWith('--'));
   
   const gridArgIndex = args.indexOf('--grid');
@@ -270,9 +270,20 @@ async function main() {
   }
 
   console.log(JSON.stringify({ success: true, outputs: subImagesPaths }, null, 2));
+  return { outputs: subImagesPaths };
 }
 
-main().catch((error) => {
-  console.error('[split-grid] Error:', error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+async function main() {
+  await runSplitGrid(process.argv.slice(2));
+}
+
+const isEntrypoint =
+  typeof process.argv[1] === 'string' &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  main().catch((error) => {
+    console.error('[split-grid] Error:', error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}
