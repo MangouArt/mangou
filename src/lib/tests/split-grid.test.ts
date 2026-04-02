@@ -103,4 +103,55 @@ describe('split-grid', () => {
     expect(childA.tasks.image.latest.output).toBe('assets/images/parent-grid-sub-04.png');
     expect(childB.tasks.image.latest.output).toBe('assets/images/parent-grid-sub-02.png');
   });
+
+  it('uses only cli --grid or yaml meta.grid and ignores prompt-based grid hints', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'mangou-grid-'));
+    tempDirs.push(projectRoot);
+
+    const storyboardsDir = path.join(projectRoot, 'storyboards');
+    const imagesDir = path.join(projectRoot, 'assets', 'images');
+    await fs.mkdir(storyboardsDir, { recursive: true });
+    await fs.mkdir(imagesDir, { recursive: true });
+
+    const parentImagePath = path.join(imagesDir, 'prompt-grid.png');
+    const pixels = Buffer.from([
+      255, 0, 0, 255, 0, 255, 0, 255,
+      0, 0, 255, 255, 255, 255, 0, 255,
+    ]);
+    await sharp(pixels, {
+      raw: {
+        width: 2,
+        height: 2,
+        channels: 4,
+      },
+    }).png().toFile(parentImagePath);
+
+    const parentYamlPath = path.join(storyboardsDir, 'prompt-parent.yaml');
+    await fs.writeFile(
+      parentYamlPath,
+      [
+        'meta:',
+        '  id: prompt-parent',
+        '  version: "1.0"',
+        'tasks:',
+        '  image:',
+        '    params:',
+        '      prompt: "Please render this as a 3x3 storyboard grid"',
+        '    latest:',
+        '      output: assets/images/prompt-grid.png',
+        '',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const result = await runSplitGrid([parentYamlPath, '--project-root', projectRoot]);
+
+    expect(result.outputs).toHaveLength(4);
+    expect(result.outputs).toEqual([
+      'assets/images/prompt-grid-sub-01.png',
+      'assets/images/prompt-grid-sub-02.png',
+      'assets/images/prompt-grid-sub-03.png',
+      'assets/images/prompt-grid-sub-04.png',
+    ]);
+  });
 });

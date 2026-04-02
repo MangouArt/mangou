@@ -62,6 +62,7 @@
 - `latest` 丢失后可从 `tasks.jsonl` 重建。
 - 脚本会先把最新结果直接写回 YAML，再通知本地 Web 服务同步 UI。
 - 当使用宫格母图切分时，若子分镜声明 `meta.grid_index`，`split-grid` 必须优先按该索引回填；未声明时才回退到顺序映射。
+- `split-grid` 的宫格来源只认两级：CLI `--grid` 显式覆盖，其次读取 `meta.grid`。不从 Prompt 文本推断网格尺寸。
 
 ## 示例
 ```yaml
