@@ -3,7 +3,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
-import sharp from 'sharp';
+
+let sharp;
+try {
+  sharp = (await import('sharp')).default;
+} catch (e) {
+  console.error('[split-grid] Error: "sharp" module not found. This script requires "sharp" to perform image splitting.');
+  console.error('[split-grid] Please run "npm install sharp" in the mangou directory to fix this.');
+  process.exit(1);
+}
 
 function log(...args) {
   console.error('[split-grid]', ...args);
@@ -85,7 +93,7 @@ async function main() {
   const overrideWorkspaceRoot = workspaceRootArgIndex !== -1 ? args[workspaceRootArgIndex + 1] : '';
 
   if (!parentYamlArg) {
-    console.error('Usage: node split-grid.mjs <parent-yaml> --grid NxM [--targets yaml1,yaml2,...] [--project-root <path>] [--workspace-root <path>]');
+    console.error('Usage: node split-grid.mjs <parent-yaml> [--grid NxM] [--targets yaml1,yaml2,...] [--project-root <path>] [--workspace-root <path>]');
     process.exit(1);
   }
 
@@ -102,16 +110,33 @@ async function main() {
     workspaceRoot: overrideWorkspaceRoot,
   });
 
-  const { cols, rows } = parseGrid(gridStr);
   const parentYamlRaw = await fs.readFile(absoluteParentYamlPath, 'utf-8');
   const parentDocs = yaml.loadAll(parentYamlRaw).filter(Boolean);
   const parentDoc = parentDocs[0];
   
+  if (!parentDoc) throw new Error(`Parent YAML ${parentYamlArg} is empty or invalid`);
+
+  // Grid Inference from Prompt
+  let { cols, rows } = parseGrid(gridStr);
+  const prompt = parentDoc.tasks?.image?.params?.prompt || '';
+  if (gridArgIndex === -1 && prompt) {
+    const gridMatch = prompt.match(/(\d)\s*x\s*(\d)/i) || prompt.match(/(\d)行(\d)列/);
+    if (gridMatch) {
+       const inferredCols = Number(gridMatch[1]);
+       const inferredRows = Number(gridMatch[2]);
+       if (inferredCols > 0 && inferredRows > 0) {
+          log(`Inferred grid ${inferredCols}x${inferredRows} from prompt.`);
+          cols = inferredCols;
+          rows = inferredRows;
+       }
+    }
+  }
+
   const parentImagePathRelative = parentDoc?.tasks?.image?.latest?.output;
   if (!parentImagePathRelative) throw new Error(`Parent YAML ${parentYamlArg} has no tasks.image.latest.output in first document`);
 
   const parentImagePath = path.join(projectRoot, parentImagePathRelative);
-  log(`Processing parent image: ${parentImagePath}`);
+  log(`Processing parent image: ${parentImagePath} (Grid: ${cols}x${rows})`);
 
   const image = sharp(parentImagePath);
   const metadata = await image.metadata();

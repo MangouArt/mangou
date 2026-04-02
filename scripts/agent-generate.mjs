@@ -259,7 +259,15 @@ async function resolveImageInput(workspaceRoot, projectId, projectRoot, value, a
     return null;
   }
 
-  const normalized = normalizeWorkspaceRelativePath(value.trim());
+  // Handle ${path/to/file.yaml} or ${path/to/image.png} syntax
+  let normalized = value.trim();
+  const interpolationMatch = normalized.match(/^\$\{(.+)\}$/);
+  if (interpolationMatch) {
+    normalized = interpolationMatch[1];
+    allowYaml = normalized.endsWith('.yaml');
+  }
+
+  normalized = normalizeWorkspaceRelativePath(normalized);
   if (normalized.startsWith('data:')) return normalized;
   if (isHttpUrl(normalized)) {
     return normalized;
@@ -269,7 +277,7 @@ async function resolveImageInput(workspaceRoot, projectId, projectRoot, value, a
     try {
       const absoluteYamlPath = path.isAbsolute(normalized)
         ? normalized
-        : path.join(workspaceRoot, 'projects', projectId, normalized);
+        : path.join(projectRoot, normalized); // Use projectRoot for ${asset_defs/...} style refs
 
       const raw = await fs.readFile(absoluteYamlPath, 'utf-8');
       const doc = yaml.load(raw);
@@ -288,7 +296,8 @@ async function resolveImageInput(workspaceRoot, projectId, projectRoot, value, a
   try {
      // If the file exists at this resolved location, read it directly
      const buffer = await fs.readFile(candidatePath);
-     const contentType = String(normalized).endsWith('.png') ? 'image/png' : 'image/jpeg'; // naive fallback
+     const ext = path.extname(normalized).toLowerCase();
+     const contentType = ext === '.png' ? 'image/png' : (ext === '.jpg' || ext === '.jpeg') ? 'image/jpeg' : 'image/png';
      return `data:${contentType};base64,${buffer.toString('base64')}`;
   } catch {
      // Fallback to standard registry structure
@@ -353,6 +362,7 @@ function parseGenerationArgs(argv) {
     projectRoot: '',
     workspaceRoot: '',
     debug: false,
+    provider: '', // Explicit provider override from CLI
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -361,6 +371,9 @@ function parseGenerationArgs(argv) {
       i += 1;
     } else if (arg === '--workspace-root' || arg === '--workspace') {
       args.workspaceRoot = argv[i + 1];
+      i += 1;
+    } else if (arg === '--provider') {
+      args.provider = argv[i + 1];
       i += 1;
     } else if (arg === '--debug') {
       args.debug = true;
@@ -404,10 +417,10 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
   const args = parseGenerationArgs(argv);
   const yamlArg = args._raw[0];
   const type = args._raw[1];
-  const { debug, projectRoot: overrideProjectRoot, workspaceRoot: overrideWorkspaceRoot } = args;
+  const { debug, projectRoot: overrideProjectRoot, workspaceRoot: overrideWorkspaceRoot, provider: cliProviderId } = args;
 
   if (!yamlArg || !type || !['image', 'video'].includes(type)) {
-    console.error('Usage: node agent-generate.mjs <yaml-path> <image|video> [--project-root <path>] [--workspace-root <path>] [--debug]');
+    console.error('Usage: node agent-generate.mjs <yaml-path> <image|video> [--project-root <path>] [--workspace-root <path>] [--provider <id>] [--debug]');
     process.exit(1);
   }
 
@@ -438,7 +451,15 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
       log(`--- Document ${docIndex + 1}/${docs.length} ---`);
     }
 
-    const providerId = doc.tasks?.[type]?.provider || process.env.MANGOU_AIGC_PROVIDER || 'bltai';
+    const providerId = 
+      cliProviderId || 
+      doc.tasks?.[type]?.provider || 
+      process.env.MANGOU_AIGC_PROVIDER;
+
+    const id = doc.meta?.id || `(索引 ${docIndex})`;
+    if (!providerId) {
+      throw new Error(`YAML 错误 (ID ${id}): 未指定 AIGC 供应商 (provider)。请在 tasks.${type}.provider 中指定，或使用 --provider 参数。`);
+    }
 
     try {
       validateTask(doc, docIndex, type, providerId);
@@ -586,7 +607,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
 
     try {
       if (!resuming) {
-        log(`Submitting ${type} task`, { projectId, yamlPath });
+        log(`Submitting ${type} task`, { projectId, yamlPath, provider: providerToUse.id });
         submitResult = await providerToUse.submit({
           baseUrl,
           apiKey,
@@ -719,8 +740,12 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
 const isEntrypoint = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isEntrypoint) {
-  const provider = getAIGCProvider(process.env.MANGOU_AIGC_PROVIDER || 'bltai');
-  runAIGC(provider).catch((error) => {
+  // Only pass a provider if EXPLICITLY requested by environment variable.
+  // Otherwise, runAIGC will resolve it per document from the YAML.
+  const forcedProviderId = process.env.MANGOU_AIGC_PROVIDER;
+  const forcedProvider = forcedProviderId ? getAIGCProvider(forcedProviderId) : undefined;
+  
+  runAIGC(forcedProvider).catch((error) => {
     console.error('[mangou] Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   });
