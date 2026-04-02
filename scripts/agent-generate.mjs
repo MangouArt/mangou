@@ -12,6 +12,7 @@ import { getAIGCProvider } from './aigc-provider-registry.mjs';
 import { appendTaskEvent } from './tasks-jsonl.mjs';
 import {
   ensureArray,
+  fileExists,
   log,
   materializeOutputs,
   resolveResumeTaskId,

@@ -18,6 +18,16 @@ function log(...args) {
   console.error('[split-grid]', ...args);
 }
 
+function getExplicitGridIndex(doc) {
+  const raw = doc?.meta?.grid_index;
+  if (raw == null || raw === '') return null;
+  const index = Number(raw);
+  if (!Number.isInteger(index) || index <= 0) {
+    throw new Error(`Invalid meta.grid_index: ${raw}`);
+  }
+  return index;
+}
+
 function parseGrid(gridStr) {
   const [cols, rows] = gridStr.toLowerCase().split('x').map(Number);
   if (isNaN(cols) || isNaN(rows)) throw new Error(`Invalid grid format: ${gridStr}. Use NxM (e.g., 2x2)`);
@@ -222,26 +232,63 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
     log(`未发现独立子分镜文件，回退到单文件多文档回填模式。`);
   }
 
-  let subImageIndex = 0;
-  for (const targetYaml of targetYamlPaths) {
-    if (subImageIndex >= subImagesPaths.length) break;
+  const totalSubImages = subImagesPaths.length;
+  const targetDocs = [];
+  const claimedSubImageIndexes = new Set();
 
+  for (const targetYaml of targetYamlPaths) {
     const absTargetYaml = path.isAbsolute(targetYaml) ? targetYaml : path.resolve(process.cwd(), targetYaml);
     if (!(await fileExists(absTargetYaml))) {
       console.warn(`[Warning] 找不到回填目标文件: ${absTargetYaml}。跳过。`);
       continue;
     }
 
+    const raw = await fs.readFile(absTargetYaml, 'utf-8');
+    const docs = yaml.loadAll(raw).filter(Boolean);
+    const assignments = new Array(docs.length).fill(null);
+
+    for (let docIdx = 0; docIdx < docs.length; docIdx += 1) {
+      const doc = docs[docIdx];
+      const explicitGridIndex = getExplicitGridIndex(doc);
+      if (explicitGridIndex == null) continue;
+      if (explicitGridIndex > totalSubImages) {
+        throw new Error(`meta.grid_index ${explicitGridIndex} 超出宫格范围 ${totalSubImages}`);
+      }
+      const zeroBasedIndex = explicitGridIndex - 1;
+      if (claimedSubImageIndexes.has(zeroBasedIndex)) {
+        throw new Error(`重复的 meta.grid_index: ${explicitGridIndex}`);
+      }
+      claimedSubImageIndexes.add(zeroBasedIndex);
+      assignments[docIdx] = zeroBasedIndex;
+    }
+
+    targetDocs.push({ targetYaml, absTargetYaml, docs, assignments });
+  }
+
+  let nextSequentialIndex = 0;
+  for (const state of targetDocs) {
+    for (let docIdx = 0; docIdx < state.docs.length; docIdx += 1) {
+      if (state.assignments[docIdx] != null) continue;
+      while (claimedSubImageIndexes.has(nextSequentialIndex)) {
+        nextSequentialIndex += 1;
+      }
+      if (nextSequentialIndex >= totalSubImages) break;
+      state.assignments[docIdx] = nextSequentialIndex;
+      claimedSubImageIndexes.add(nextSequentialIndex);
+      nextSequentialIndex += 1;
+    }
+  }
+
+  for (const state of targetDocs) {
     try {
-      const raw = await fs.readFile(absTargetYaml, 'utf-8');
-      const docs = yaml.loadAll(raw).filter(Boolean);
       let changed = false;
 
-      for (let docIdx = 0; docIdx < docs.length; docIdx += 1) {
-        if (subImageIndex >= subImagesPaths.length) break;
-        
-        const doc = docs[docIdx];
-        const subPath = subImagesPaths[subImageIndex];
+      for (let docIdx = 0; docIdx < state.docs.length; docIdx += 1) {
+        const assignedIndex = state.assignments[docIdx];
+        if (assignedIndex == null || assignedIndex >= totalSubImages) continue;
+
+        const doc = state.docs[docIdx];
+        const subPath = subImagesPaths[assignedIndex];
 
         if (!doc.tasks) doc.tasks = {};
         if (!doc.tasks.image) doc.tasks.image = {};
@@ -254,18 +301,19 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
         // 确保建立父子关系锚点
         if (!doc.meta) doc.meta = {};
         if (!doc.meta.parent) doc.meta.parent = parentId;
-        
-        subImageIndex += 1;
+
         changed = true;
-        log(`已成功回填 ${path.basename(targetYaml)} (doc ${docIdx}): ${subPath}`);
+        log(`已成功回填 ${path.basename(state.targetYaml)} (doc ${docIdx}): ${subPath}`);
       }
 
       if (changed) {
-        const updatedYaml = docs.map(d => yaml.dump(d, { indent: 2, lineWidth: -1, noRefs: true, sortKeys: false })).join('---\n');
-        await fs.writeFile(absTargetYaml, updatedYaml, 'utf-8');
+        const updatedYaml = state.docs.map((doc) =>
+          yaml.dump(doc, { indent: 2, lineWidth: -1, noRefs: true, sortKeys: false })
+        ).join('---\n');
+        await fs.writeFile(state.absTargetYaml, updatedYaml, 'utf-8');
       }
     } catch (error) {
-      log(`[ERROR] 回填 ${targetYaml} 失败 (逻辑继续执行): ${error.message}`);
+      log(`[ERROR] 回填 ${state.targetYaml} 失败 (逻辑继续执行): ${error.message}`);
     }
   }
 

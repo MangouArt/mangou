@@ -64,7 +64,17 @@ async function ensureTasksFile(projectRoot) {
   }
 }
 
-async function withFileLock(lockPath, action, retries = 10, delayMs = 50) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function computeRetryDelay(attempt, baseDelayMs = 25, maxDelayMs = 250) {
+  const exponential = Math.min(maxDelayMs, baseDelayMs * (2 ** attempt));
+  const jitter = Math.floor(Math.random() * baseDelayMs);
+  return exponential + jitter;
+}
+
+async function withFileLock(lockPath, action, retries = 8) {
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     let handle = null;
     try {
@@ -81,7 +91,7 @@ async function withFileLock(lockPath, action, retries = 10, delayMs = 50) {
         if (attempt >= retries) {
           throw new Error('Failed to acquire tasks.jsonl lock');
         }
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await sleep(computeRetryDelay(attempt));
         continue;
       }
       await fs.unlink(lockPath).catch(() => null);
@@ -89,6 +99,17 @@ async function withFileLock(lockPath, action, retries = 10, delayMs = 50) {
     }
   }
   throw new Error('Failed to acquire tasks.jsonl lock');
+}
+
+function getLatestTaskFromEvents(events, id) {
+  let latest = null;
+  for (const event of events) {
+    const eventId = event.id || computeTaskId(event);
+    if (eventId === id) {
+      latest = toSnapshot({ ...event, id: eventId });
+    }
+  }
+  return latest;
 }
 
 function normalizeEvent(input) {
@@ -153,17 +174,21 @@ function toSnapshot(event) {
 export async function appendTaskEvent(projectRoot, input) {
   await ensureTasksFile(projectRoot);
   const lockPath = path.join(projectRoot, LOCK_FILE);
+  const tasksPath = path.join(projectRoot, TASKS_FILE);
 
   return withFileLock(lockPath, async () => {
     const normalized = normalizeEvent(input);
     normalized.id = normalized.id || computeTaskId(normalized);
 
-    const existing = await getTaskById(projectRoot, normalized.id);
+    const existingContent = await fs.readFile(tasksPath, 'utf-8').catch(() => '');
+    const existing = getLatestTaskFromEvents(
+      existingContent.split('\n').map(parseLine).filter(Boolean),
+      normalized.id,
+    );
     if (existing && (normalized.status === 'pending' || normalized.status === 'submitted')) {
       throw new Error(`Task already exists: ${normalized.id}`);
     }
 
-    const tasksPath = path.join(projectRoot, TASKS_FILE);
     await fs.appendFile(tasksPath, `${JSON.stringify(normalized)}\n`, 'utf-8');
     return toSnapshot(normalized);
   });
@@ -192,12 +217,5 @@ export async function listLatestTasks(projectRoot) {
 export async function getTaskById(projectRoot, id) {
   if (!id) return null;
   const events = await listTaskEvents(projectRoot);
-  let latest = null;
-  for (const event of events) {
-    const eventId = event.id || computeTaskId(event);
-    if (eventId === id) {
-      latest = toSnapshot({ ...event, id: eventId });
-    }
-  }
-  return latest;
+  return getLatestTaskFromEvents(events, id);
 }

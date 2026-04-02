@@ -10,6 +10,8 @@
 ### 切分与回填控制
 - **物理切分**：宫格生成成功后，必须调用 `scripts/split-grid.mjs` 进行物理切割。
 - **YAML 关联回填**：切分后的子图（例如 `sub_01.png`, `sub_02.png` 等）必须准确回填到各自所属的 `storyboards/*.yaml` 或 `asset_defs/*.yaml` 中。
+- **显式索引优先**：若子分镜声明 `meta.grid_index`，回填时必须优先使用该 1-based 索引，不允许再按文件顺序覆盖导演指定的格位。
+- **顺序映射兜底**：只有在子分镜未声明 `meta.grid_index` 时，才允许回退到按 `sequence` 与文件名排序后的顺序映射。
 
 ## 视觉连续性继承 (Visual Continuity Inheritance)
 - **引用上一镜**：在处理连续镜头时，强制在 `tasks.image.params.images` 中填入上一分镜的 `latest.output` 图片路径。
