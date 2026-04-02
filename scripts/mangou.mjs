@@ -8,9 +8,6 @@ import {
   startWebServer,
   stopWebServer,
 } from './web-control.mjs';
-import { runAIGC } from './agent-generate.mjs';
-import { inferProjectRootFromCwd, stitch } from './agent-stitch.mjs';
-import { runSplitGrid } from './split-grid.mjs';
 
 function toCamelCase(value) {
   return value.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
@@ -235,8 +232,12 @@ export function createDefaultHandlers() {
     startWeb: ({ workspaceRoot, port }) => startWebServer({ workspaceRoot, port }),
     stopWeb: ({ workspaceRoot }) => stopWebServer({ workspaceRoot }),
     webStatus: ({ workspaceRoot }) => getWebStatus({ workspaceRoot }),
-    generate: ({ argv }) => runAIGC(undefined, argv),
+    generate: async ({ argv }) => {
+      const { runAIGC } = await import('./agent-generate.mjs');
+      return runAIGC(undefined, argv);
+    },
     stitch: async ({ projectRoot, outputName }) => {
+      const { inferProjectRootFromCwd, stitch } = await import('./agent-stitch.mjs');
       const resolvedProjectRoot = projectRoot || inferProjectRootFromCwd();
       if (!resolvedProjectRoot) {
         throw usageError(['stitch']);
@@ -244,7 +245,10 @@ export function createDefaultHandlers() {
       const outputPath = await stitch(resolvedProjectRoot, outputName);
       return { path: outputPath, url: outputPath };
     },
-    splitGrid: ({ argv }) => runSplitGrid(argv),
+    splitGrid: async ({ argv }) => {
+      const { runSplitGrid } = await import('./split-grid.mjs');
+      return runSplitGrid(argv);
+    },
   };
 }
 

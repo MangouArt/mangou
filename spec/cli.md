@@ -78,18 +78,10 @@ mangou grid split <parentYaml>
 { "success": false, "error": "..." }
 ```
 
-## 兼容策略
-- 旧脚本入口暂时保留：
-  - `init-workspace.mjs`
-  - `create-project.mjs`
-  - `start-web.mjs`
-  - `stop-web.mjs`
-  - `web-status.mjs`
-  - `agent-generate.mjs`
-  - `agent-stitch.mjs`
-  - `split-grid.mjs`
-- 这些旧入口属于兼容壳，不再是推荐入口。
+## 暴露策略
+- Skill 对外只暴露 `scripts/mangou.mjs` 作为命令入口。
 - `SKILL.md`、示例命令、`package.json` scripts 必须统一推荐 `scripts/mangou.mjs`。
+- 其余脚本只作为内部模块或仓库内开发实现存在，不属于 skill 的公开调用面。
 
 ## 非目标
 - 不把所有脚本内容合并到一个 God Script。
