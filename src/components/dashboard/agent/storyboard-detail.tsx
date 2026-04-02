@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Asset, Storyboard } from '@/stores/director-agent-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ImageIcon, MapPin, User, Video, Wand2 } from 'lucide-react';
+import { ImageIcon, MapPin, User, Video } from 'lucide-react';
 
 interface StoryboardDetailProps {
   storyboard: Storyboard | undefined;
@@ -110,18 +110,6 @@ export function StoryboardDetail({ storyboard, assets }: StoryboardDetailProps) 
             </div>
           </TabsContent>
         </Tabs>
-
-        {storyboard.prompt && (
-          <div className="shrink-0 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
-            <div className="mb-2 flex items-center gap-2 text-sm text-zinc-400">
-              <Wand2 className="w-4 h-4" />
-              当前提示词
-            </div>
-            <p className="text-sm leading-relaxed text-zinc-300 whitespace-pre-wrap">
-              {activeTab === 'video' ? storyboard.videoPrompt || storyboard.prompt : storyboard.prompt}
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
