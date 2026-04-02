@@ -59,6 +59,92 @@ describe('mangou CLI', () => {
     });
   });
 
+  it('SPEC: dispatches workspace init to the initWorkspace handler', async () => {
+    const handlers = {
+      initWorkspace: vi.fn().mockResolvedValue({ ok: true }),
+      createProject: vi.fn(),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn(),
+    };
+
+    await dispatchCliCommand(parseCliArgs(['workspace', 'init', '--workspace', '/tmp/ws']), handlers);
+
+    expect(handlers.initWorkspace).toHaveBeenCalledWith({
+      workspaceRoot: '/tmp/ws',
+      json: false,
+      verbose: false,
+    });
+  });
+
+  it('SPEC: dispatches project create to the createProject handler', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn().mockResolvedValue({ id: 'demo' }),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn(),
+    };
+
+    await dispatchCliCommand(
+      parseCliArgs([
+        'project',
+        'create',
+        '--workspace',
+        '/tmp/ws',
+        '--project',
+        'demo',
+        '--name',
+        'Demo Project',
+        '--description',
+        'sample',
+      ]),
+      handlers
+    );
+
+    expect(handlers.createProject).toHaveBeenCalledWith({
+      workspaceRoot: '/tmp/ws',
+      projectId: 'demo',
+      name: 'Demo Project',
+      description: 'sample',
+      json: false,
+      verbose: false,
+    });
+  });
+
+  it('SPEC: dispatches web stop and web status to their handlers', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn(),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn().mockResolvedValue({ stopped: true }),
+      webStatus: vi.fn().mockResolvedValue({ status: 'running' }),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn(),
+    };
+
+    await dispatchCliCommand(parseCliArgs(['web', 'stop', '--workspace', '/tmp/ws']), handlers);
+    await dispatchCliCommand(parseCliArgs(['web', 'status', '--workspace', '/tmp/ws']), handlers);
+
+    expect(handlers.stopWeb).toHaveBeenCalledWith({
+      workspaceRoot: '/tmp/ws',
+      json: false,
+      verbose: false,
+    });
+    expect(handlers.webStatus).toHaveBeenCalledWith({
+      workspaceRoot: '/tmp/ws',
+      json: false,
+      verbose: false,
+    });
+  });
+
   it('SPEC: dispatches generate video to the generate handler with legacy-compatible argv', async () => {
     const handlers = {
       initWorkspace: vi.fn(),
@@ -138,5 +224,108 @@ describe('mangou CLI', () => {
     await expect(
       dispatchCliCommand(parseCliArgs(['generate', 'image']), handlers)
     ).rejects.toThrow('Usage: mangou generate image <yaml>');
+  });
+
+  it('SPEC: dispatches stitch with explicit project root', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn(),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn().mockResolvedValue({ path: '/tmp/out.mp4' }),
+      splitGrid: vi.fn(),
+    };
+
+    await dispatchCliCommand(parseCliArgs(['stitch', '/tmp/ws/projects/demo', '--output', 'final.mp4']), handlers);
+
+    expect(handlers.stitch).toHaveBeenCalledWith({
+      projectRoot: '/tmp/ws/projects/demo',
+      outputName: 'final.mp4',
+      json: false,
+      verbose: false,
+    });
+  });
+
+  it('SPEC: dispatches grid split with module argv', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn(),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn().mockResolvedValue({ outputs: [] }),
+    };
+
+    await dispatchCliCommand(
+      parseCliArgs([
+        'grid',
+        'split',
+        'storyboards/grid.yaml',
+        '--grid',
+        '2x2',
+        '--targets',
+        'storyboards/a.yaml,storyboards/b.yaml',
+        '--project-root',
+        '/tmp/ws/projects/demo',
+        '--workspace-root',
+        '/tmp/ws',
+      ]),
+      handlers
+    );
+
+    expect(handlers.splitGrid).toHaveBeenCalledWith({
+      parentYaml: 'storyboards/grid.yaml',
+      argv: [
+        'storyboards/grid.yaml',
+        '--grid',
+        '2x2',
+        '--targets',
+        'storyboards/a.yaml,storyboards/b.yaml',
+        '--project-root',
+        '/tmp/ws/projects/demo',
+        '--workspace-root',
+        '/tmp/ws',
+      ],
+      json: false,
+      verbose: false,
+    });
+  });
+
+  it('SPEC: rejects missing project id for project create', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn(),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn(),
+    };
+
+    await expect(
+      dispatchCliCommand(parseCliArgs(['project', 'create']), handlers)
+    ).rejects.toThrow('Usage: mangou project create --project <id>');
+  });
+
+  it('SPEC: rejects missing yaml for grid split', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn(),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn(),
+    };
+
+    await expect(
+      dispatchCliCommand(parseCliArgs(['grid', 'split']), handlers)
+    ).rejects.toThrow('Usage: mangou grid split <parentYaml>');
   });
 });

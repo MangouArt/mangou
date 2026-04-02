@@ -1,7 +1,9 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { execFile } from 'child_process';
 import { pathToFileURL } from 'url';
+import { promisify } from 'util';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildSkillBundle } from '../../../scripts/build-skill.mjs';
 
@@ -36,6 +38,8 @@ async function copyDir(src: string, dest: string) {
   }
 }
 
+const execFileAsync = promisify(execFile);
+
 describe('skill packaging', () => {
   const tempDirs: string[] = [];
 
@@ -69,15 +73,15 @@ describe('skill packaging', () => {
     await fs.access(path.join(buildOut, 'dist', 'index.html'));
     await fs.access(path.join(buildOut, 'workspace_template', '.env.example'));
     await fs.access(path.join(buildOut, 'scripts', 'http-server.mjs'));
-    await fs.access(path.join(buildOut, 'scripts', 'create-project.mjs'));
+    await fs.access(path.join(buildOut, 'scripts', 'mangou.mjs'));
     await fs.access(path.join(buildOut, 'scripts', 'aigc-provider-template.mjs'));
     await fs.access(path.join(buildOut, 'scripts', 'agent-generate.mjs'));
     await fs.access(path.join(buildOut, 'scripts-src', 'web-control.mjs'));
     await fs.access(path.join(buildOut, 'scripts-src', 'http-server.ts'));
 
-    const bundledCreateProject = await fs.readFile(path.join(buildOut, 'scripts', 'create-project.mjs'), 'utf-8');
-    expect(bundledCreateProject.match(/^#!\/usr\/bin\/env node$/gm)).toHaveLength(1);
-    expect(bundledCreateProject).toContain("import { createProject } from './web-control.mjs';");
+    const bundledMangou = await fs.readFile(path.join(buildOut, 'scripts', 'mangou.mjs'), 'utf-8');
+    expect(bundledMangou.match(/^#!\/usr\/bin\/env node$/gm)).toHaveLength(1);
+    expect(bundledMangou).toContain("from './web-control.mjs'");
 
     const bundledGenerate = await fs.readFile(path.join(buildOut, 'scripts', 'agent-generate.mjs'), 'utf-8');
     expect(bundledGenerate.match(/^#!\/usr\/bin\/env node$/gm)).toHaveLength(1);
@@ -98,7 +102,11 @@ describe('skill packaging', () => {
 
     const moduleUrl = pathToFileURL(path.join(installedSkillRoot, 'scripts', 'web-control.mjs')).href;
     const skillModule = await import(moduleUrl);
-    await skillModule.initWorkspace({ workspaceRoot });
+    const cliPath = path.join(installedSkillRoot, 'scripts', 'mangou.mjs');
+
+    await execFileAsync('node', [cliPath, 'workspace', 'init', '--workspace', workspaceRoot], {
+      cwd: projectRoot,
+    });
 
     await fs.access(path.join(workspaceRoot, '.env.example'));
     const projectIndex = JSON.parse(await fs.readFile(path.join(workspaceRoot, 'projects.json'), 'utf-8'));
@@ -108,6 +116,14 @@ describe('skill packaging', () => {
     await fs.access(path.join(workspaceRoot, 'projects'));
     await expect(fs.access(path.join(workspaceRoot, 'AGENTS.md'))).rejects.toThrow();
     await expect(fs.access(path.join(workspaceRoot, 'CLAUDE.md'))).rejects.toThrow();
+
+    await execFileAsync(
+      'node',
+      [cliPath, 'project', 'create', '--workspace', workspaceRoot, '--project', 'demo-skill', '--name', 'Demo Skill'],
+      { cwd: projectRoot }
+    );
+
+    await fs.access(path.join(workspaceRoot, 'projects', 'demo-skill', 'project.json'));
 
     const running = new Set<number>();
     let nextPid = 52000;
