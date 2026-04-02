@@ -21,3 +21,12 @@
 - **禁用数字列表**: 严禁在 Prompt 中使用 "1. 某某动作, 2. 某某动作" 的格式，这极易诱导模型生成对应数字。
 - **推荐方位词 (Directional Shorthand)**: 使用明确的方位描述宫格内容，推荐使用：`左上 (Top-left)`, `右上 (Top-right)`, `左下 (Bottom-left)`, `右下 (Bottom-right)`, `中央 (Center)`。
 - **负向提示注意事项**: 除非确定分镜不含任何文字需求，否则限制全局性的 `no text`，避免误伤分镜内的合法文本。针对宫格数字现象，建议针对性使用 `no numeric labels, no digits, no numbers` 等细分约束，提升画面纯净度的同时保留必要文本的渲染能力。
+
+## 3x3 宫格母图强制后缀 (Required 3x3 Grid Suffix)
+当 `meta.grid` 为 `3x3`，且任务目标是生成可被 `split-grid` 物理切分的宫格母图时，Prompt 必须追加一段固定的无缝约束后缀，避免白边、间距和错位：
+
+> A professional 3x3 SEAMLESS storyboard grid. NO WHITE BORDERS, NO MARGINS, NO SPACING BETWEEN TILES. The 9 panels are tightly packed. Full-bleed panels.
+
+- **强制性**：这是宫格母图的默认补充约束，不是可选建议。
+- **适用范围**：仅用于宫格母图，不要注入普通单镜 Prompt。
+- **目标**：保证物理切分时每个 tile 紧贴排列，减少白边、黑边和裁切偏移。

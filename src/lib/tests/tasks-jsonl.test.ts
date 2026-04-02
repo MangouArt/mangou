@@ -72,4 +72,21 @@ describe('scripts/tasks-jsonl.mjs', () => {
     const tasks = await listLatestTasks(tempDir);
     expect(tasks.length).toBe(10);
   });
+
+  it('waits through transient lock contention and still appends the event', async () => {
+    await fs.writeFile(path.join(tempDir, 'tasks.jsonl.lock'), 'busy', 'utf-8');
+    setTimeout(() => {
+      fs.rm(path.join(tempDir, 'tasks.jsonl.lock'), { force: true }).catch(() => null);
+    }, 650);
+
+    await expect(
+      appendTaskEvent(tempDir, {
+        id: 'task-after-lock',
+        status: 'processing',
+      }),
+    ).resolves.toMatchObject({ id: 'task-after-lock', status: 'processing' });
+
+    const latest = await getTaskById(tempDir, 'task-after-lock');
+    expect(latest?.status).toBe('processing');
+  });
 });

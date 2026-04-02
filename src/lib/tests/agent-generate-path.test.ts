@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { inferContext } from '../../../scripts/agent-generate.mjs';
+import { inferContext, runAIGC } from '../../../scripts/agent-generate.mjs';
 
 describe('agent-generate path inference', () => {
   const tempDirs: string[] = [];
@@ -65,5 +65,11 @@ describe('agent-generate path inference', () => {
       projectRoot: customProjectRoot,
       yamlPath: 'storyboards/scene.yaml',
     });
+  });
+
+  it('reports a missing yaml path instead of crashing on file existence check', async () => {
+    await expect(runAIGC(undefined, ['missing-scene.yaml', 'image'])).rejects.toThrow(
+      /无法找到 YAML 文件/,
+    );
   });
 });
