@@ -126,32 +126,18 @@ export async function runSplitGrid(args = process.argv.slice(2)) {
   
   if (!parentDoc) throw new Error(`Parent YAML ${parentYamlArg} is empty or invalid`);
 
-  // Grid Inference Strategy:
+  // Grid resolution strategy:
   // 1. Explicit CLI argument --grid NxM
-  // 3. YAML meta.grid: "NxM"
-  // 4. Prompt inference (e.g. "2x2" or "2行2列")
-  // 5. Default 2x2
-  
+  // 2. YAML meta.grid: "NxM"
+  // 3. Default 2x2
+
   let gridToUse = gridStr;
   if (gridArgIndex === -1 && parentDoc.meta?.grid) {
     gridToUse = parentDoc.meta.grid;
     log(`Using grid ${gridToUse} from YAML meta.grid`);
   }
 
-  let { cols, rows } = parseGrid(gridToUse);
-  const prompt = parentDoc.tasks?.image?.params?.prompt || '';
-  if (gridArgIndex === -1 && !parentDoc.meta?.grid && prompt) {
-    const gridMatch = prompt.match(/(\d)\s*x\s*(\d)/i) || prompt.match(/(\d)行(\d)列/);
-    if (gridMatch) {
-       const inferredCols = Number(gridMatch[1]);
-       const inferredRows = Number(gridMatch[2]);
-       if (inferredCols > 0 && inferredRows > 0) {
-          log(`Inferred grid ${inferredCols}x${inferredRows} from prompt.`);
-          cols = inferredCols;
-          rows = inferredRows;
-       }
-    }
-  }
+  const { cols, rows } = parseGrid(gridToUse);
 
   const parentImagePathRelative = parentDoc?.tasks?.image?.latest?.output;
   if (!parentImagePathRelative) throw new Error(`Parent YAML ${parentYamlArg} has no tasks.image.latest.output in first document`);
