@@ -96,3 +96,7 @@ tasks:
       status: pending
 refs: {}
 ```
+
+## 只读 Viewer 展示约束
+- `StoryboardDetail` 只展示分镜预览、原剧本文本与 `refs/refAssetIds` 对应的引用资产。
+- `tasks.*.params.prompt`、`storyboard.prompt`、`storyboard.videoPrompt` 属于生成输入，不在只读 Viewer 中展示。
