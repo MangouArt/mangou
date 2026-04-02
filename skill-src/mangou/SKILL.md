@@ -57,7 +57,7 @@ graph TD
 ## 导演知识库索引 (Knowledge Base)
 
 深入了解具体规范与细节，请阅读以下 Knowledge 文件：
-- [分镜定义与父子层级规范](knowledge/storyboards.md)**: 详细说明 `meta.grid` 与 `meta.parent` 的层级权重。
+- **[分镜定义与父子层级规范](knowledge/storyboards.md)**: 详细说明 `meta.grid` 与 `meta.parent` 的层级逻辑与排序准则。
 - **[任务追踪与真相源](knowledge/tasks.md)**: `tasks.jsonl` 的 Schema 与状态回填逻辑。
 - **[供应商模型参数 (BLTAI)](knowledge/provider-bltai.md)**: 获取 `nano-banana` 等核心模型名。
 - **[供应商模型参数 (KIE AI)](knowledge/provider-kie.md)**: 获取高性能模型与视频生成参数。
@@ -69,5 +69,9 @@ graph TD
 3. **真相源意识**: 任务状态以 `tasks.jsonl` 为准，YAML 仅用于配置输入与展示投影。
 4. **路径确定性**: 调用脚本参数时，始终提供相对于当前执行目录 (CWD) 的路径。
 5. **错误感知**: 生成失败时，Agent 必须读取 YAML 中回填的 `error` 字段以获取修复建议，严禁盲目重试。
+6. **分镜连续性 (Sequence Stewardship)**:
+    - `sequence` 必须严格遵循剧本的时间线或叙事顺序，确保物理排序与内容逻辑一致。
+    - **母图优先原则**: 宫格母图 (Master Grid) 的 `sequence` 必须小于或等于其包含的所有子分镜 (Child Shots) 的起始序号。
+    - **严禁跳跃占位**: 禁止使用超出当前项目实际规模的极大数值作为临时的排序占位符，除非该单元确实处于全剧的终点位置。
 
 ---
