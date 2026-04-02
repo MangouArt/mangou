@@ -116,10 +116,21 @@ async function main() {
   
   if (!parentDoc) throw new Error(`Parent YAML ${parentYamlArg} is empty or invalid`);
 
-  // Grid Inference from Prompt
-  let { cols, rows } = parseGrid(gridStr);
+  // Grid Inference Strategy:
+  // 1. Explicit CLI argument --grid NxM
+  // 3. YAML meta.grid: "NxM"
+  // 4. Prompt inference (e.g. "2x2" or "2行2列")
+  // 5. Default 2x2
+  
+  let gridToUse = gridStr;
+  if (gridArgIndex === -1 && parentDoc.meta?.grid) {
+    gridToUse = parentDoc.meta.grid;
+    log(`Using grid ${gridToUse} from YAML meta.grid`);
+  }
+
+  let { cols, rows } = parseGrid(gridToUse);
   const prompt = parentDoc.tasks?.image?.params?.prompt || '';
-  if (gridArgIndex === -1 && prompt) {
+  if (gridArgIndex === -1 && !parentDoc.meta?.grid && prompt) {
     const gridMatch = prompt.match(/(\d)\s*x\s*(\d)/i) || prompt.match(/(\d)行(\d)列/);
     if (gridMatch) {
        const inferredCols = Number(gridMatch[1]);
@@ -168,21 +179,56 @@ async function main() {
     }
   }
 
-  // Back-filling logic
+  // 1. 指定的 targets
   let targetYamlPaths = targetsStr ? targetsStr.split(',').map((s) => s.trim()) : [];
   
-  // If no targets provided, but parent is multi-doc, use parent as target
+  const parentId = parentDoc.meta?.id || parentBase;
+
+  // 2. 自动搜索关联的子分镜文件 (独立文件模式)
+  if (targetYamlPaths.length === 0) {
+      const storyboardDir = path.dirname(absoluteParentYamlPath);
+      const files = await fs.readdir(storyboardDir);
+      
+      const siblingYamls = [];
+      for (const file of files) {
+          if (file.endsWith('.yaml') && file !== path.basename(absoluteParentYamlPath)) {
+              const filePath = path.join(storyboardDir, file);
+              try {
+                  const content = await fs.readFile(filePath, 'utf-8');
+                  const docs = yaml.loadAll(content).filter(Boolean);
+                  const doc = docs[0];
+                  if (doc?.meta?.parent === parentId) {
+                      siblingYamls.push({ 
+                        path: filePath, 
+                        sequence: Number(doc.content?.sequence || doc.meta?.sequence || 0),
+                        id: doc.meta?.id || file
+                      });
+                  }
+              } catch (e) { /* 忽略损坏的 YAML */ }
+          }
+      }
+      
+      if (siblingYamls.length > 0) {
+          // 按序号排序，序号相同按 ID 字母序
+          siblingYamls.sort((a, b) => (a.sequence - b.sequence) || a.id.localeCompare(b.id));
+          targetYamlPaths = siblingYamls.map(y => y.path);
+          log(`自动发现 ${targetYamlPaths.length} 个子分镜文件，归属于父 ID: ${parentId}`);
+      }
+  }
+
+  // 3. 回退到多文档模式 (Multi-doc in same file)
   if (targetYamlPaths.length === 0 && parentDocs.length > 1) {
     targetYamlPaths = [parentYamlArg];
+    log(`未发现独立子分镜文件，回退到单文件多文档回填模式。`);
   }
 
   let subImageIndex = 0;
   for (const targetYaml of targetYamlPaths) {
     if (subImageIndex >= subImagesPaths.length) break;
 
-    const absTargetYaml = path.resolve(process.cwd(), targetYaml);
+    const absTargetYaml = path.isAbsolute(targetYaml) ? targetYaml : path.resolve(process.cwd(), targetYaml);
     if (!(await fileExists(absTargetYaml))) {
-      console.warn(`[Warning] 找不到回填目标文件: ${absTargetYaml}\n请确保路径相对于 CWD 正确。跳过此文件的回填。`);
+      console.warn(`[Warning] 找不到回填目标文件: ${absTargetYaml}。跳过。`);
       continue;
     }
 
@@ -205,9 +251,13 @@ async function main() {
         doc.tasks.image.latest.output = subPath;
         doc.tasks.image.latest.updated_at = new Date().toISOString();
         
+        // 确保建立父子关系锚点
+        if (!doc.meta) doc.meta = {};
+        if (!doc.meta.parent) doc.meta.parent = parentId;
+        
         subImageIndex += 1;
         changed = true;
-        log(`Back-filled ${targetYaml} (doc ${docIdx}) with ${subPath}`);
+        log(`已成功回填 ${path.basename(targetYaml)} (doc ${docIdx}): ${subPath}`);
       }
 
       if (changed) {
@@ -215,7 +265,7 @@ async function main() {
         await fs.writeFile(absTargetYaml, updatedYaml, 'utf-8');
       }
     } catch (error) {
-      log(`Error back-filling ${targetYaml}: ${error.message}`);
+      log(`[ERROR] 回填 ${targetYaml} 失败 (逻辑继续执行): ${error.message}`);
     }
   }
 

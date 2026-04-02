@@ -104,7 +104,10 @@ export function exportToExistingData(context: AgentToolContext): {
     { folder: '/asset_defs/chars', type: 'character' as const },
     { folder: '/asset_defs/scenes', type: 'scene' as const },
     { folder: '/asset_defs/props', type: 'prop' as const },
+    { folder: '/asset_defs', type: 'character' as const }, // 支持扁平结构，默认为角色
   ];
+
+  const processedFiles = new Set<string>();
 
   for (const mapping of assetTypes) {
     if (!vfs.exists(mapping.folder)) continue;
@@ -112,30 +115,42 @@ export function exportToExistingData(context: AgentToolContext): {
 
     for (const file of files) {
       if (file.type === 'file' && file.name.endsWith('.yaml')) {
-        const path = `${mapping.folder}/${file.name}`;
-        const content = vfs.getFileContent(path);
+        const path = mapping.folder === '/' ? `/${file.name}` : `${mapping.folder}/${file.name}`;
+        const normalizedPath = path.replace(/\/+/g, '/');
+        
+        if (processedFiles.has(normalizedPath)) continue;
+        const content = vfs.getFileContent(normalizedPath);
         if (!content) continue;
 
         try {
           const data = parseYAMLQuiet(content) as any;
           if (!data) {
-            console.warn(`[VFS Export Asset Skip] ${path}: YAML 解析失败`);
+            console.warn(`[VFS Export Asset Skip] ${normalizedPath}: YAML 解析失败`);
             continue;
           }
           const { meta, content: assetContent, tasks } = data;
           const fallbackId = file.name.replace('.yaml', '');
 
+          // 严格使用 YAML 中的 meta.type 作为唯一真相来源
+          const metaType = data.meta?.type?.toLowerCase();
+          if (metaType !== 'character' && metaType !== 'scene' && metaType !== 'prop') {
+            console.warn(`[VFS Export Asset Skip] ${normalizedPath}: 缺失或无效的 meta.type`);
+            continue;
+          }
+          const assetType = metaType as Asset['type'];
+
           assets.push({
             id: meta?.id || fallbackId,
-            type: mapping.type,
+            type: assetType,
             name: assetContent?.name || fallbackId,
             description: assetContent?.description || '',
             status: tasks?.image?.latest?.status || 'pending',
             imageUrl: resolveVfsUrl(tasks?.image?.latest?.output),
-            filePath: path,
+            filePath: normalizedPath,
           });
+          processedFiles.add(normalizedPath);
         } catch (e) {
-          console.error(`[VFS Export Asset Error] ${path}:`, e);
+          console.error(`[VFS Export Asset Error] ${normalizedPath}:`, e);
         }
       }
     }
@@ -193,6 +208,8 @@ export function exportToExistingData(context: AgentToolContext): {
             status,
             refAssetIds,
             filePath: path,
+            grid: meta?.grid, // 从 YAML 提取，例如 "2x2"
+            parentId: meta?.parent, // 从 YAML 提取，关联主宫格
           });
         } catch (e) {
           console.error(`[VFS Export Storyboard Error] ${path}:`, e);
@@ -202,11 +219,23 @@ export function exportToExistingData(context: AgentToolContext): {
   }
 
   // 排序
+  // 排序
   assets.sort((a, b) => a.id.localeCompare(b.id));
+  
   storyboards.sort((a, b) => {
-    const seqDiff = (a.sequenceNumber || 0) - (b.sequenceNumber || 0);
-    if (seqDiff !== 0) return seqDiff;
-    // 如果序号相同，按 ID（文件名）排序，确保子分镜紧跟在主宫格后面
+    const seqA = a.sequenceNumber || 0;
+    const seqB = b.sequenceNumber || 0;
+    if (seqA !== seqB) return seqA - seqB;
+    
+    // 1. 处理显式的父子层级关系 (parentId)
+    if (a.parentId === b.id) return 1;  // a 是 b 的子分镜，排在后
+    if (b.parentId === a.id) return -1; // b 是 a 的子分镜，排在前
+    
+    // 2. 优先排宫格图 (基于显式的 grid 字段)
+    if (a.grid && !b.grid) return -1;
+    if (!a.grid && b.grid) return 1;
+    
+    // 3. 最后以 ID 字母顺序作为兜底
     return a.id.localeCompare(b.id);
   });
 

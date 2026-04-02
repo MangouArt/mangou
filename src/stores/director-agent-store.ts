@@ -38,6 +38,8 @@ export interface Storyboard {
   status: 'pending' | 'generating_image' | 'generating_video' | 'completed' | 'failed';
   refAssetIds?: string[];
   filePath?: string; // VFS 文件路径，如 /storyboards/001.yaml
+  grid?: string;      // 例如 "2x2" 或 "3x3"，如果存在则表示这是宫格图
+  parentId?: string;  // 关联的父分镜 ID（通过 meta.parent 指定）
   tasks?: Record<string, any>;
 }
 

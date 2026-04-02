@@ -9,7 +9,7 @@ describe('exportToExistingData', () => {
     context.vfs.createFile(
       '/asset_defs/chars/hero.yaml',
       stringifyYAML({
-        meta: { id: 'hero', version: '1.0' },
+        meta: { id: 'hero', version: '1.0', type: 'character' },
         content: { name: '主角', description: '矿工主角' },
         tasks: {
           image: {
@@ -26,7 +26,7 @@ describe('exportToExistingData', () => {
     context.vfs.createFile(
       '/asset_defs/scenes/mine.yaml',
       stringifyYAML({
-        meta: { id: 'mine', version: '1.0' },
+        meta: { id: 'mine', version: '1.0', type: 'scene' },
         content: { name: '矿井', description: '昏暗矿井' },
         tasks: {
           image: {
@@ -42,7 +42,7 @@ describe('exportToExistingData', () => {
     context.vfs.createFile(
       '/asset_defs/props/pickaxe.yaml',
       stringifyYAML({
-        meta: { id: 'pickaxe', version: '1.0' },
+        meta: { id: 'pickaxe', version: '1.0', type: 'prop' },
         content: { name: '矿镐', description: '破旧矿镐' },
         tasks: {
           image: {
@@ -141,6 +141,8 @@ describe('exportToExistingData', () => {
         status: 'completed',
         refAssetIds: ['assets/images/ref-1.png'],
         filePath: '/storyboards/scene-001.yaml',
+        grid: undefined,
+        parentId: undefined,
       },
     ]);
   });
