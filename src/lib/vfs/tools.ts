@@ -202,7 +202,13 @@ export function exportToExistingData(context: AgentToolContext): {
   }
 
   // 排序
-  storyboards.sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
+  assets.sort((a, b) => a.id.localeCompare(b.id));
+  storyboards.sort((a, b) => {
+    const seqDiff = (a.sequenceNumber || 0) - (b.sequenceNumber || 0);
+    if (seqDiff !== 0) return seqDiff;
+    // 如果序号相同，按 ID（文件名）排序，确保子分镜紧跟在主宫格后面
+    return a.id.localeCompare(b.id);
+  });
 
   return { assets, storyboards };
 }

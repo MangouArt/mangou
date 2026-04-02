@@ -162,6 +162,14 @@ export async function initWorkspace({ workspaceRoot, packageRoot = DEFAULT_PACKA
   const projectsRoot = await resolveProjectsRoot(resolvedWorkspaceRoot);
   await fs.mkdir(projectsRoot, { recursive: true });
 
+  // Check for sharp dependency (optional but recommended for split-grid)
+  try {
+    await import('sharp');
+  } catch (e) {
+    console.warn('\n[mangou] WARNING: "sharp" dependency is missing. Image grid splitting will not work.');
+    console.warn('[mangou] Please run "npm install sharp" in the mangou directory if you need this feature.\n');
+  }
+
   return {
     workspaceRoot: resolvedWorkspaceRoot,
     projectsRoot,
