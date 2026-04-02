@@ -1,6 +1,6 @@
 'use client';
 
-import { useDirectorAgentStore, Storyboard } from '@/stores/director-agent-store';
+import { Storyboard } from '@/stores/director-agent-store';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, ImageIcon, Video, Loader2, Clock } from 'lucide-react';
@@ -29,15 +29,9 @@ const statusLabels = {
 
 export function TimelineOverview({ 
   storyboards, 
-  selectedStoryboardId: externalSelectedId,
+  selectedStoryboardId,
   onSelectStoryboard 
 }: TimelineOverviewProps) {
-  const store = useDirectorAgentStore();
-  
-  // 优先使用外部传入的 props，否则使用 store
-  const selectedStoryboardId = externalSelectedId ?? store.selectedStoryboardId;
-  const setSelectedStoryboardId = onSelectStoryboard ?? store.setSelectedStoryboardId;
-
   if (storyboards.length === 0) {
     return (
       <div className="h-32 flex items-center justify-center bg-zinc-900/50 border-b border-zinc-800">
@@ -53,7 +47,7 @@ export function TimelineOverview({
           {storyboards.map((storyboard, index) => (
             <button
               key={`${storyboard.id}-${index}`}
-              onClick={() => setSelectedStoryboardId(storyboard.id)}
+              onClick={() => onSelectStoryboard?.(storyboard.id)}
               className={cn(
                 'flex-shrink-0 w-32 text-left transition-all duration-200',
                 'group relative',

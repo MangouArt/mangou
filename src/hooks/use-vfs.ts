@@ -63,7 +63,6 @@ export function useVFS({ projectId, autoSync = true }: UseVFSOptions): UseVFSRet
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   // 响应式数据状态
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -71,13 +70,35 @@ export function useVFS({ projectId, autoSync = true }: UseVFSOptions): UseVFSRet
 
   const contextRef = useRef<AgentToolContext | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
-  const lastFileCountRef = useRef<number>(0);
+  const refreshScheduledRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  const flushReactiveData = useCallback(() => {
+    refreshScheduledRef.current = false;
+    if (!mountedRef.current || !contextRef.current) return;
+    const data = exportToExistingData(contextRef.current);
+    setAssets(data.assets);
+    setStoryboards(data.storyboards);
+  }, []);
+
+  const scheduleRefresh = useCallback(() => {
+    if (refreshScheduledRef.current) return;
+    refreshScheduledRef.current = true;
+
+    requestAnimationFrame(() => {
+      flushReactiveData();
+    });
+  }, [flushReactiveData]);
 
   // 初始化 VFS
   useEffect(() => {
+    mountedRef.current = true;
+
     if (!projectId) {
-      // 清空上下文当没有项目时
       contextRef.current = null;
+      setAssets([]);
+      setStoryboards([]);
+      mountedRef.current = false;
       return;
     }
 
@@ -110,18 +131,11 @@ export function useVFS({ projectId, autoSync = true }: UseVFSOptions): UseVFSRet
         if (!isMounted) return;
 
         if (loaded && contextRef.current) {
-          // 数据加载成功，更新文件计数并触发刷新
-          const files = contextRef.current.vfs.getAllFiles();
-          console.log('[useVFS] Files loaded:', files.length);
-          lastFileCountRef.current = files.length;
-          // 强制刷新，确保数据被正确导出
-          setReloadTrigger(Date.now());
-
-          // 订阅 VFS 变更事件（用于实时同步）
+          console.log('[useVFS] Files loaded:', contextRef.current.vfs.getAllFiles().length);
           const unsubscribeVFS = contextRef.current.vfs.subscribe((event) => {
-            if (event.type === 'file:updated') {
-              console.log('[useVFS] VFS file updated, triggering reload:', event.path);
-              setReloadTrigger(Date.now());
+            if (event.type === 'file:updated' || event.type === 'file:created' || event.type === 'file:deleted') {
+              console.log('[useVFS] VFS changed, scheduling refresh:', event.path);
+              scheduleRefresh();
             }
           });
 
@@ -136,9 +150,9 @@ export function useVFS({ projectId, autoSync = true }: UseVFSOptions): UseVFSRet
             unsubscribeRef.current = unsubscribeVFS;
           }
         } else if (!loaded) {
-          // 如果没有数据，初始化空结构
           console.log('[useVFS] No data loaded, initializing empty structure');
           initializeProjectStructure(contextRef.current, '');
+          scheduleRefresh();
         }
 
         // 启用自动同步
@@ -147,8 +161,10 @@ export function useVFS({ projectId, autoSync = true }: UseVFSOptions): UseVFSRet
           unsubscribeRef.current = unsubscribe;
         }
 
-        // 最终强制刷新一次，确保 UI 能够渲染
-        setReloadTrigger(Date.now());
+        const status = vfsStorageManager.getSyncStatus(projectId);
+        setIsSyncing(status.isSyncing);
+        setPendingChanges(status.pendingCount);
+        scheduleRefresh();
         setIsLoading(false);
         console.log('[useVFS] Init complete, trigger reload');
       } catch (err) {
@@ -161,35 +177,17 @@ export function useVFS({ projectId, autoSync = true }: UseVFSOptions): UseVFSRet
 
     init();
 
-    // 定期更新同步状态
-    const statusInterval = setInterval(() => {
-      if (isMounted) {
-        const status = vfsStorageManager.getSyncStatus(projectId);
-        setIsSyncing(status.isSyncing);
-        setPendingChanges(status.pendingCount);
-
-        // 如果不在同步中且没有待处理变更，检查文件数量是否变化
-        if (!status.isSyncing && status.pendingCount === 0 && contextRef.current) {
-          const currentFiles = contextRef.current.vfs.getAllFiles();
-          if (currentFiles.length !== lastFileCountRef.current) {
-            lastFileCountRef.current = currentFiles.length;
-            setReloadTrigger(prev => prev + 1);
-          }
-        }
-      }
-    }, 500);
-
     return () => {
       isMounted = false;
-      clearInterval(statusInterval);
+      mountedRef.current = false;
+      refreshScheduledRef.current = false;
 
-      // 禁用自动同步
       if (unsubscribeRef.current) {
         vfsStorageManager.disableAutoSync(projectId);
         unsubscribeRef.current = null;
       }
     };
-  }, [projectId, autoSync]);
+  }, [projectId, autoSync, scheduleRefresh]);
 
   // 读取文件
   const readFile = useCallback(
@@ -230,37 +228,31 @@ export function useVFS({ projectId, autoSync = true }: UseVFSOptions): UseVFSRet
       return { assets: [], storyboards: [] };
     }
     return exportToExistingData(contextRef.current);
-  }, []); // 不再依赖 reloadTrigger，因为我们手动触发刷新
-
-  // 当 reloadTrigger 变化时，自动刷新暴露出的 assets 和 storyboards
-  useEffect(() => {
-    if (!contextRef.current || isLoading) return;
-    
-    console.log('[useVFS] Reloading reactive data due to trigger');
-    const data = exportData();
-    
-    // 使用 requestAnimationFrame 延迟更新，避免 React 级联渲染警告
-    requestAnimationFrame(() => {
-      setAssets(data.assets);
-      setStoryboards(data.storyboards);
-    });
-  }, [reloadTrigger, isLoading, exportData]);
+  }, []);
 
   // 手动同步
   const sync = useCallback(async () => {
     if (!projectId) return;
     setIsSyncing(true);
     await vfsStorageManager.forceSync(projectId);
+    const status = vfsStorageManager.getSyncStatus(projectId);
+    setIsSyncing(status.isSyncing);
+    setPendingChanges(status.pendingCount);
+    scheduleRefresh();
     setIsSyncing(false);
-  }, [projectId]);
+  }, [projectId, scheduleRefresh]);
 
   // 重新加载
   const reload = useCallback(async () => {
     if (!projectId) return;
     setIsLoading(true);
     await vfsStorageManager.loadProject(projectId);
+    const status = vfsStorageManager.getSyncStatus(projectId);
+    setIsSyncing(status.isSyncing);
+    setPendingChanges(status.pendingCount);
+    scheduleRefresh();
     setIsLoading(false);
-  }, [projectId]);
+  }, [projectId, scheduleRefresh]);
 
   // 初始化项目
   const initProject = useCallback(

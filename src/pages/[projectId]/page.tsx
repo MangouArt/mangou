@@ -9,11 +9,6 @@ import { TimelineOverview } from '@/components/dashboard/agent/timeline-overview
 import { StoryboardDetail } from '@/components/dashboard/agent/storyboard-detail';
 import { ResourcePanel } from '@/components/dashboard/agent/resource-panel';
 import { ProgressIndicator } from '@/components/dashboard/agent/progress-indicator';
-import { TaskManagerPanel } from '@/components/dashboard/agent/task-manager-panel';
-import { 
-  Dialog, 
-  DialogContent,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -39,7 +34,6 @@ export default function ProjectPage() {
   const navigate = useNavigate();
   const { projectId: projectIdParam } = useParams();
   const [projectId, setProjectId] = useState<string>('');
-  const [showPendingDialog, setShowPendingDialog] = useState(false);
   const [workspacePath, setWorkspacePath] = useState<string | null>(null);
 
   // 1. 解析 Params
@@ -57,7 +51,6 @@ export default function ProjectPage() {
   const {
     selectedStoryboardId,
     setSelectedStoryboardId,
-    setCurrentStage,
   } = store;
 
   // 3. Project Manager
@@ -71,22 +64,17 @@ export default function ProjectPage() {
   // 4. VFS & Sync Logic (唯一数据源)
   const {
     isLoading: vfsLoading,
-    isSyncing,
-    pendingChanges,
     assets,         // 响应式资产
     storyboards,    // 响应式分镜
     exportData,
   } = useVFS({ projectId, autoSync: true });
 
-  const syncStatus = vfsLoading ? 'loading' : isSyncing ? 'syncing' : pendingChanges > 0 ? 'pending' : 'synced';
-
   // 项目重置逻辑
   useEffect(() => {
     if (projectId) {
       setSelectedStoryboardId(null);
-      setCurrentStage('planning');
     }
-  }, [projectId, setSelectedStoryboardId, setCurrentStage]);
+  }, [projectId, setSelectedStoryboardId]);
 
   useEffect(() => {
     fetch('/api/meta')
@@ -172,13 +160,7 @@ export default function ProjectPage() {
             </>
           )}
 
-          {/* Sync Status Badge */}
-          <div className="ml-2">
-            {syncStatus === 'loading' && <span className="text-xs text-zinc-500">加载中...</span>}
-            {syncStatus === 'syncing' && <span className="text-xs text-blue-400">同步中...</span>}
-            {syncStatus === 'pending' && <span className="text-xs text-orange-400">{pendingChanges} 待同步</span>}
-            {syncStatus === 'synced' && <span className="text-xs text-green-400">已同步</span>}
-          </div>
+          {vfsLoading && <span className="ml-2 text-xs text-zinc-500">加载中...</span>}
         </div>
 
         <div className="flex items-center gap-3">
@@ -192,15 +174,6 @@ export default function ProjectPage() {
               查看成片
             </Button>
           )}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-zinc-400 hover:text-white hover:bg-zinc-800"
-            onClick={() => setShowPendingDialog(true)}
-          >
-            任务列表
-          </Button>
-          <div className="w-px h-4 bg-zinc-700 mx-1" />
           <ProgressIndicator projectId={projectId} exportData={exportData} isLoading={vfsLoading} />
           <div className="w-px h-6 bg-zinc-700" />
           <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800" onClick={() => navigate('/dashboard/agent')}>返回</Button>
@@ -208,7 +181,13 @@ export default function ProjectPage() {
       </header>
 
       {/* Timeline Overview */}
-      <div className="shrink-0"><TimelineOverview storyboards={storyboards} /></div>
+      <div className="shrink-0">
+        <TimelineOverview
+          storyboards={storyboards}
+          selectedStoryboardId={selectedStoryboardId}
+          onSelectStoryboard={setSelectedStoryboardId}
+        />
+      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -219,12 +198,6 @@ export default function ProjectPage() {
           <ResourcePanel characters={characters} scenes={scenes} props={props} projectId={projectId} readOnly />
         </div>
       </div>
-
-      <Dialog open={showPendingDialog} onOpenChange={setShowPendingDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] bg-zinc-900 border-zinc-700 text-white p-0">
-          {showPendingDialog && <TaskManagerPanel projectId={projectId} isOpen={showPendingDialog} />}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

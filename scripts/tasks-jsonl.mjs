@@ -43,6 +43,16 @@ function sanitizeTaskValue(value) {
   return value;
 }
 
+function computeTaskId(event) {
+  const payload = {
+    type: event.type,
+    provider: event.provider,
+    input: event.input ?? {},
+    ref: event.ref ?? '',
+  };
+  const hash = crypto.createHash('sha1').update(stableStringify(payload)).digest('hex');
+  return `task_${hash}`;
+}
 
 async function ensureTasksFile(projectRoot) {
   await fs.mkdir(projectRoot, { recursive: true });
@@ -146,7 +156,12 @@ export async function appendTaskEvent(projectRoot, input) {
 
   return withFileLock(lockPath, async () => {
     const normalized = normalizeEvent(input);
-    normalized.id = normalized.id || crypto.randomUUID();
+    normalized.id = normalized.id || computeTaskId(normalized);
+
+    const existing = await getTaskById(projectRoot, normalized.id);
+    if (existing && (normalized.status === 'pending' || normalized.status === 'submitted')) {
+      throw new Error(`Task already exists: ${normalized.id}`);
+    }
 
     const tasksPath = path.join(projectRoot, TASKS_FILE);
     await fs.appendFile(tasksPath, `${JSON.stringify(normalized)}\n`, 'utf-8');
@@ -163,7 +178,7 @@ export async function listLatestTasks(projectRoot) {
   const events = await listTaskEvents(projectRoot);
   const latest = new Map();
   for (const event of events) {
-    const id = event.id;
+    const id = event.id || computeTaskId(event);
     if (!id) continue;
     latest.set(id, toSnapshot({ ...event, id }));
   }
@@ -179,7 +194,7 @@ export async function getTaskById(projectRoot, id) {
   const events = await listTaskEvents(projectRoot);
   let latest = null;
   for (const event of events) {
-    const eventId = event.id;
+    const eventId = event.id || computeTaskId(event);
     if (eventId === id) {
       latest = toSnapshot({ ...event, id: eventId });
     }

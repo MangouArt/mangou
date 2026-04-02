@@ -1,0 +1,35 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { updateGenerationStatus } from '../../src/lib/vfs/yaml.ts';
+import { log } from './utils.mjs';
+
+export async function updateYamlProjection(payload) {
+  const {
+    projectRoot,
+    taskId,
+    upstreamTaskId,
+    status,
+    output,
+    yamlPath,
+    taskType,
+    error,
+    docIndex = 0,
+  } = payload;
+
+  if (!projectRoot || !yamlPath) return;
+
+  try {
+    const fullYamlPath = path.join(projectRoot, yamlPath);
+    const current = await fs.readFile(fullYamlPath, 'utf-8');
+    const updated = updateGenerationStatus(current, taskType, {
+      status,
+      output: Array.isArray(output?.files) ? output.files[0] : (typeof output === 'string' ? output : null),
+      error: typeof error === 'string' ? error : (error?.message || null),
+      task_id: taskId ?? null,
+      upstream_task_id: upstreamTaskId ?? taskId ?? null,
+    }, docIndex);
+    await fs.writeFile(fullYamlPath, updated, 'utf-8');
+  } catch (writeError) {
+    log(`Warning: failed to update YAML directly: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+  }
+}

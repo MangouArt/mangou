@@ -3,8 +3,7 @@ import {
   UIAsset as Asset, 
   UIStoryboard as Storyboard, 
   Keyframe, 
-  Video as VideoAsset, 
-  GenerationTask,
+  Video as VideoAsset,
 } from '@/types/mango'
 
 export interface LocalProject {
@@ -61,14 +60,6 @@ export const fetchProjectData = async (projectId: string): Promise<ProjectData> 
   }
 }
 
-export const fetchTasks = async (projectId: string): Promise<GenerationTask[]> => {
-  if (!projectId) return []
-  const res = await fetch(`/api/projects/${projectId}/tasks?t=` + Date.now())
-  const data = await res.json()
-  if (!data.success) throw new Error(data.error || 'Failed to fetch tasks')
-  return data.tasks
-}
-
 // --- Hooks ---
 
 export function useProjects() {
@@ -85,13 +76,5 @@ export function useProjectDetails(projectId: string) {
     queryFn: () => fetchProjectData(projectId),
     enabled: !!projectId,
     staleTime: 5000,
-  })
-}
-
-export function useProjectTasks(projectId: string) {
-  return useQuery({
-    queryKey: ['project', projectId, 'tasks'],
-    queryFn: () => fetchTasks(projectId),
-    enabled: !!projectId,
   })
 }
