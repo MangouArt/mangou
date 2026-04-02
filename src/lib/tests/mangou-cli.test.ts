@@ -118,10 +118,47 @@ describe('mangou CLI', () => {
     });
   });
 
+  it('SPEC: dispatches project scaffold --grid to the scaffoldProject handler', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn(),
+      scaffoldProject: vi.fn().mockResolvedValue({ created: ['storyboards/master-sub-01.yaml'] }),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn(),
+    };
+
+    await dispatchCliCommand(
+      parseCliArgs([
+        'project',
+        'scaffold',
+        '--workspace',
+        '/tmp/ws',
+        '--project-root',
+        '/tmp/ws/projects/demo',
+        '--grid',
+        'storyboards/master.yaml',
+      ]),
+      handlers
+    );
+
+    expect(handlers.scaffoldProject).toHaveBeenCalledWith({
+      workspaceRoot: '/tmp/ws',
+      projectRoot: '/tmp/ws/projects/demo',
+      gridYamlPath: 'storyboards/master.yaml',
+      json: false,
+      verbose: false,
+    });
+  });
+
   it('SPEC: dispatches web stop and web status to their handlers', async () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn().mockResolvedValue({ stopped: true }),
       webStatus: vi.fn().mockResolvedValue({ status: 'running' }),
@@ -149,6 +186,7 @@ describe('mangou CLI', () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn(),
       webStatus: vi.fn(),
@@ -196,6 +234,7 @@ describe('mangou CLI', () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn(),
       webStatus: vi.fn(),
@@ -213,6 +252,7 @@ describe('mangou CLI', () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn(),
       webStatus: vi.fn(),
@@ -230,6 +270,7 @@ describe('mangou CLI', () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn(),
       webStatus: vi.fn(),
@@ -252,6 +293,7 @@ describe('mangou CLI', () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn(),
       webStatus: vi.fn(),
@@ -299,6 +341,7 @@ describe('mangou CLI', () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn(),
       webStatus: vi.fn(),
@@ -312,10 +355,29 @@ describe('mangou CLI', () => {
     ).rejects.toThrow('Usage: mangou project create --project <id>');
   });
 
+  it('SPEC: rejects missing --grid for project scaffold', async () => {
+    const handlers = {
+      initWorkspace: vi.fn(),
+      createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
+      startWeb: vi.fn(),
+      stopWeb: vi.fn(),
+      webStatus: vi.fn(),
+      generate: vi.fn(),
+      stitch: vi.fn(),
+      splitGrid: vi.fn(),
+    };
+
+    await expect(
+      dispatchCliCommand(parseCliArgs(['project', 'scaffold']), handlers)
+    ).rejects.toThrow('Usage: mangou project scaffold --grid <masterYaml>');
+  });
+
   it('SPEC: rejects missing yaml for grid split', async () => {
     const handlers = {
       initWorkspace: vi.fn(),
       createProject: vi.fn(),
+      scaffoldProject: vi.fn(),
       startWeb: vi.fn(),
       stopWeb: vi.fn(),
       webStatus: vi.fn(),

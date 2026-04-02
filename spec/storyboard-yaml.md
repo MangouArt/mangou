@@ -63,6 +63,8 @@
 - 脚本会先把最新结果直接写回 YAML，再通知本地 Web 服务同步 UI。
 - 当使用宫格母图切分时，若子分镜声明 `meta.grid_index`，`split-grid` 必须优先按该索引回填；未声明时才回退到顺序映射。
 - `split-grid` 的宫格来源只认两级：CLI `--grid` 显式覆盖，其次读取 `meta.grid`。不从 Prompt 文本推断网格尺寸。
+- `project scaffold --grid <masterYaml>` 必须根据母图的 `meta.grid` 生成同目录子分镜占位 YAML，并为每个子分镜写入 `meta.parent` 与 `meta.grid_index`。
+- `stitch` 在没有视频产物时允许回退到图片产物，但最终拼接前必须先把静态图片转成与 `content.duration` 一致的临时视频片段。
 
 ## 示例
 ```yaml

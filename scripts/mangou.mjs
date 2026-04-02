@@ -89,6 +89,8 @@ function commandUsage(commandPath = []) {
       return 'Usage: mangou workspace init [--workspace <path>] [--json] [--verbose]';
     case 'project create':
       return 'Usage: mangou project create --project <id> [--workspace <path>] [--name <name>] [--description <text>]';
+    case 'project scaffold':
+      return 'Usage: mangou project scaffold --grid <masterYaml> [--workspace <path>] [--project-root <path>]';
     case 'web start':
       return 'Usage: mangou web start [--workspace <path>] [--port <number>] [--json] [--verbose]';
     case 'web stop':
@@ -108,6 +110,7 @@ function commandUsage(commandPath = []) {
         'Usage:',
         '  mangou workspace init',
         '  mangou project create --project <id>',
+        '  mangou project scaffold --grid <masterYaml>',
         '  mangou web start|stop|status',
         '  mangou generate image|video <yaml>',
         '  mangou stitch [projectRoot]',
@@ -154,6 +157,17 @@ export async function dispatchCliCommand(parsed, handlers) {
         projectId,
         name: String(flags.name || projectId),
         description: String(flags.description || ''),
+        json,
+        verbose,
+      });
+    }
+    case 'project scaffold': {
+      const gridYamlPath = String(flags.grid || '').trim();
+      if (!gridYamlPath) throw usageError(commandPath);
+      return handlers.scaffoldProject({
+        workspaceRoot: String(flags.workspace || process.cwd()),
+        projectRoot: String(flags.projectRoot || ''),
+        gridYamlPath,
         json,
         verbose,
       });
@@ -229,6 +243,10 @@ export function createDefaultHandlers() {
     initWorkspace: ({ workspaceRoot }) => initWorkspace({ workspaceRoot }),
     createProject: ({ workspaceRoot, projectId, name, description }) =>
       createProject({ workspaceRoot, projectId, name, description }),
+    scaffoldProject: async ({ workspaceRoot, projectRoot, gridYamlPath }) => {
+      const { scaffoldGridChildren } = await import('./project-scaffold.mjs');
+      return scaffoldGridChildren({ workspaceRoot, projectRoot, gridYamlPath });
+    },
     startWeb: ({ workspaceRoot, port }) => startWebServer({ workspaceRoot, port }),
     stopWeb: ({ workspaceRoot }) => stopWebServer({ workspaceRoot }),
     webStatus: ({ workspaceRoot }) => getWebStatus({ workspaceRoot }),

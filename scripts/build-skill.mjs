@@ -22,6 +22,7 @@ const RUNTIME_SCRIPT_FILES = [
   'http-server.mjs',
   'http-server.ts',
   'mangou.mjs',
+  'project-scaffold.mjs',
   'register-alias.ts',
   'split-grid.mjs',
   'tasks-jsonl.mjs',
@@ -31,7 +32,6 @@ const RAW_SCRIPT_FILES = new Set([
   'aigc-provider-template.mjs',
   'aigc-provider-bltai.mjs',
   'aigc-provider-kie.mjs',
-  'agent-stitch.mjs',
   'mangou.mjs',
 ]);
 
@@ -127,9 +127,11 @@ export async function buildSkillBundle({
     'http-server.mjs',
     'web-control.mjs',
     'mangou.mjs',
+    'project-scaffold.mjs',
     'agent-generate.mjs',
     'agent-stitch.mjs',
     'split-grid.mjs',
+    'tasks-jsonl.mjs',
   ];
 
   for (const filename of RUNTIME_SCRIPT_FILES) {

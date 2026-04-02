@@ -74,6 +74,7 @@ describe('skill packaging', () => {
     await fs.access(path.join(buildOut, 'workspace_template', '.env.example'));
     await fs.access(path.join(buildOut, 'scripts', 'http-server.mjs'));
     await fs.access(path.join(buildOut, 'scripts', 'mangou.mjs'));
+    await fs.access(path.join(buildOut, 'scripts', 'tasks-jsonl.mjs'));
     await fs.access(path.join(buildOut, 'scripts', 'aigc-provider-template.mjs'));
     await fs.access(path.join(buildOut, 'scripts', 'agent-generate.mjs'));
     await fs.access(path.join(buildOut, 'scripts-src', 'web-control.mjs'));
@@ -97,6 +98,7 @@ describe('skill packaging', () => {
 
     await fs.access(path.join(installedSkillRoot, 'SKILL.md'));
     await fs.access(path.join(installedSkillRoot, 'dist', 'index.html'));
+    await fs.access(path.join(installedSkillRoot, 'scripts', 'tasks-jsonl.mjs'));
     await expect(fs.access(path.join(projectRoot, 'CLAUDE.md'))).rejects.toThrow();
     await expect(fs.access(path.join(projectRoot, 'AGENTS.md'))).rejects.toThrow();
 
@@ -124,6 +126,18 @@ describe('skill packaging', () => {
     );
 
     await fs.access(path.join(workspaceRoot, 'projects', 'demo-skill', 'project.json'));
+
+    try {
+      await execFileAsync(
+        'node',
+        [cliPath, 'stitch', path.join(workspaceRoot, 'projects', 'demo-skill')],
+        { cwd: projectRoot }
+      );
+      throw new Error('expected stitch to fail on an empty project');
+    } catch (error: any) {
+      const combined = `${error?.stdout || ''}\n${error?.stderr || ''}\n${error?.message || ''}`;
+      expect(combined).not.toContain('ERR_MODULE_NOT_FOUND');
+    }
 
     const running = new Set<number>();
     let nextPid = 52000;

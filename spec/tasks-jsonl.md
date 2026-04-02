@@ -59,3 +59,4 @@
 - 读取时按 `id` 聚合，最后一条视为最新状态。
 - 不使用输入 hash 去重。
 - 文件锁与并发控制由脚本或 Web Server 统一处理。
+- `split-grid` 在成功回填子分镜 YAML 后，必须同步追加对应的 `image/success` 事件，保证 `tasks.jsonl` 与 YAML 投影一致。
