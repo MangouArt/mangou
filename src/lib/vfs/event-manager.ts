@@ -62,17 +62,37 @@ class VFSEventManager extends EventEmitter {
       .on('unlink', (filePath: string) => this.handleFsEvent(filePath, 'deleted'));
   }
 
+  private pendingEvents = new Map<string, { type: 'updated' | 'deleted'; timestamp: Date }>();
+  private debounceTimer: NodeJS.Timeout | null = null;
+  private readonly DEBOUNCE_MS = 300;
+
   private handleFsEvent(fullPath: string, type: 'updated' | 'deleted') {
     const parsed = parseWorkspaceFsEvent(this.resolveWorkspaceRoot(), fullPath);
     if (!parsed) return;
 
+    const eventKey = `${parsed.projectId}::${parsed.path}`;
+    this.pendingEvents.set(eventKey, { type, timestamp: new Date() });
+
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => this.flushEvents(), this.DEBOUNCE_MS);
+  }
+
+  private flushEvents() {
+    this.debounceTimer = null;
     const logger = process.env.MANGOU_STDIO_MODE === 'true' ? console.error : console.log;
-    logger(`[VFSEventManager] FS Event: ${parsed.projectId} ${parsed.path} (${type})`);
-    this.notifyFileChanged(parsed.projectId, parsed.path, type);
+    
+    if (this.pendingEvents.size > 0) {
+      logger(`[VFSEventManager] Flushing ${this.pendingEvents.size} debounced events...`);
+      this.pendingEvents.forEach((event, key) => {
+        const [projectId, path] = key.split('::');
+        this.emit('change', { projectId, path, ...event });
+      });
+      this.pendingEvents.clear();
+    }
   }
 
   notifyFileChanged(projectId: string, path: string, type: 'updated' | 'deleted') {
-    this.emit('change', { projectId, path, type, timestamp: new Date() });
+    this.handleFsEvent(path, type); // Use the debounced handler
   }
 
   destroy() {

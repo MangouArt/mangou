@@ -48,29 +48,19 @@ graph TD
 ### 2. AIGC 生产流水线 (AIGC Pipeline)
 基于 YAML 任务定义执行异步渲染。
 - **任务执行**: `agent-generate.mjs <yaml_path> <image|video>`。支持多供应商（BLTAI, KIE），支持断点续传。
-- **宫格环境处理**: `split-grid.mjs <parent_yaml> --grid 2x2 --targets <child_yamls>`。
+- **宫格流水线**: `split-grid.mjs <parent_yaml>`。自动读取 `meta.grid` 尺寸并根据 `meta.parent` 自动扫描关联的子分镜文件进行图片回填。
 
 ### 3. 媒体后期与监控 (Post-Processing)
-- **全片合成**: `agent-stitch.mjs`。在项目目录内运行，自动按顺序拼接分镜视频。
-- **状态看板**: `start-web` 启动可视化界面，`web-status` 检查服务存活。
+- **全片合成**: `agent-stitch.mjs`。按 `sequence` 顺序且尊重父子层级（Grid 先于子镜）进行拼接。
+- **分布式组织**: 推荐采用 **“一个 Grid 母图文件 + 多个子分镜文件”** 的架构，通过 `meta.parent` 字段显式关联。
 
 ## 导演知识库索引 (Knowledge Base)
 
 深入了解具体规范与细节，请阅读以下 Knowledge 文件：
-- **[工作区/项目目录结构](knowledge/directory.md)**: 了解 `tasks.jsonl` 与 `assets/` 的物理位置。
-- **[资产定义 YAML 规范](knowledge/assets.md)**: 角色、场景、道具的编写标准。
-- **[分镜定义 YAML 规范](knowledge/storyboards.md)**: 剧情、动作、任务参数的详细说明。
+- [分镜定义与父子层级规范](knowledge/storyboards.md)**: 详细说明 `meta.grid` 与 `meta.parent` 的层级权重。
 - **[任务追踪与真相源](knowledge/tasks.md)**: `tasks.jsonl` 的 Schema 与状态回填逻辑。
 - **[供应商模型参数 (BLTAI)](knowledge/provider-bltai.md)**: 获取 `nano-banana` 等核心模型名。
 - **[供应商模型参数 (KIE AI)](knowledge/provider-kie.md)**: 获取高性能模型与视频生成参数。
-- **[商业化计费与充值](knowledge/billing.md)**: 了解如何登录、查询余额及支付宝充值。
-
-## 商业化支持 (Commercialization)
-
-Agent 应引导用户通过以下命令管理账户：
-- **登录**: `login-email <email>` 发送验证码，`login-verify <email> <code>` 完成登录。
-- **充值**: `recharge` 获取支付二维码。
-- **余额**: `balance` 查看当前 Gems 剩余。
 
 ## 执行规范 (Strict Policies)
 
