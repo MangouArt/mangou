@@ -9,14 +9,18 @@ import {
   resolveProviderEnv,
 } from './bltai-lib.mjs';
 import { getAIGCProvider } from './aigc-provider-registry.mjs';
-import { updateGenerationStatus } from '../src/lib/vfs/yaml.ts';
 import { appendTaskEvent } from './tasks-jsonl.mjs';
 import {
-  fetchMediaAsDataUrl,
-  normalizeWorkspaceRelativePath,
-  readLocalMediaAsDataUrl,
-} from '../src/lib/agent/image-input.ts';
-import os from 'os';
+  ensureArray,
+  log,
+  materializeOutputs,
+  resolveResumeTaskId,
+} from './generation/utils.mjs';
+import { inferContext } from './generation/context.mjs';
+import { collectRefImageInputs, resolveImageInput } from './generation/input-resolver.mjs';
+import { updateYamlProjection } from './generation/projection.mjs';
+
+export { inferContext, materializeOutputs, resolveResumeTaskId, updateYamlProjection };
 
 
 const proxyUrl =
@@ -28,150 +32,6 @@ const proxyUrl =
 
 if (proxyUrl) {
   setGlobalDispatcher(new ProxyAgent(proxyUrl));
-}
-
-function log(...args) {
-  console.error('[mangou]', ...args);
-}
-
-function isHttpUrl(value) {
-  return /^https?:\/\//i.test(value || '');
-}
-
-function ensureArray(value) {
-  return Array.isArray(value) ? value.filter(Boolean) : [];
-}
-
-function getRemoteExtension(url, fallback) {
-  try {
-    const pathname = new URL(url).pathname;
-    const ext = path.extname(pathname).replace(/^\./, '');
-    return ext || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export function resolveResumeTaskId(taskConfig) {
-  const latest = taskConfig?.latest;
-  const taskId = typeof latest?.task_id === 'string' ? latest.task_id.trim() : '';
-  const status = String(latest?.status || '').toLowerCase();
-  if (!taskId || taskId === 'unknown') return null;
-  if (status === 'success' || status === 'completed') return null;
-  return taskId;
-}
-
-async function fetchWithRetry(url, options, maxRetries = 3) {
-  let lastError;
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch(url, options);
-      return response;
-    } catch (err) {
-      lastError = err;
-      log(`fetch failed (attempt ${i + 1}/${maxRetries}): ${err.message}`);
-      if (i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
-      }
-    }
-  }
-  throw lastError;
-}
-
-export async function downloadFile(url, targetPath) {
-  log(`Downloading asset: ${url}`);
-  const response = await fetchWithRetry(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
-  }
-  const buffer = Buffer.from(await response.arrayBuffer());
-  await fs.mkdir(path.dirname(targetPath), { recursive: true });
-  await fs.writeFile(targetPath, buffer);
-}
-
-export async function materializeOutputs(projectRoot, yamlPath, type, taskId, outputs) {
-  const localized = [];
-  for (let index = 0; index < outputs.length; index += 1) {
-    const output = outputs[index];
-    if (!isHttpUrl(output)) {
-      localized.push(output);
-      continue;
-    }
-
-    const ext = getRemoteExtension(output, type === 'image' ? 'png' : 'mp4');
-    const subDir = type === 'image' ? 'images' : 'videos';
-    const taskIdStr = typeof taskId === 'string' ? taskId : crypto.randomUUID();
-    const filename = `${path.basename(yamlPath, '.yaml')}-${taskIdStr.slice(0, 8)}-${index}.${ext}`;
-    const relativePath = path.posix.join('assets', subDir, filename);
-    await downloadFile(output, path.join(projectRoot, relativePath));
-    localized.push(relativePath);
-  }
-  return localized;
-}
-
-async function fileExists(targetPath) {
-  try {
-    await fs.access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function inferContext(absoluteYamlPath, overrides = {}) {
-  const normalized = path.resolve(absoluteYamlPath);
-  
-  if (overrides.projectRoot) {
-    const projectRoot = path.resolve(overrides.projectRoot);
-    const workspaceRoot = overrides.workspaceRoot ? path.resolve(overrides.workspaceRoot) : path.dirname(path.dirname(projectRoot));
-    const projectId = path.basename(projectRoot);
-    const yamlPath = path.relative(projectRoot, normalized);
-    return { workspaceRoot, projectId, projectPath: projectId, projectRoot, yamlPath };
-  }
-
-  const segments = normalized.split(path.sep).filter(Boolean);
-  const projectsIndex = segments.lastIndexOf('projects');
-
-  // Attempt to infer standard workspace structure (workspace/projects/id/...)
-  if (projectsIndex >= 1 && segments.length > projectsIndex + 2) {
-    const projectId = segments[projectsIndex + 1];
-    const section = segments[projectsIndex + 2];
-    if (section === 'storyboards' || section === 'asset_defs') {
-        const projectsSegments = segments.slice(0, projectsIndex + 1);
-        const projectsRoot = `${path.sep}${projectsSegments.join(path.sep)}`;
-        const workspaceRoot = path.dirname(projectsRoot);
-        const projectRoot = path.join(projectsRoot, projectId);
-        const yamlSegments = segments.slice(projectsIndex + 2);
-        const yamlPath = yamlSegments.join('/');
-
-        // Verify workspace marker for confidence
-        const hasWorkspaceMarker = (
-            (await fileExists(path.join(workspaceRoot, 'projects.json'))) ||
-            (await fileExists(path.join(workspaceRoot, 'config.json'))) ||
-            (await fileExists(path.join(workspaceRoot, '.mangou')))
-          );
-          
-        if (hasWorkspaceMarker) {
-            return { workspaceRoot, projectId, projectPath: projectId, projectRoot, yamlPath };
-        }
-    }
-  }
-
-  // PORTABLE FALLBACK:
-  // If no standard workspace structure detected, use the directory containing the YAML as the project root
-  // and the current working directory as the workspace root.
-  const portableProjectRoot = path.dirname(normalized);
-  const portableProjectId = path.basename(portableProjectRoot);
-  const portableYamlPath = path.basename(normalized);
-
-  return {
-    workspaceRoot: process.cwd(),
-    projectId: portableProjectId,
-    projectPath: portableProjectId,
-    projectRoot: portableProjectRoot,
-    yamlPath: portableYamlPath,
-    isPortable: true,
-  };
 }
 
 async function readWorkspaceConfig(workspaceRoot) {
@@ -200,134 +60,6 @@ function getProviderConfig(config, providerId) {
     };
   }
   return {};
-}
-
-async function collectRefImageInputs(projectRoot, refs) {
-  const results = [];
-  if (!Array.isArray(refs) || refs.length === 0) return results;
-  const assetDefsRoot = path.join(projectRoot, 'asset_defs');
-
-  async function walk(dir) {
-    let entries = [];
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const entryPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(entryPath);
-        continue;
-      }
-      if (!entry.isFile() || !entry.name.endsWith('.yaml')) continue;
-      try {
-        const raw = await fs.readFile(entryPath, 'utf-8');
-        const parsed = yaml.load(raw);
-        const refId = parsed?.meta?.id;
-        const latestOutput = parsed?.tasks?.image?.latest?.output;
-        if (refId && typeof latestOutput === 'string') {
-          results.push([refId, latestOutput]);
-        }
-      } catch {
-        // ignore invalid yaml
-      }
-    }
-  }
-
-  await walk(assetDefsRoot);
-  const refMap = new Map(results);
-  return refs
-    .map((id) => refMap.get(id))
-    .filter((value) => typeof value === 'string' && value.length > 0);
-}
-
-async function resolveImageInput(workspaceRoot, projectId, projectRoot, value, allowYaml = false, depth = 0) {
-  if (typeof value !== 'string' || !value.trim()) return null;
-  if (depth > 1) {
-    log(`Warning: Maximum YAML resolution depth reached for ${value}`);
-    return null;
-  }
-
-  // Handle ${path/to/file.yaml} or ${path/to/image.png} syntax
-  let normalized = value.trim();
-  const interpolationMatch = normalized.match(/^\$\{(.+)\}$/);
-  if (interpolationMatch) {
-    normalized = interpolationMatch[1];
-    allowYaml = normalized.endsWith('.yaml');
-  }
-
-  normalized = normalizeWorkspaceRelativePath(normalized);
-  if (normalized.startsWith('data:')) return normalized;
-  if (isHttpUrl(normalized)) {
-    return normalized;
-  }
-
-  if (allowYaml && normalized.endsWith('.yaml')) {
-    try {
-      const absoluteYamlPath = path.isAbsolute(normalized)
-        ? normalized
-        : path.join(projectRoot, normalized); // Use projectRoot for ${asset_defs/...} style refs
-
-      const raw = await fs.readFile(absoluteYamlPath, 'utf-8');
-      const doc = yaml.load(raw);
-      const latestOutput = doc?.tasks?.image?.latest?.output;
-      if (latestOutput && typeof latestOutput === 'string') {
-        return resolveImageInput(workspaceRoot, projectId, projectRoot, latestOutput, false, depth + 1);
-      }
-    } catch (error) {
-      log(`Warning: Failed to resolve YAML linkage ${normalized}:`, error.message);
-    }
-  }
-
-  // Portable resolution: try absolute path relative to projectRoot first
-  const candidatePath = path.resolve(projectRoot, normalized.replace(/^\.\//, ''));
-  
-  try {
-     // If the file exists at this resolved location, read it directly
-     const buffer = await fs.readFile(candidatePath);
-     const ext = path.extname(normalized).toLowerCase();
-     const contentType = ext === '.png' ? 'image/png' : (ext === '.jpg' || ext === '.jpeg') ? 'image/jpeg' : 'image/png';
-     return `data:${contentType};base64,${buffer.toString('base64')}`;
-  } catch {
-     // Fallback to standard registry structure
-     return readLocalMediaAsDataUrl(workspaceRoot, projectId, normalized);
-  }
-}
-
-async function postJson(url, body, method = 'POST', timeout = 2000) {
-  return { skipped: true };
-}
-
-export async function updateYamlProjection(payload) {
-  const {
-    projectRoot,
-    taskId,
-    upstreamTaskId,
-    status,
-    output,
-    yamlPath,
-    taskType,
-    error,
-    docIndex = 0,
-  } = payload;
-
-  if (projectRoot && yamlPath) {
-    try {
-      const fullYamlPath = path.join(projectRoot, yamlPath);
-      const current = await fs.readFile(fullYamlPath, 'utf-8');
-      const updated = updateGenerationStatus(current, taskType, {
-        status,
-        output: Array.isArray(output?.files) ? output.files[0] : (typeof output === 'string' ? output : null),
-        error: typeof error === 'string' ? error : (error?.message || null),
-        task_id: taskId ?? null,
-        upstream_task_id: upstreamTaskId ?? taskId ?? null,
-      }, docIndex);
-      await fs.writeFile(fullYamlPath, updated, 'utf-8');
-    } catch (writeError) {
-      log(`Warning: failed to update YAML directly: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
-    }
-  }
 }
 
 async function upsertTask(projectRoot, id, payload) {

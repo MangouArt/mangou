@@ -14,8 +14,6 @@ import { isMediaContentType, normalizeContentType, sniffContentType } from '../s
 import { vfsStorageManager } from '../src/lib/vfs/storage-manager';
 import { vfsEventManager } from '../src/lib/vfs/event-manager';
 import { buildProjectSnapshot } from '../src/lib/vfs/project-snapshot';
-import { appendTaskEvent, getTaskById, listLatestTasks } from './tasks-jsonl.mjs';
-import { updateGenerationStatus, stringifyYAML } from '../src/lib/vfs/yaml';
 
 type ServerOptions = {
   appRoot: string;
@@ -34,12 +32,6 @@ let vfsEventBound = false;
 function sendSse(res: http.ServerResponse, event: string, payload: unknown) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
-}
-
-function broadcastLog(payload: unknown) {
-  for (const client of vfsSseClients) {
-    sendSse(client.res, 'log', payload);
-  }
 }
 
 function bindVfsEventsOnce() {
@@ -322,42 +314,6 @@ async function handleVfsEvents(req: http.IncomingMessage, res: http.ServerRespon
   });
 }
 
-async function handleLog(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse) {
-  if (req.method !== 'POST') {
-    return sendJson(res, 405, { success: false, error: 'Method not allowed' });
-  }
-  const body = await readJson(req);
-  const projectId = String(body.projectId || 'demo');
-  const message = typeof body.message === 'string' ? body.message : '';
-  const level = typeof body.level === 'string' ? body.level : 'info';
-  const event = body.event && typeof body.event === 'object' ? body.event : null;
-
-  try {
-    const projectRoot = resolveProjectRoot(dataRoot, projectId);
-    if (event) {
-      const snapshot = await appendTaskEvent(projectRoot, event);
-      broadcastLog({ projectId, snapshot });
-      return sendJson(res, 200, { success: true, data: snapshot });
-    }
-    if (!message) {
-      return sendJson(res, 400, { success: false, error: 'Missing message or event' });
-    }
-    const snapshot = await appendTaskEvent(projectRoot, {
-      type: 'log',
-      status: 'success',
-      provider: 'bridge',
-      input: { message, level },
-      ref: body.ref || '',
-      event: 'note',
-      worker: body.worker || 'bridge',
-    });
-    broadcastLog({ projectId, snapshot });
-    return sendJson(res, 200, { success: true, data: snapshot });
-  } catch (error: any) {
-    return sendJson(res, 500, { success: false, error: error?.message || 'Log failed' });
-  }
-}
-
 async function handleProjects(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse) {
   if (req.method === 'GET') {
     try {
@@ -428,80 +384,6 @@ async function handleProjectSnapshot(dataRoot: string, res: http.ServerResponse,
   } catch (error: any) {
     log(`[Project Snapshot Error] ${projectId}:`, error?.message);
     return sendJson(res, 500, { success: false, error: error?.message || 'Snapshot failed' });
-  }
-}
-
-async function handleTasks(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
-  try {
-    if (req.method === 'GET') {
-      const projectPath = url.searchParams.get('projectPath');
-      if (!projectPath) return sendJson(res, 400, { success: false, error: 'Missing projectPath' });
-      const projectRoot = resolveProjectRoot(dataRoot, projectPath);
-      const tasks = await listLatestTasks(projectRoot);
-      return sendJson(res, 200, { success: true, data: tasks });
-    }
-    if (req.method === 'POST') {
-      const body = await readJson(req);
-      const { projectPath, ...event } = body;
-      if (!projectPath) return sendJson(res, 400, { success: false, error: 'Missing projectPath' });
-      const projectRoot = resolveProjectRoot(dataRoot, projectPath);
-      const snapshot = await appendTaskEvent(projectRoot, event);
-      return sendJson(res, 200, { success: true, data: snapshot });
-    }
-  } catch (error: any) {
-    return sendJson(res, 500, { success: false, error: error?.message || 'Tasks failed' });
-  }
-  return sendJson(res, 405, { success: false, error: 'Method not allowed' });
-}
-
-async function handleTaskItem(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse, url: URL, id: string) {
-  try {
-    if (req.method === 'GET') {
-      const projectPath = url.searchParams.get('projectPath');
-      if (!projectPath) return sendJson(res, 400, { success: false, error: 'Missing projectPath' });
-      const projectRoot = resolveProjectRoot(dataRoot, projectPath);
-      const task = await getTaskById(projectRoot, id);
-      return sendJson(res, 200, { success: true, data: task || {} });
-    }
-    if (req.method === 'PATCH') {
-      const body = await readJson(req);
-      const { projectPath, ...event } = body;
-      if (!projectPath) return sendJson(res, 400, { success: false, error: 'Missing projectPath' });
-      const projectRoot = resolveProjectRoot(dataRoot, projectPath);
-      const snapshot = await appendTaskEvent(projectRoot, { ...event, id });
-      return sendJson(res, 200, { success: true, data: snapshot });
-    }
-  } catch (error: any) {
-    return sendJson(res, 500, { success: false, error: error?.message || 'Task failed' });
-  }
-  return sendJson(res, 405, { success: false, error: 'Method not allowed' });
-}
-
-async function handleYamlSyncLatest(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse) {
-  if (req.method !== 'POST') return sendJson(res, 405, { success: false, error: 'Method not allowed' });
-  try {
-    const body = await readJson(req);
-    const { projectPath, taskId, upstreamTaskId, status, output, yamlPath, taskType, error } = body;
-    if (!projectPath || !yamlPath || !taskType) {
-      return sendJson(res, 400, { success: false, error: 'Missing required sync fields' });
-    }
-    const projectRoot = resolveProjectRoot(dataRoot, projectPath);
-    const fullYamlPath = path.join(projectRoot, yamlPath);
-    const content = await fs.readFile(fullYamlPath, 'utf-8');
-    
-    // Using internal yaml utility
-    const updatedContent = updateGenerationStatus(content, taskType as 'image' | 'video', {
-      status,
-      output: Array.isArray(output?.files) ? output.files[0] : (typeof output === 'string' ? output : null),
-      error: typeof error === 'string' ? error : (error?.message || null),
-      task_id: taskId,
-      upstream_task_id: upstreamTaskId,
-    });
-    
-    await fs.writeFile(fullYamlPath, updatedContent, 'utf-8');
-    return sendJson(res, 200, { success: true });
-  } catch (error: any) {
-    return sendJson(res, 500, { success: false, error: error?.message || 'Sync failed' });
   }
 }
 
@@ -634,17 +516,6 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
     const pathname = url.pathname;
     const devProxyOrigin = process.env.MANGOU_DEV_PROXY_ORIGIN;
 
-    if (pathname === '/api/tasks') {
-      return handleTasks(dataRoot, req, res, url);
-    }
-    if (pathname.startsWith('/api/tasks/')) {
-      const parts = pathname.split('/').filter(Boolean);
-      const taskId = parts[2];
-      return handleTaskItem(dataRoot, req, res, url, taskId);
-    }
-    if (pathname === '/api/yaml/sync-latest') {
-      return handleYamlSyncLatest(dataRoot, req, res);
-    }
     if (pathname === '/api/workspace') {
       return handleWorkspace(dataRoot, res);
     }
@@ -658,10 +529,6 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
 
     if (pathname === '/api/meta') {
       return handleMeta(appRoot, dataRoot, res);
-    }
-
-    if (pathname === '/api/log') {
-      return handleLog(dataRoot, req, res);
     }
 
     if (pathname === '/api/projects') {
@@ -679,20 +546,6 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
 
       if (sub === 'snapshot' && req.method === 'GET') {
         return handleProjectSnapshot(dataRoot, res, projectId);
-      }
-      
-      if (sub === 'tasks') {
-        if (req.method === 'GET') {
-          const projectRoot = resolveProjectRoot(dataRoot, projectId);
-          const tasks = await listLatestTasks(projectRoot);
-          return sendJson(res, 200, { success: true, tasks });
-        }
-        if (req.method === 'POST') {
-          const body = await readJson(req);
-          const projectRoot = resolveProjectRoot(dataRoot, projectId);
-          const snapshot = await appendTaskEvent(projectRoot, body);
-          return sendJson(res, 200, { success: true, task: snapshot });
-        }
       }
       
       if (sub === 'stitch') {

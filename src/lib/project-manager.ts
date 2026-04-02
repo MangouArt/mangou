@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { configStore } from '@/lib/config-store';
-import { listLatestTasks, TaskSnapshot } from '@/lib/tasks-jsonl';
 
 export interface ProjectMetadata {
   id: string;
@@ -77,12 +76,6 @@ export class ProjectManager {
     return manager.getProject(id);
   }
 
-  static async getTasks(projectId: string): Promise<TaskSnapshot[]> {
-    const manager = ProjectManager.getDefault();
-    await manager.init();
-    return manager.getTasks(projectId);
-  }
-
   async init(): Promise<void> {
     await fs.mkdir(this.workspaceRoot, { recursive: true });
     await fs.mkdir(this.projectsRoot, { recursive: true });
@@ -116,10 +109,6 @@ export class ProjectManager {
   async getProject(projectId: string): Promise<ProjectMetadata | null> {
     const projects = await this.listProjects();
     return projects.find((project) => project.id === projectId) || null;
-  }
-
-  async getTasks(projectId: string): Promise<TaskSnapshot[]> {
-    return listLatestTasks(projectId);
   }
 
   async updateProjectVideoUrl(projectId: string, videoUrl: string): Promise<ProjectMetadata | null> {
