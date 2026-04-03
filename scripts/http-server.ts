@@ -8,7 +8,6 @@ import { fileURLToPath } from 'url';
 import { ProjectManager } from '../src/lib/project-manager';
 import { configStore } from '../src/lib/config-store';
 import { parseYAML } from '../src/lib/vfs/yaml';
-import { stitchVideosLocal } from '../src/lib/video/stitch';
 import { getContentTypeByPath, getCacheControlByContentType } from '../src/lib/vfs/server-utils';
 import { isMediaContentType, normalizeContentType, sniffContentType } from '../src/lib/file-type';
 import { vfsStorageManager } from '../src/lib/vfs/storage-manager';
@@ -234,61 +233,6 @@ async function handleVfsGet(dataRoot: string, req: http.IncomingMessage, res: ht
   }
 }
 
-async function handleVfsPost(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse) {
-  const body = await readJson(req);
-  let { action, projectId = 'demo', path: vfsPath, content } = body;
-  vfsPath = normalizeVfsPath(typeof vfsPath === 'string' ? vfsPath : '/');
-  if (vfsPath.startsWith('/.agents')) {
-    return sendJson(res, 404, { success: false, error: 'Ignored path' });
-  }
-  try {
-    const projectRoot = resolveProjectRoot(dataRoot, projectId);
-    if (action === 'write') {
-      const fullPath = path.join(projectRoot, vfsPath);
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      await fs.writeFile(fullPath, content, 'utf-8');
-      return sendJson(res, 200, { success: true });
-    }
-    if (action === 'mkdir') {
-      const fullPath = path.join(projectRoot, vfsPath);
-      await fs.mkdir(fullPath, { recursive: true });
-      return sendJson(res, 200, { success: true });
-    }
-    if (action === 'delete') {
-      const fullPath = path.join(projectRoot, vfsPath);
-      await fs.rm(fullPath, { recursive: true, force: true });
-      return sendJson(res, 200, { success: true });
-    }
-  } catch (error: any) {
-    return sendJson(res, 500, { success: false, error: error?.message || 'Write failed' });
-  }
-
-  return sendJson(res, 400, { success: false, error: 'Invalid POST action' });
-}
-
-async function handleVfsPut(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
-  try {
-    const projectId = url.searchParams.get('projectId') || 'demo';
-    const vfsPath = normalizeVfsPath(url.searchParams.get('path'));
-    if (vfsPath.startsWith('/.agents')) {
-      return sendJson(res, 404, { success: false, error: 'Ignored path' });
-    }
-    const projectRoot = resolveProjectRoot(dataRoot, projectId);
-    const fullPath = path.join(projectRoot, vfsPath);
-
-    const contentType = req.headers['content-type'] || '';
-    const body = await readBody(req);
-    const content = contentType.includes('application/json')
-      ? JSON.stringify(JSON.parse(body.toString('utf-8')))
-      : body.toString('utf-8');
-
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, content, 'utf-8');
-    return sendJson(res, 200, { success: true });
-  } catch (error: any) {
-    return sendJson(res, 500, { success: false, error: error?.message || 'Write failed' });
-  }
-}
 
 async function handleVfsEvents(req: http.IncomingMessage, res: http.ServerResponse) {
   const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
@@ -401,50 +345,6 @@ async function handleWorkspace(dataRoot: string, res: http.ServerResponse) {
   });
 }
 
-async function handleProjectStitch(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse, projectId: string) {
-  if (req.method !== 'POST') {
-    return sendJson(res, 405, { success: false, error: 'Method not allowed' });
-  }
-  try {
-    const workspaceRoot = resolveWorkspaceRoot(dataRoot);
-    const projectRoot = resolveProjectRoot(dataRoot, projectId);
-    const storyboardsDir = path.join(projectRoot, 'storyboards');
-    const files = await fs.readdir(storyboardsDir).catch(() => []);
-
-    const entries = await Promise.all(
-      files
-        .filter((name) => name.endsWith('.yaml') || name.endsWith('.yml'))
-        .map(async (name) => {
-          const filePath = path.join(storyboardsDir, name);
-          const content = await fs.readFile(filePath, 'utf-8');
-          const data = parseYAML(content);
-          const sequence = Number(data?.content?.sequence ?? 0);
-          const output = data?.tasks?.video?.latest?.output as string | undefined;
-          const status = data?.tasks?.video?.latest?.status as string | undefined;
-          return { sequence, output, status };
-        })
-    );
-
-    const videoUrls = entries
-      .filter((e) => e.output && e.status === 'completed')
-      .sort((a, b) => a.sequence - b.sequence)
-      .map((e) => e.output as string);
-
-    if (videoUrls.length === 0) {
-      throw new Error('No videos found to stitch');
-    }
-
-    const outputPath = await stitchVideosLocal(projectRoot, videoUrls, 'output.mp4');
-
-    const pm = new ProjectManager(workspaceRoot);
-    await pm.init();
-    await pm.updateProjectVideoUrl(projectId, outputPath);
-
-    return sendJson(res, 200, { success: true, url: outputPath });
-  } catch (error: any) {
-    return sendJson(res, 500, { success: false, error: error?.message || 'Stitch failed' });
-  }
-}
 
 function getStaticContentType(filePath: string) {
   const ext = path.extname(filePath).toLowerCase();
@@ -522,9 +422,7 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
 
     if (pathname === '/api/vfs') {
       if (req.method === 'GET') return handleVfsGet(dataRoot, req, res, url);
-      if (req.method === 'POST') return handleVfsPost(dataRoot, req, res);
-      if (req.method === 'PUT') return handleVfsPut(dataRoot, req, res, url);
-      return sendJson(res, 405, { success: false, error: 'Method not allowed' });
+      return sendJson(res, 403, { success: false, error: 'VFS write access is disabled in read-only mode' });
     }
 
     if (pathname === '/api/meta') {
@@ -546,10 +444,6 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
 
       if (sub === 'snapshot' && req.method === 'GET') {
         return handleProjectSnapshot(dataRoot, res, projectId);
-      }
-      
-      if (sub === 'stitch') {
-        return handleProjectStitch(dataRoot, req, res, projectId);
       }
       
       return handleProjectItem(dataRoot, req, res, projectId);
