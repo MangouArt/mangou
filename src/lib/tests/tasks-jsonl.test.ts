@@ -89,4 +89,62 @@ describe('scripts/tasks-jsonl.mjs', () => {
     const latest = await getTaskById(tempDir, 'task-after-lock');
     expect(latest?.status).toBe('processing');
   });
+
+  it('keeps appendTaskEvent append-only and does not reject repeated pending events', async () => {
+    await appendTaskEvent(tempDir, {
+      id: 'task-repeat',
+      type: 'image',
+      status: 'pending',
+      input: { prompt: 'first' },
+    });
+
+    await expect(
+      appendTaskEvent(tempDir, {
+        id: 'task-repeat',
+        type: 'image',
+        status: 'pending',
+        input: { prompt: 'second' },
+      }),
+    ).resolves.toMatchObject({ id: 'task-repeat', status: 'pending' });
+
+    const raw = await fs.readFile(path.join(tempDir, 'tasks.jsonl'), 'utf-8');
+    const lines = raw.trim().split('\n');
+    expect(lines).toHaveLength(2);
+  });
+
+  it('cleans stale lock files before appending', async () => {
+    const lockPath = path.join(tempDir, 'tasks.jsonl.lock');
+    await fs.writeFile(lockPath, 'stale', 'utf-8');
+    const staleTime = new Date(Date.now() - 20_000);
+    await fs.utimes(lockPath, staleTime, staleTime);
+
+    await expect(
+      appendTaskEvent(tempDir, {
+        id: 'task-after-stale-lock',
+        status: 'processing',
+      }),
+    ).resolves.toMatchObject({ id: 'task-after-stale-lock', status: 'processing' });
+
+    const latest = await getTaskById(tempDir, 'task-after-stale-lock');
+    expect(latest?.status).toBe('processing');
+  });
+
+  it('blocks until a non-stale lock is released instead of failing after a retry limit', async () => {
+    const lockPath = path.join(tempDir, 'tasks.jsonl.lock');
+    await fs.writeFile(lockPath, 'busy', 'utf-8');
+
+    setTimeout(() => {
+      fs.rm(lockPath, { force: true }).catch(() => null);
+    }, 2_000);
+
+    await expect(
+      appendTaskEvent(tempDir, {
+        id: 'task-after-long-lock',
+        status: 'success',
+      }),
+    ).resolves.toMatchObject({ id: 'task-after-long-lock', status: 'success' });
+
+    const latest = await getTaskById(tempDir, 'task-after-long-lock');
+    expect(latest?.status).toBe('success');
+  });
 });
