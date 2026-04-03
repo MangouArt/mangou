@@ -53,14 +53,20 @@ KIE AI 提供了高性能的图像/视频生成与编辑能力，特别适合处
 
 | 模型标识 (model) | 描述 |
 | :--- | :--- |
+| `bytedance/seedance-2-fast` | 字节跳动 Seedance 2.0 快速版，支持首尾帧控制与多图参考。 |
 | `bytedance/v1-pro-fast-image-to-video` | 极速高质量视频模型，擅长动态捕捉。 |
 
 ### 3.1 params 字段规范
 - **prompt** (string, **必需**): 动作描述（Camera Movement & Character Action）。
-- **images** (array<string>, **必需**): 首帧参考图。通常引用上一阶段生成的 `image` 任务产物。
-- **duration** (string/number, **默认: "5"**): 视频时长。可选 `"5"` 或 `"10"`。
-- **resolution** (string, **默认: "720p"**): 可选 `"720p"` 或 `"1080p"`。
-- **nsfw_checker** (boolean, **默认: true**): 安全审核开关。
+- **images** (array<string>, **必需**): 参考图路径。如果是 `seedance-2-fast` 模型，通常用作 `first_frame_url`。
+- **duration** (number, **默认: 5**): 视频时长（秒）。`seedance-2-fast` 支持 5-15 秒。
+- **resolution** (string, **默认: "720p"**): 可选 `"480p"`, `"720p"`。
+- **aspect_ratio** (string, **默认: "16:9"**): 视频比例。`seedance-2-fast` 支持 `1:1`, `4:3`, `3:4`, `16:9`, `9:16`, `21:9`, `adaptive`。
+- **first_frame_url** (string, **可选**): 指定首帧。若不填则自动使用 `images[0]`。
+- **last_frame_url** (string, **可选**): 指定尾帧。
+- **reference_image_urls** (array<string>, **可选**): 多图参考，最多 7 张。
+- **web_search** (boolean, **默认: true**): 是否启用联网搜索。`seedance-2-fast` 必需。
+- **nsfw_checker** (boolean, **默认: true**): 安全审核开关（仅旧模型支持）。
 
 ---
 

@@ -6,6 +6,36 @@ describe('KIE AI Provider', () => {
     vi.stubGlobal('fetch', vi.fn());
   });
 
+  it('buildPayload should correctly format bytedance/seedance-2-fast request', () => {
+    const params = {
+      model: 'bytedance/seedance-2-fast',
+      prompt: 'A cinematic video of a cat',
+      images: ['https://example.com/first.png'],
+      duration: 10,
+      aspect_ratio: '16:9',
+      web_search: false
+    };
+    const payload = KIE_PROVIDER.buildPayload('videos', params);
+
+    expect(payload).toEqual({
+      model: 'bytedance/seedance-2-fast',
+      input: {
+        prompt: 'A cinematic video of a cat',
+        first_frame_url: 'https://example.com/first.png',
+        last_frame_url: '',
+        reference_image_urls: [],
+        'reference_video_urls ': [],
+        reference_audio_urls: [],
+        return_last_frame: false,
+        generate_audio: true,
+        resolution: '720p',
+        aspect_ratio: '16:9',
+        duration: 10,
+        web_search: false
+      }
+    });
+  });
+
   it('buildPayload should correctly format video request', () => {
     const params = {
       model: 'bytedance/v1-pro-fast-image-to-video',
@@ -175,6 +205,57 @@ describe('KIE AI Provider', () => {
     expect(urls).toEqual([]);
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+
+  it('submit should upload multiple images via stream to KIE for seedance-2-fast', async () => {
+    const mockUploadResponse = {
+      success: true,
+      data: { downloadUrl: 'https://cdn.kie.ai/uploaded.png' }
+    };
+    const mockSubmitResponse = {
+      code: 200,
+      data: { taskId: 'task-after-upload-multi' }
+    };
+
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUploadResponse
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUploadResponse
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSubmitResponse
+      });
+
+    const taskId = await KIE_PROVIDER.submit({
+      baseUrl: 'https://api.kie.ai',
+      apiKey: 'test-key',
+      scope: 'videos',
+      payload: {
+        model: 'bytedance/seedance-2-fast',
+        input: { 
+          prompt: 'test',
+          first_frame_url: 'data:image/png;base64,xxxx',
+          reference_image_urls: ['data:image/png;base64,yyyy']
+        }
+      },
+      fetchImpl
+    });
+
+    expect(taskId).toBe('task-after-upload-multi');
+    // Expect two uploads (first_frame_url and one in reference_image_urls)
+    expect(fetchImpl).toHaveBeenCalledTimes(3); 
+    expect(fetchImpl).toHaveBeenLastCalledWith(
+      'https://api.kie.ai/api/v1/jobs/createTask',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('https://cdn.kie.ai/uploaded.png')
+      })
+    );
   });
 
   it('submit should upload images via stream to KIE first', async () => {
