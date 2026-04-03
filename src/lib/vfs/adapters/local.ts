@@ -62,28 +62,9 @@ export class LocalVFSAdapter implements VFSAdapter {
     }
   }
 
-  async writeFile(path: string, content: string): Promise<void> {
-    try {
-      const url = `${this.apiUrl}?projectId=${this.projectId}&path=${encodeURIComponent(path)}`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-        body: content,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to write file: ${response.statusText}`);
-      }
-
-      this.emit({
-        type: 'file:updated',
-        path,
-        timestamp: new Date(),
-      });
-    } catch (error) {
-      console.error('[LocalVFSAdapter] writeFile error:', error);
-      throw error;
-    }
+  async writeFile(path: string, _content: string): Promise<void> {
+    console.warn(`[LocalVFSAdapter] Write skipped: Server is in read-only mode. Path: ${path}`);
+    return Promise.resolve();
   }
 
   async listDirectory(path: string): Promise<string[]> {
@@ -106,30 +87,8 @@ export class LocalVFSAdapter implements VFSAdapter {
   }
 
   async deleteFile(path: string): Promise<void> {
-    try {
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: this.projectId,
-          path,
-          action: 'delete'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete file: ${response.statusText}`);
-      }
-
-      this.emit({
-        type: 'file:deleted',
-        path,
-        timestamp: new Date(),
-      });
-    } catch (error) {
-      console.error('[LocalVFSAdapter] deleteFile error:', error);
-      throw error;
-    }
+    console.warn(`[LocalVFSAdapter] Delete skipped: Server is in read-only mode. Path: ${path}`);
+    return Promise.resolve();
   }
 
   watch(callback: (event: VFSEvent) => void): () => void {
