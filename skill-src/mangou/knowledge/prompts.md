@@ -30,3 +30,34 @@
 - **强制性**：这是宫格母图的默认补充约束，不是可选建议。
 - **适用范围**：仅用于宫格母图，不要注入普通单镜 Prompt。
 - **目标**：保证物理切分时每个 tile 紧贴排列，减少白边、黑边和裁切偏移。
+## 导演级视频提示词规范 (Director-level Video Prompting)
+
+在进行 I2V（图片转视频）生成时，核心逻辑是**从“审美描述”转向“导演调度约束”**。Agent 必须主动压低模型的自由度，通过物理约束来确保视频的连续性与真实感。
+
+### 1. 核心原则：物理约束优于审美描述
+不要写“梦幻般的镜头”、“电影级转场”，必须写清楚镜头的物理路径和变化来源。
+
+- **确定首尾帧关系**：写明首帧有什么，画外（Off-screen）有什么，尾帧落点在哪。
+- **锁定视觉变化来源**：明确声明变化仅由以下因素驱动：摄影机运动、视角变化、遮挡关系、视差。
+
+### 2. 显式禁止项 (Forbidden Transitions)
+必须在 Prompt 中显式禁止模型常用的“偷懒/幻觉”解法：
+- **严禁淡入淡出 (No Fades)**：`no fade in, no fade out, no black screen, no transparency changes`.
+- **严禁生成式变形 (No Morphing)**：禁止物体凭空变大、变小或通过奇怪的形变“长”出来。
+- **严禁溶解与叠化 (No Dissolve/Merge)**：禁止两个场景或物体在过渡中由于物理不通而互相融合、叠化。
+- **严禁空间重组**：禁止背景（如地平线、地板）在镜头移动中滑动、闪烁或重新排列。
+
+### 3. 空间与运动指令 (Spatial & Motion Commands)
+- **明确场外存在 (`offscreen_elements`)**：例如：“人群真实存在于摄影机右侧 90 度的场外空间”，而不是“人群逐渐出现”。
+- **唯一主运镜动作**：明确主轨迹（如：`Rotate right 90 degrees`），并补充排除项（`NOT panning, NOT zooming, NOT scaling`）。
+- **主体静止原则**：对于环境驱动的镜头，需说明“背景中的雪地、地平线从头到尾静止，不滑动、不重构”。
+
+### 4. 机械分段指令 (Timed Beats)
+当一段自然语言控制不住模型乱发挥时，必须使用分段式时间指令（Time-based Prompting）：
+- `0-2s: Camera starts steady rotation to the right.`
+- `2-4s: The crowd enters the frame from the right edge with physical parallax.`
+- `4-5s: Camera stops and settles on the central subject.`
+
+### 5. 坏提示词 vs. 导演级提示词 (Comparison)
+- **❌ 坏 (Bad)**: "A cinematic camera move across the crowd, naturally transition to a new scene, high quality visual." （模型会用溶解或凭空生成来应付，物理逻辑一塌糊涂）
+- **✅ 好 (Good)**: "I2V constraint: Camera rotates 90 degrees to the right. The crowd elements are static and exist in the off-screen space at the start. NO FADE, NO MORPH, NO FLASH. Background remains rigid. The movement is purely driven by physical camera rotation and perspective change."
