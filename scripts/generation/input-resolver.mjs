@@ -1,10 +1,22 @@
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
-import {
-  normalizeWorkspaceRelativePath,
-  readLocalMediaAsDataUrl,
-} from '../../src/lib/agent/image-input.ts';
+function normalizeWorkspaceRelativePath(input) {
+  const trimmed = (input || '').trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.startsWith('./')) return trimmed;
+  if (trimmed.startsWith('/')) return `.${trimmed}`;
+  return `./${trimmed}`;
+}
+
+async function readLocalMediaAsDataUrl(workspaceRoot, projectId, relativePath) {
+  const normalized = normalizeWorkspaceRelativePath(relativePath);
+  const absolutePath = path.resolve(workspaceRoot, 'projects', projectId, normalized.replace(/^\.\//, ''));
+  const buffer = await fs.readFile(absolutePath);
+  const ext = path.extname(normalized).toLowerCase();
+  const contentType = ext === '.png' ? 'image/png' : (ext === '.jpg' || ext === '.jpeg') ? 'image/jpeg' : 'image/png';
+  return `data:${contentType};base64,${buffer.toString('base64')}`;
+}
 import { isHttpUrl, log } from './utils.mjs';
 
 export async function collectRefImageInputs(projectRoot, refs) {
