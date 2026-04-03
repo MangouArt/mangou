@@ -90,6 +90,26 @@ export const KIE_PROVIDER = {
         ? params.images.filter(Boolean)
         : (params.images ? [params.images] : (params.image_url ? [params.image_url] : (params.image ? [params.image] : [])));
       
+      if (model === 'bytedance/seedance-2-fast') {
+        return {
+          model,
+          input: {
+            prompt,
+            first_frame_url: params.first_frame_url || images[0] || '',
+            last_frame_url: params.last_frame_url || '',
+            reference_image_urls: params.reference_image_urls || [],
+            'reference_video_urls ': params.reference_video_urls || [],
+            reference_audio_urls: params.reference_audio_urls || [],
+            return_last_frame: params.return_last_frame || false,
+            generate_audio: params.generate_audio !== undefined ? params.generate_audio : true,
+            resolution: params.resolution || '720p',
+            aspect_ratio: params.aspect_ratio || '16:9',
+            duration: Number(params.duration || 5),
+            web_search: params.web_search !== undefined ? params.web_search : true,
+          },
+        };
+      }
+
       if (images.length === 0) {
         throw new Error(`[kie] Missing required input: 'images' or 'image_url' is required for video generation`);
       }
@@ -166,10 +186,30 @@ export const KIE_PROVIDER = {
 
     // Handle file uploads for KIE
     if (scope === 'videos') {
-      const imageUrl = finalPayload.input?.image_url;
-      if (imageUrl && imageUrl.startsWith('data:')) {
-        console.error(`[kie] Uploading video ref image to KIE...`);
-        finalPayload.input.image_url = await uploadToKie(apiKey, imageUrl, fetchImpl);
+      const model = finalPayload.model;
+      if (model === 'bytedance/seedance-2-fast') {
+        // Handle first_frame_url
+        if (finalPayload.input?.first_frame_url?.startsWith('data:')) {
+          finalPayload.input.first_frame_url = await uploadToKie(apiKey, finalPayload.input.first_frame_url, fetchImpl);
+        }
+        // Handle last_frame_url
+        if (finalPayload.input?.last_frame_url?.startsWith('data:')) {
+          finalPayload.input.last_frame_url = await uploadToKie(apiKey, finalPayload.input.last_frame_url, fetchImpl);
+        }
+        // Handle reference_image_urls
+        if (Array.isArray(finalPayload.input?.reference_image_urls)) {
+          for (let i = 0; i < finalPayload.input.reference_image_urls.length; i++) {
+            if (finalPayload.input.reference_image_urls[i]?.startsWith('data:')) {
+              finalPayload.input.reference_image_urls[i] = await uploadToKie(apiKey, finalPayload.input.reference_image_urls[i], fetchImpl);
+            }
+          }
+        }
+      } else {
+        const imageUrl = finalPayload.input?.image_url;
+        if (imageUrl && imageUrl.startsWith('data:')) {
+          console.error(`[kie] Uploading video ref image to KIE...`);
+          finalPayload.input.image_url = await uploadToKie(apiKey, imageUrl, fetchImpl);
+        }
       }
     } else if (scope === 'images') {
       const model = finalPayload.model;
