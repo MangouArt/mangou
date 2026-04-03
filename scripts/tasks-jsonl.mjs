@@ -5,6 +5,8 @@ import crypto from 'crypto';
 const TASKS_FILE = 'tasks.jsonl';
 const LOCK_FILE = 'tasks.jsonl.lock';
 const MAX_STRING_LENGTH = 4096;
+const STALE_LOCK_MS = 10_000;
+const LOCK_WAIT_MS = 25;
 
 function stableStringify(value) {
   if (Array.isArray(value)) {
@@ -68,14 +70,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function computeRetryDelay(attempt, baseDelayMs = 25, maxDelayMs = 250) {
-  const exponential = Math.min(maxDelayMs, baseDelayMs * (2 ** attempt));
-  const jitter = Math.floor(Math.random() * baseDelayMs);
-  return exponential + jitter;
+async function isStaleLock(lockPath, staleMs = STALE_LOCK_MS) {
+  try {
+    const stats = await fs.stat(lockPath);
+    return Date.now() - stats.mtimeMs > staleMs;
+  } catch {
+    return false;
+  }
 }
 
-async function withFileLock(lockPath, action, retries = 8) {
-  for (let attempt = 0; attempt <= retries; attempt += 1) {
+async function withFileLock(lockPath, action) {
+  while (true) {
     let handle = null;
     try {
       handle = await fs.open(lockPath, 'wx');
@@ -88,17 +93,17 @@ async function withFileLock(lockPath, action, retries = 8) {
         await handle.close().catch(() => null);
       }
       if (error?.code === 'EEXIST') {
-        if (attempt >= retries) {
-          throw new Error('Failed to acquire tasks.jsonl lock');
+        if (await isStaleLock(lockPath)) {
+          await fs.unlink(lockPath).catch(() => null);
+          continue;
         }
-        await sleep(computeRetryDelay(attempt));
+        await sleep(LOCK_WAIT_MS);
         continue;
       }
       await fs.unlink(lockPath).catch(() => null);
       throw error;
     }
   }
-  throw new Error('Failed to acquire tasks.jsonl lock');
 }
 
 function getLatestTaskFromEvents(events, id) {
@@ -175,20 +180,10 @@ export async function appendTaskEvent(projectRoot, input) {
   await ensureTasksFile(projectRoot);
   const lockPath = path.join(projectRoot, LOCK_FILE);
   const tasksPath = path.join(projectRoot, TASKS_FILE);
+  const normalized = normalizeEvent(input);
+  normalized.id = normalized.id || computeTaskId(normalized);
 
   return withFileLock(lockPath, async () => {
-    const normalized = normalizeEvent(input);
-    normalized.id = normalized.id || computeTaskId(normalized);
-
-    const existingContent = await fs.readFile(tasksPath, 'utf-8').catch(() => '');
-    const existing = getLatestTaskFromEvents(
-      existingContent.split('\n').map(parseLine).filter(Boolean),
-      normalized.id,
-    );
-    if (existing && (normalized.status === 'pending' || normalized.status === 'submitted')) {
-      throw new Error(`Task already exists: ${normalized.id}`);
-    }
-
     await fs.appendFile(tasksPath, `${JSON.stringify(normalized)}\n`, 'utf-8');
     return toSnapshot(normalized);
   });

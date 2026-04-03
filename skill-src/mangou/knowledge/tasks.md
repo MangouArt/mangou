@@ -7,6 +7,8 @@
 在 Mangou 项目中，任务状态的**唯一真相源**是项目根目录下的 `tasks.jsonl` 文件。
 - 地址: `projects/<id>/tasks.jsonl`
 - 机制: 只追加写入 (Append-only)。对同一个任务 ID 进行多次写入时，最后一项记录代表其当前状态。
+- 写入器只负责追加事件，不在写入路径内查重或拒绝重复 `pending`。
+- 当锁被其他进程占用时，写入器会阻塞等待释放，不依赖固定次数的重试上限。
 
 ## 2. 记录结构 (JSONL Schema)
 
@@ -36,5 +38,5 @@
 ## 4. Agent 执行建议
 
 - **失败诊断**: 当 `agent-generate` 报错时，Agent 应检查 YAML 中的 `latest.error` 或 `tasks.jsonl` 的末尾记录，以判断是 API 密钥失效、Prompt 违规还是网络超时。
-- **防止重复**: 脚本具备一定的断点续传能力。如果 YAML 中已有处理中的 `task_id`，Agent 再次调用生成时脚本会尝试轮询而非重新提交。
+- **防止重复**: 幂等由稳定 `task id` 和上层 CLI 决定，不要假设 `tasks.jsonl` 写入器会替你拦截重复提交。
 - **Grid 回填不是例外**: `split-grid.mjs` 成功回填子镜后，也会向 `tasks.jsonl` 追加 `image/success` 记录。不要假设只有远程 AIGC 任务才会写入真相源。
