@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useProjects } from '@web/hooks/use-project';
+import { useProjects } from './use-project';
 
 interface UseProjectManagerOptions {
   projectId: string;

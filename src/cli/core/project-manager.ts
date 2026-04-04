@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { configStore } from '@/lib/config-store';
+import { configStore } from '@core/config-store';
 
 export interface ProjectMetadata {
   id: string;

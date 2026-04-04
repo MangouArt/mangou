@@ -4,8 +4,9 @@ export interface Asset {
   id: string;
   type: 'character' | 'scene' | 'prop';
   name: string;
-  description: string;
-  imageUrl?: string;
+  description: string | null;
+  imageUrl?: string | null;
+  image_url?: string | null;
   status: 'pending' | 'generating' | 'completed' | 'failed';
   filePath?: string;
 }
@@ -13,13 +14,14 @@ export interface Asset {
 export interface Storyboard {
   id: string;
   sequenceNumber: number;
-  title: string;
-  description: string;
-  script?: string;
-  prompt: string;
-  videoPrompt?: string;
-  imageUrl?: string;
-  videoUrl?: string;
+  title: string | null;
+  description: string | null;
+  script?: string | null;
+  prompt: string | null;
+  videoPrompt?: string | null;
+  imageUrl?: string | null;
+  image_url?: string | null;
+  videoUrl?: string | null;
   status: 'pending' | 'generating_image' | 'generating_video' | 'completed' | 'failed';
   refAssetIds?: string[];
   filePath?: string;

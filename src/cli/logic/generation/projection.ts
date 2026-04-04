@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import fs from 'fs/promises';
 import path from 'path';
 import * as YAMLUtils from '../../core/vfs/yaml';

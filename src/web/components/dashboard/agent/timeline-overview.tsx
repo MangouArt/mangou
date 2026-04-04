@@ -1,8 +1,8 @@
 'use client';
 
 import { Storyboard } from '@web/stores/director-agent-store';
-import { ScrollArea, ScrollBar } from '@web/components/ui/scroll-area';
-import { cn } from '@web/lib/utils';
+import { ScrollArea, ScrollBar } from '@components/ui/scroll-area';
+import { cn } from '@core/utils';
 import { CheckCircle2, ImageIcon, Video, Loader2, Clock } from 'lucide-react';
 
 interface TimelineOverviewProps {

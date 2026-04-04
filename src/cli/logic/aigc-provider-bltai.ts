@@ -1,6 +1,7 @@
+#!/usr/bin/env bun
 import { AIGC_PROVIDER_TEMPLATE } from '@logic/aigc-provider-template';
 
-function joinUrl(base, ...parts) {
+function joinUrl(base: any, ...parts: any[]) {
   const normalizedBase = String(base || '').replace(/\/+$/, '');
   const normalizedPath = parts
     .map((part) => String(part || '').replace(/^\/+/, '').replace(/\/+$/, ''))
@@ -9,14 +10,14 @@ function joinUrl(base, ...parts) {
   return normalizedPath ? `${normalizedBase}/${normalizedPath}` : normalizedBase;
 }
 
-function normalizeBaseUrl(baseUrl) {
+function normalizeBaseUrl(baseUrl: any) {
   let normalized = String(baseUrl || '').trim() || 'https://api.bltcy.ai';
   normalized = normalized.replace(/\/+$/, '');
   normalized = normalized.replace(/\/v[12]$/, '');
   return normalized;
 }
 
-async function fetchWithRetry(url, options, maxRetries = 3) {
+async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
   let lastError;
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -46,7 +47,7 @@ export const BLTAI_PROVIDER = {
     image: 'images',
     video: 'videos',
   },
-  buildPayload(scope, params) {
+  buildPayload(scope: any, params: any) {
     const prompt = (params.prompt || '').trim();
     if (!prompt) {
       throw new Error(`[bltai] Missing required parameter: 'prompt'`);
@@ -102,7 +103,7 @@ export const BLTAI_PROVIDER = {
     }
     return params;
   },
-  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }) {
+  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }: any) {
     const normalizedBase = normalizeBaseUrl(baseUrl);
     let endpoint = scope === 'images'
       ? joinUrl(normalizedBase, 'v1', 'images', 'generations')
@@ -151,7 +152,7 @@ export const BLTAI_PROVIDER = {
     }
     return taskId;
   },
-  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }) {
+  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }: any) {
     if (taskId && typeof taskId === 'object' && taskId.instantData) {
       return taskId.instantData;
     }
@@ -198,7 +199,7 @@ export const BLTAI_PROVIDER = {
       delayMs = Math.min(delayMs + 2000, 15000);
     }
   },
-  extractOutputs(scope, result) {
+  extractOutputs(scope: any, result: any) {
     console.error(`[bltai] Extracting outputs from ${scope}:`, JSON.stringify(result, null, 2));
     if (scope === 'images') {
       // Handle nested structures from polling results

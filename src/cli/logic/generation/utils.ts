@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -33,7 +34,7 @@ function getRemoteExtension(url, fallback) {
   }
 }
 
-async function fetchWithRetry(url, options, maxRetries = 3) {
+async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
   let lastError;
   for (let i = 0; i < maxRetries; i += 1) {
     try {

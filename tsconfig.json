@@ -14,7 +14,8 @@
       "@/*": ["./src/cli/*"],
       "@core/*": ["./src/cli/core/*"],
       "@logic/*": ["./src/cli/logic/*"],
-      "@web/*": ["./src/web/*"]
+      "@web/*": ["./src/web/*"],
+      "@components/*": ["./src/web/components/*"]
     }
   },
   "include": ["src", "test", "vite.config.ts", "vitest.config.ts"],

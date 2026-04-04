@@ -14,15 +14,15 @@ import {
   exportToExistingData,
   initializeProjectStructure,
   vfsStorageManager,
-} from '@web/lib/vfs';
+} from '@core/vfs/index';
 import type {
   VFSReadResult,
   VFSReplaceResult,
   VFSFileEntry,
   AgentToolContext,
-} from '@web/lib/vfs';
+} from '@core/vfs/index';
 
-import { Asset, Storyboard } from '@web/stores/director-agent-store';
+import { UIAsset as Asset, UIStoryboard as Storyboard } from '@core/mango';
 
 interface UseVFSOptions {
   projectId: string;

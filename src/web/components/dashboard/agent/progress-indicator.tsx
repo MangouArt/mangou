@@ -1,6 +1,6 @@
 'use client';
 
-import { Progress } from '@web/components/ui/progress';
+import { Progress } from '@components/ui/progress';
 import { useMemo } from 'react';
 import { Asset, Storyboard } from '@web/stores/director-agent-store';
 

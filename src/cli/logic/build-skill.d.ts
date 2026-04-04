@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 export interface BuildSkillBundleOptions {
   packageRoot?: string;
   skillName?: string;

@@ -14,15 +14,15 @@ import {
   exportToExistingData,
   initializeProjectStructure,
   vfsStorageManager,
-} from '@/lib/vfs';
+} from '@core/vfs/index';
 import type {
   VFSReadResult,
   VFSReplaceResult,
   VFSFileEntry,
   AgentToolContext,
-} from '@/lib/vfs';
+} from '@core/vfs/index';
 
-import { Asset, Storyboard } from '@/stores/director-agent-store';
+import { Asset, Storyboard } from '@web/stores/director-agent-store';
 
 interface UseVFSOptions {
   projectId: string;

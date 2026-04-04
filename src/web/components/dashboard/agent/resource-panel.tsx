@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { Asset } from '@web/stores/director-agent-store';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@web/components/ui/tabs';
-import { Badge } from '@web/components/ui/badge';
-import { ScrollArea } from '@web/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
+import { Badge } from '@components/ui/badge';
+import { ScrollArea } from '@components/ui/scroll-area';
 import { Box, ImageIcon, User } from 'lucide-react';
 
 interface ResourcePanelProps {
