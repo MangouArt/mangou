@@ -34,7 +34,7 @@ describe('scripts/aigc-runner.mjs', () => {
       }
     };
 
-    await runTask(tempDir, task, { fetchImpl });
+    await runTask(tempDir, task, { fetchImpl: fetchImpl as any });
 
     expect(fetchImpl).toHaveBeenCalledWith(
       'https://api.example.com/generate',
@@ -67,7 +67,7 @@ describe('scripts/aigc-runner.mjs', () => {
       }
     };
 
-    await runTask(tempDir, task, { fetchImpl });
+    await runTask(tempDir, task, { fetchImpl: fetchImpl as any });
 
     const content = await fs.readFile(path.join(tempDir, 'tasks.jsonl'), 'utf-8');
     expect(content).toContain('HTTP 500 Internal Server Error');

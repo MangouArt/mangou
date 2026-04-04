@@ -38,21 +38,26 @@ graph TD
     Stitch --> End[🚀 交付成品]
 ```
 
+## 环境要求 (Runtime Requirements)
+
+本技能基于 **Bun** 运行时构建，以获得最佳的 AIGC 编排性能和单文件执行体验。
+- **Runtime**: [Bun](https://bun.sh) >= 1.1 (Agent 应确保环境中已安装 `bun`)
+- **External Tools**: `ffmpeg`, `ffprobe` (用于视频合成与宫格切分)
+
 ## 核心能力 (Core Capabilities)
 
 ### 1. 生命周期与项目环境 (Lifecycle)
-统一调用 `${CLAUDE_SKILL_DIR}/scripts/mangou.mjs`，内部再分发到对应模块。
-- **初始化工作区**: `mangou.mjs workspace init --workspace <path>`。确保必要的运行时目录（如 `.mangou`）存在。
-- **创建/配置项目**: `mangou.mjs project create --project <id> --name <name>`。
-- **宫格子镜脚手架**: `mangou.mjs project scaffold --grid <master_yaml>`。根据母图的 `meta.grid` 自动生成子分镜占位 YAML，并写入 `meta.parent` / `meta.grid_index`。
+统一调用 `src/cli/main.ts`，内部再分发到对应模块。
+- **初始化工作区**: `bun run src/cli/main.ts workspace init --workspace <path>`。确保必要的运行时目录（如 `.mangou`）和技能插件存在。
+- **创建项目**: `bun run src/cli/main.ts project create --project <id> --name <name>`。
+- **宫格子镜脚手架**: `bun run src/cli/main.ts project scaffold --grid <master_yaml>`。
 
 ### 2. AIGC 生产流水线 (AIGC Pipeline)
-基于 YAML 任务定义执行异步渲染。
-- **任务执行**: `mangou.mjs generate image <yaml_path>` 或 `mangou.mjs generate video <yaml_path>`。支持多供应商（BLTAI, KIE），支持断点续传。
-- **宫格流水线**: `mangou.mjs grid split <parent_yaml>`。自动读取 `meta.grid` 尺寸并根据 `meta.parent` 自动扫描关联的子分镜文件进行图片回填；回填成功后会同步追加 `tasks.jsonl` 的 `image/success` 事件。
+- **任务执行**: `bun run src/cli/main.ts generate image <yaml_path>` 或 `bun run src/cli/main.ts generate video <yaml_path>`。
+- **宫格流水线**: `bun run src/cli/main.ts grid split <parent_yaml>`。使用 `ffmpeg` 自动执行物理切分并回填子分镜。
 
 ### 3. 媒体后期与监控 (Post-Processing)
-- **全片合成**: `mangou.mjs stitch [projectRoot]`。优先拼接视频；若某镜还没有视频，则自动把静态图转成定长预览片段后再拼接，便于导演先看节奏。
+- **全片合成**: `bun run src/cli/main.ts stitch [projectRoot]`。优先拼接视频；若某镜还没有视频，则自动把静态图转成定长预览片段后再拼接，便于导演先看节奏。
 - **分布式组织**: 推荐采用 **“一个 Grid 母图文件 + 多个子分镜文件”** 的架构，通过 `meta.parent` 字段显式关联。
 
 ## 导演知识库索引 (Knowledge Base)
