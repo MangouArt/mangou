@@ -5,10 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Project Hooks
-import { useProjects } from '@web/hooks/use-project';
+import { useProjects } from '../hooks/use-project';
 
 // UI
-import { Button } from '@web/components/ui/button';
+import { Button } from '@components/ui/button';
 
 // 格式化时间显示
 function formatTimeAgo(date: string): string {

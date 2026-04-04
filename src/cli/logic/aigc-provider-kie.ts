@@ -1,6 +1,7 @@
+#!/usr/bin/env bun
 import { AIGC_PROVIDER_TEMPLATE } from '@logic/aigc-provider-template';
 
-function joinUrl(base, ...parts) {
+function joinUrl(base: any, ...parts: any[]) {
   const normalizedBase = String(base || '').replace(/\/+$/, '');
   const normalizedPath = parts
     .map((part) => String(part || '').replace(/^\/+/, '').replace(/\/+$/, ''))
@@ -44,7 +45,7 @@ async function uploadToKie(apiKey, dataUrl, fetchImpl = fetchWithRetry) {
   return result.data.downloadUrl;
 }
 
-async function fetchWithRetry(url, options, maxRetries = 3) {
+async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
   let lastError;
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -74,7 +75,7 @@ export const KIE_PROVIDER = {
     image: 'images',
     video: 'videos',
   },
-  buildPayload(scope, params) {
+  buildPayload(scope: any, params: any) {
     const prompt = (params.prompt || '').trim();
     if (!prompt) {
       throw new Error(`[kie] Missing required parameter: 'prompt'`);
@@ -170,7 +171,7 @@ export const KIE_PROVIDER = {
 
     return params;
   },
-  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }) {
+  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }: any) {
     // Deep clone payload to avoid mutating original
     const finalPayload = JSON.parse(JSON.stringify(payload));
     const loggedPayload = {
@@ -247,7 +248,7 @@ export const KIE_PROVIDER = {
     }
     return taskId;
   },
-  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }) {
+  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }: any) {
     const endpoint = joinUrl(baseUrl, `api/v1/jobs/recordInfo?taskId=${taskId}`);
 
     const startedAt = Date.now();
@@ -299,7 +300,7 @@ export const KIE_PROVIDER = {
       delayMs = Math.min(delayMs + 2000, 15000);
     }
   },
-  extractOutputs(scope, result) {
+  extractOutputs(scope: any, result: any) {
     try {
       const resultJson = typeof result.resultJson === 'string' 
         ? JSON.parse(result.resultJson) 

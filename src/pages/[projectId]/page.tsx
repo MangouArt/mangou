@@ -5,17 +5,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, ChevronDown } from 'lucide-react';
 
 // Components
-import { TimelineOverview } from '@/components/dashboard/agent/timeline-overview';
-import { StoryboardDetail } from '@/components/dashboard/agent/storyboard-detail';
-import { ResourcePanel } from '@/components/dashboard/agent/resource-panel';
-import { ProgressIndicator } from '@/components/dashboard/agent/progress-indicator';
-import { Button } from '@/components/ui/button';
+import { TimelineOverview } from '@components/dashboard/agent/timeline-overview';
+import { StoryboardDetail } from '@components/dashboard/agent/storyboard-detail';
+import { ResourcePanel } from '@components/dashboard/agent/resource-panel';
+import { ProgressIndicator } from '@components/dashboard/agent/progress-indicator';
+import { Button } from '@components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@components/ui/dropdown-menu';
 
 // Store
 import {
@@ -24,11 +24,11 @@ import {
   selectScenes,
   selectProps,
   selectCurrentStoryboard,
-} from '@/stores/director-agent-store';
+} from '@web/stores/director-agent-store';
 
 // Hooks
-import { useVFS } from '@/hooks/use-vfs';
-import { useProjectManager } from '@/hooks/use-project-manager';
+import { useVFS } from '@web/hooks/use-vfs';
+import { useProjectManager } from '@web/hooks/use-project-manager';
 
 export default function ProjectPage() {
   const navigate = useNavigate();

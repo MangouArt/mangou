@@ -9,7 +9,7 @@ import path from 'path';
 import chokidar from 'chokidar';
 import type { FSWatcher } from 'chokidar';
 import type { VFSAdapter } from '../adapter';
-import type { VFSEvent } from '@core/types';
+import type { VFSEvent } from '@core/vfs/types';
 import { configStore } from '../../config-store';
 import { buildProjectSnapshot } from '../project-snapshot';
 

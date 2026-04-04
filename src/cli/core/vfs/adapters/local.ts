@@ -4,7 +4,7 @@
  */
 
 import type { VFSAdapter } from '../adapter';
-import type { VFSEvent } from '@core/types';
+import type { VFSEvent } from '@core/vfs/types';
 
 export class LocalVFSAdapter implements VFSAdapter {
   private projectId: string = '';

@@ -56,8 +56,21 @@ export type GenerationType = 'text_to_image' | 'image_to_image' | 'text_to_video
 export type TabType = 'setup' | 'assets' | 'storyboard' | 'keyframes' | 'video'
 
 // UI Extended Types (Compatibility)
-export type UIAsset = Asset & { _v?: number }
-export type UIStoryboard = Storyboard & { _v?: number }
+export type UIAsset = Asset & { 
+  _v?: number;
+  status?: 'pending' | 'generating' | 'completed' | 'failed';
+  image_url?: string;
+}
+export type UIStoryboard = Storyboard & { 
+  _v?: number;
+  status?: 'pending' | 'generating_image' | 'generating_video' | 'completed' | 'failed';
+  sequenceNumber?: number;
+  parentId?: string;
+  grid?: string;
+  image_url?: string;
+  title?: string;
+  prompt?: string;
+}
 
 export interface DrawerContent {
   type: 'queue' | 'asset' | 'storyboard' | 'history' | string

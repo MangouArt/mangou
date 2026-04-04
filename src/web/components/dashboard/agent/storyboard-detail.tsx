@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { Asset, Storyboard } from '@web/stores/director-agent-store';
-import { Card, CardContent } from '@web/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@web/components/ui/tabs';
+import { Card, CardContent } from '@components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
 import { ImageIcon, MapPin, User, Video } from 'lucide-react';
 
 interface StoryboardDetailProps {

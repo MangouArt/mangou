@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+async function fetchWithRetry(url: any, options: any, maxRetries = 3) { return fetch(url, options); }
 /**
  * 复制这个模板实现新的 AIGC provider，然后注册到 `aigc-provider-registry.mjs`。
  * `agent-generate.mjs` 会复用同一套任务写入、YAML 投影和资源解析流程。
@@ -16,14 +17,14 @@ export const AIGC_PROVIDER_TEMPLATE = {
     image: 'images',
     video: 'videos',
   },
-  buildPayload(scope, params) {
+  buildPayload(scope: any, params: any) {
     return {
       ...params,
       prompt: params.prompt || '',
       scope,
     };
   },
-  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetch }) {
+  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }: any) {
     const response = await fetchImpl(`${baseUrl}/replace-me/${scope}`, {
       method: 'POST',
       headers: {
@@ -45,7 +46,7 @@ export const AIGC_PROVIDER_TEMPLATE = {
     }
     return taskId;
   },
-  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetch }) {
+  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }: any) {
     const startedAt = Date.now();
     let delayMs = 2000;
 
@@ -81,7 +82,7 @@ export const AIGC_PROVIDER_TEMPLATE = {
       delayMs = Math.min(delayMs * 2, 8000);
     }
   },
-  extractOutputs(scope, result) {
+  extractOutputs(scope: any, result: any) {
     if (scope === 'images') {
       return result?.data?.map((item) => item.url).filter(Boolean) || [];
     }

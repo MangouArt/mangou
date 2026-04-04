@@ -1,8 +1,8 @@
 'use client';
 
-import { Progress } from '@/components/ui/progress';
+import { Progress } from '@components/ui/progress';
 import { useMemo } from 'react';
-import { Asset, Storyboard } from '@/stores/director-agent-store';
+import { Asset, Storyboard } from '@web/stores/director-agent-store';
 
 interface ProgressIndicatorProps {
   projectId: string;

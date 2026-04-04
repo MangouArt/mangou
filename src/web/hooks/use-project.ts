@@ -4,7 +4,7 @@ import {
   UIStoryboard as Storyboard, 
   Keyframe, 
   Video as VideoAsset,
-} from '@web/types/mango'
+} from '@core/mango'
 
 export interface LocalProject {
   id: string

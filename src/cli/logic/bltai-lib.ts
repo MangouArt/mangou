@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-function log(...args) {
+function log(...args: any[]) {
   console.error('[BLTAI-MVP]', ...args);
 }
 
@@ -36,7 +36,7 @@ export async function loadDotEnv() {
   }
 }
 
-export function normalizeBaseUrl(input) {
+export function normalizeBaseUrl(input: any) {
   if (!input) return 'https://api.bltcy.ai';
   let base = input.trim();
   if (base.endsWith('/')) base = base.slice(0, -1);
@@ -66,7 +66,7 @@ export function parseArgs(argv) {
   return args;
 }
 
-export function splitList(value) {
+export function splitList(value: any) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
   return String(value)
@@ -78,7 +78,7 @@ export function splitList(value) {
 const DEFAULT_IMAGE_MODEL = 'nano-banana';
 const DEFAULT_VIDEO_MODEL = 'veo3.1-fast';
 
-export function buildPayload(scope, args) {
+export function buildPayload(scope: any, args: any) {
   const payload = {
     prompt: args.prompt || '',
   };
@@ -110,7 +110,7 @@ export function buildPayload(scope, args) {
   return payload;
 }
 
-export function extractOutputs(scope, result) {
+export function extractOutputs(scope: any, result: any) {
   if (scope === 'images') {
     const dataBlock = result?.data?.data || result?.data;
     const urls = dataBlock?.data?.map((item) => item.url).filter(Boolean) || [];
@@ -187,7 +187,7 @@ export async function getTask(baseUrl, apiKey, scope, taskId) {
   throw new Error(lastError || 'Failed to fetch task status');
 }
 
-export function extractStatus(payload) {
+export function extractStatus(payload: any) {
   if (!payload) return '';
   if (payload.status !== undefined) return payload.status;
   if (payload.data?.status !== undefined) return payload.data.status;
@@ -220,7 +220,7 @@ export async function pollTask(baseUrl, apiKey, scope, taskId, timeoutMs, debug)
   }
 }
 
-export function resolveProviderEnv(provider, env = process.env, providerConfig = {}) {
+export function resolveProviderEnv(provider: any, env: any = process.env, providerConfig: any = {}) {
   const apiKey = env[provider.env.apiKey] || providerConfig.apiKey || '';
   const baseUrl = normalizeBaseUrl(
     env[provider.env.baseUrl] || providerConfig.baseUrl || provider.env.defaultBaseUrl
@@ -242,10 +242,10 @@ export const BLTAI_PROVIDER = {
   },
   buildPayload,
   extractOutputs,
-  async submit({ baseUrl, apiKey, scope, payload }) {
+  async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }: any) {
     return submitTask(baseUrl, apiKey, scope, payload);
   },
-  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs, debug }) {
+  async poll({ baseUrl, apiKey, scope, taskId, timeoutMs = 30 * 60 * 1000, debug = false, fetchImpl = fetchWithRetry }: any) {
     return pollTask(baseUrl, apiKey, scope, taskId, timeoutMs, debug);
   },
 };

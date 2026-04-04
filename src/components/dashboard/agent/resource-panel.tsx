@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Asset } from '@/stores/director-agent-store';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Asset } from '@web/stores/director-agent-store';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
+import { Badge } from '@components/ui/badge';
+import { ScrollArea } from '@components/ui/scroll-area';
 import { Box, ImageIcon, User } from 'lucide-react';
 
 interface ResourcePanelProps {

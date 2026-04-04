@@ -4,14 +4,14 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ProjectManager } from '../src/lib/project-manager';
-import { configStore } from '../src/lib/config-store';
-import { parseYAML } from '../src/lib/vfs/yaml';
-import { getContentTypeByPath, getCacheControlByContentType } from '../src/lib/vfs/server-utils';
-import { isMediaContentType, normalizeContentType, sniffContentType } from '../src/lib/file-type';
-import { vfsStorageManager } from '../src/lib/vfs/storage-manager';
-import { vfsEventManager } from '../src/lib/vfs/event-manager';
-import { buildProjectSnapshot } from '../src/lib/vfs/project-snapshot';
+import { ProjectManager } from '@core/project-manager';
+import { configStore } from '@core/config-store';
+import { parseYAML } from '@core/vfs/yaml';
+import { getContentTypeByPath, getCacheControlByContentType } from '@core/vfs/server-utils';
+import { isMediaContentType, normalizeContentType, sniffContentType } from '@core/file-type';
+import { vfsStorageManager } from '@core/vfs/storage-manager';
+import { vfsEventManager } from '@core/vfs/event-manager';
+import { buildProjectSnapshot } from '@core/vfs/project-snapshot';
 
 type ServerOptions = {
   appRoot: string;

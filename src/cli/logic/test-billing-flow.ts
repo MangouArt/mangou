@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import fetch from 'node-fetch';
 
 const BASE_URL = 'http://localhost:8088';

@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { BLTAI_PROVIDER } from '@logic/aigc-provider-bltai';
 import { KIE_PROVIDER } from '@logic/aigc-provider-kie';
 
@@ -6,7 +7,7 @@ const PROVIDERS = new Map([
   [KIE_PROVIDER.id, KIE_PROVIDER],
 ]);
 
-export function registerAIGCProvider(provider) {
+export function registerAIGCProvider(provider: any) {
   if (!provider || typeof provider !== 'object') {
     throw new Error('provider must be an object');
   }

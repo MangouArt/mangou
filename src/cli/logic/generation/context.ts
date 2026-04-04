@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import path from 'path';
 import { fileExists } from '@logic/utils';
 

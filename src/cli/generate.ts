@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import yaml from "js-yaml";
 import { loadDotEnv, resolveProviderEnv } from "./logic/bltai-lib";
 import { getAIGCProvider } from "./logic/aigc-provider-registry";
-import { appendTaskEvent } from "./logic/tasks";
+import { appendTaskEvent } from "./core/tasks";
 import {
   ensureArray,
   fileExists,

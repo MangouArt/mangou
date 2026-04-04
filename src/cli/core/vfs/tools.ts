@@ -10,8 +10,8 @@
  */
 
 import { VirtualFileSystem, getVFS } from './core';
-import { parseYAMLQuiet } from './yaml';
-import type { Storyboard, Asset } from '@/stores/director-agent-store';
+import { parseYAMLQuiet, parseYAML } from './yaml';
+import type { UIAsset as Asset, UIStoryboard as Storyboard } from '@core/mango';
 import type { 
   VFSReadResult, 
   VFSReplaceResult, 
@@ -141,12 +141,17 @@ export function exportToExistingData(context: AgentToolContext): {
 
           assets.push({
             id: meta?.id || fallbackId,
+            project_id: projectId,
             type: assetType,
             name: assetContent?.name || fallbackId,
             description: assetContent?.description || '',
             status: tasks?.image?.latest?.status || 'pending',
+            image_url: resolveVfsUrl(tasks?.image?.latest?.output),
             imageUrl: resolveVfsUrl(tasks?.image?.latest?.output),
             filePath: normalizedPath,
+            metadata: meta || {},
+            version: meta?.version || '1.0',
+            created_at: new Date().toISOString(),
           });
           processedFiles.add(normalizedPath);
         } catch (e) {
@@ -197,19 +202,25 @@ export function exportToExistingData(context: AgentToolContext): {
 
           storyboards.push({
             id: fallbackId, // 优先使用文件名，它是 VFS 路径中绝对唯一的
+            project_id: context.projectId,
+            sequence_number: sbContent?.sequence || 0,
             sequenceNumber: sbContent?.sequence || 0,
             title: sbContent?.title || meta?.id || fallbackId,
             description: script || '',
             script: script || '',
             prompt: imageTask?.params?.prompt || '',
             videoPrompt: videoTask?.params?.prompt || '',
+            image_url: resolveVfsUrl(imageTask?.latest?.output),
             imageUrl: resolveVfsUrl(imageTask?.latest?.output),
             videoUrl: resolveVfsUrl(videoTask?.latest?.output),
             status,
             refAssetIds,
+            asset_ids: refAssetIds,
             filePath: path,
             grid: meta?.grid, // 从 YAML 提取，例如 "2x2"
             parentId: meta?.parent, // 从 YAML 提取，关联主宫格
+            metadata: meta || {},
+            created_at: new Date().toISOString(),
           });
         } catch (e) {
           console.error(`[VFS Export Storyboard Error] ${path}:`, e);
