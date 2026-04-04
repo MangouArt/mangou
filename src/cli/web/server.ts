@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { ProjectManager } from '@core/project-manager';
-import { getContentTypeByPath, getCacheControlByContentType } from '@core/vfs/server-utils';
+import { getContentTypeByPath, getCacheControlByContentType } from '@core/server-utils';
 import yaml from 'js-yaml';
 import type { Asset, Storyboard } from '@core/schema';
 

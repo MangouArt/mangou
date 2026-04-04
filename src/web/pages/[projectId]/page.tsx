@@ -24,11 +24,11 @@ import {
   selectScenes,
   selectProps,
   selectCurrentStoryboard,
-} from '@web/stores/director-agent-store';
+} from '@/stores/director-agent-store';
 
 // Hooks
-import { useVFS } from '../hooks/use-vfs';
-import { useProjectManager } from '../hooks/use-project-manager';
+import { useVFS } from '@/hooks/use-vfs';
+import { useProjectManager } from '@/hooks/use-project-manager';
 
 export default function ProjectPage() {
   const navigate = useNavigate();
