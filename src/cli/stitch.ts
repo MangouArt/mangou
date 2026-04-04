@@ -2,7 +2,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import yaml from "js-yaml";
-import { listLatestTasks } from "../../scripts/tasks-jsonl.mjs";
+import { listLatestTasks } from "../logic/tasks-jsonl";
 
 const DEFAULT_IMAGE_SEGMENT_DURATION_SECONDS = 4;
 

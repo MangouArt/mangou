@@ -2,19 +2,19 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import yaml from "js-yaml";
-import { loadDotEnv, resolveProviderEnv } from "../../scripts/bltai-lib.mjs";
-import { getAIGCProvider } from "../../scripts/aigc-provider-registry.mjs";
-import { appendTaskEvent } from "../../scripts/tasks-jsonl.mjs";
+import { loadDotEnv, resolveProviderEnv } from "./logic/bltai-lib";
+import { getAIGCProvider } from "./logic/aigc-provider-registry";
+import { appendTaskEvent } from "./logic/tasks";
 import {
   ensureArray,
   fileExists,
   log,
   materializeOutputs,
   resolveResumeTaskId,
-} from "../../scripts/generation/utils.mjs";
-import { inferContext } from "../../scripts/generation/context.mjs";
-import { collectRefImageInputs, resolveImageInput } from "../../scripts/generation/input-resolver.mjs";
-import { updateYamlProjection } from "../../scripts/generation/projection.mjs";
+} from "./logic/generation/utils";
+import { inferContext } from "./logic/generation/context";
+import { collectRefImageInputs, resolveImageInput } from "./logic/generation/input-resolver";
+import { updateYamlProjection } from "./logic/generation/projection";
 
 async function readWorkspaceConfig(workspaceRoot: string) {
   const configPath = path.join(workspaceRoot, "config.json");
