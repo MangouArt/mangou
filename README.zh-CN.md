@@ -33,8 +33,7 @@
 
 ## 环境要求
 
-- Node.js `>= 18.18`
-- npm `>= 9`
+- Bun `>= 1.1`
 - `ffmpeg` 可执行文件在系统 PATH 中
 - 至少一套可用的 AIGC 提供商配置
 
@@ -56,7 +55,7 @@ AI 会自动帮你完成下载、解压和工作区安装。
 ### 1. 安装依赖
 
 ```bash
-npm install
+bun install
 ```
 
 ### 2. 配置环境变量
@@ -97,13 +96,13 @@ cp -R bundled-skills/mangou /absolute/path/to/your-workspace/.claude/skills/
 ### 5. 初始化工作区
 
 ```bash
-node .claude/skills/mangou/scripts/init-workspace.mjs --workspace .
+bun run mangou -- workspace init --workspace .
 ```
 
 ### 6. 创建项目
 
 ```bash
-node .claude/skills/mangou/scripts/create-project.mjs \
+bun run mangou -- project create \
   --workspace . \
   --project demo \
   --name "Demo Project"
@@ -112,7 +111,7 @@ node .claude/skills/mangou/scripts/create-project.mjs \
 ### 7. 启动本地可视化服务
 
 ```bash
-node .claude/skills/mangou/scripts/start-web.mjs --workspace . --port 3000
+bun run mangou -- web start --workspace . --port 3000
 ```
 
 访问：`http://localhost:3000`
@@ -144,20 +143,20 @@ node .claude/skills/mangou/scripts/start-web.mjs --workspace . --port 3000
 
 ```bash
 # 开发前端
-npm run dev
+bun run dev
 
 # 类型检查
-npm run typecheck
+bun run typecheck
 
 # 运行测试
-npm test
+bun test
 
 # 构建前端与 skill
-npm run build
-npm run build:skill
+bun run build
+bun run build:skill
 
 # 一次跑完发布前校验
-npm run ci
+bun run ci
 ```
 
 ## 脚本入口

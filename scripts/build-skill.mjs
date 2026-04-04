@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -37,7 +37,7 @@ const RAW_SCRIPT_FILES = new Set([
 
 async function writeExecutableScript(targetPath, content) {
   const normalized = String(content).replace(/^(#![^\n]*\n)+/, '');
-  await fs.writeFile(targetPath, `#!/usr/bin/env node\n${normalized}`);
+  await fs.writeFile(targetPath, `#!/usr/bin/env bun\n${normalized}`);
 }
 
 async function pathExists(targetPath) {

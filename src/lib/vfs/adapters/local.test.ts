@@ -26,13 +26,19 @@ class FakeEventSource {
 
 describe('LocalVFSAdapter SSE', () => {
   beforeEach(() => {
-    vi.unstubAllGlobals();
+    if (typeof vi.unstubAllGlobals === 'function') {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('订阅 /api/vfs/events 并消费 vfs 命名事件', async () => {
     const source = new FakeEventSource('/api/vfs/events?projectId=demo');
     const EventSourceCtor = vi.fn(() => source);
-    vi.stubGlobal('window', { EventSource: EventSourceCtor });
+    if (typeof vi.stubGlobal === 'function') {
+      vi.stubGlobal('window', { EventSource: EventSourceCtor });
+    } else {
+      (globalThis as any).window = { EventSource: EventSourceCtor };
+    }
 
     const adapter = new LocalVFSAdapter();
     await adapter.init('demo');

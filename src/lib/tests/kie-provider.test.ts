@@ -3,7 +3,11 @@ import { KIE_PROVIDER } from '../../../scripts/aigc-provider-kie.mjs';
 
 describe('KIE AI Provider', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
+    if (typeof vi.stubGlobal === 'function') {
+      vi.stubGlobal('fetch', vi.fn());
+    } else {
+      (globalThis as any).fetch = vi.fn();
+    }
   });
 
   it('buildPayload should correctly format bytedance/seedance-2-fast request', () => {

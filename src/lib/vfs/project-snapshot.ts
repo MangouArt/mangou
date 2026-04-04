@@ -51,4 +51,7 @@ async function collectSnapshotFiles(
     }
     files.push({ path: nextVfsPath, content });
   }
+
+  // Sort files by path for determinism (important for tests and Agent stability)
+  files.sort((a, b) => a.path.localeCompare(b.path));
 }

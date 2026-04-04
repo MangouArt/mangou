@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import yaml from 'js-yaml';
 import { afterEach, describe, expect, it } from 'vitest';
-import { scaffoldGridChildren } from '../../../scripts/project-scaffold.mjs';
+import { scaffoldGridChildren } from '../../cli/split';
 
 async function readYaml(filePath: string) {
   return yaml.load(await fs.readFile(filePath, 'utf-8')) as Record<string, any>;

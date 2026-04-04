@@ -40,7 +40,7 @@ graph TD
 
 ## 环境要求 (Runtime Requirements)
 
-本技能基于 **Bun** 运行时构建，以获得最佳的 AIGC 编排性能和单文件执行体验。
+本技能基于 **Bun** 运行时构建，以获得最佳的 AIGC 编排性能和全流程执行体验（核心 CLI 与 Web Server 已全面转向 Bun）。
 - **Runtime**: [Bun](https://bun.sh) >= 1.1 (Agent 应确保环境中已安装 `bun`)
 - **External Tools**: `ffmpeg`, `ffprobe` (用于视频合成与宫格切分)
 

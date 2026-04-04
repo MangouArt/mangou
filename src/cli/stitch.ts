@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
-import { spawnSync } from "bun";
+import { spawnSync } from "node:child_process";
 import yaml from "js-yaml";
 import { listLatestTasks } from "../../scripts/tasks-jsonl.mjs";
 
@@ -83,8 +83,7 @@ async function createImageSegment({
   index: number;
 }) {
   const segmentPath = path.join(outputDir, `.stitch-segment-${String(index + 1).padStart(3, "0")}.mp4`);
-  const proc = spawnSync([
-    "ffmpeg",
+  const proc = spawnSync("ffmpeg", [
     "-loop", "1",
     "-i", path.resolve(projectRoot, imagePath),
     "-t", String(durationSeconds),
@@ -95,8 +94,8 @@ async function createImageSegment({
     segmentPath
   ]);
   
-  if (!proc.success) {
-    throw new Error(`ffmpeg image segment failed: ${proc.stderr.toString()}`);
+  if (proc.status !== 0) {
+    throw new Error(`ffmpeg image segment failed: ${proc.stderr?.toString()}`);
   }
   return segmentPath;
 }
@@ -194,8 +193,7 @@ export async function stitch(projectRoot: string, outputName: string = "output.m
 
     console.error(`[mangou] Stitching ${materializedSegments.length} segments into ${outputPath}...`);
     try {
-      const proc = spawnSync([
-        "ffmpeg",
+      const proc = spawnSync("ffmpeg", [
         "-f", "concat",
         "-safe", "0",
         "-i", listPath,
@@ -203,8 +201,8 @@ export async function stitch(projectRoot: string, outputName: string = "output.m
         "-y",
         outputPath
       ]);
-      if (!proc.success) {
-        throw new Error(`ffmpeg concat failed: ${proc.stderr.toString()}`);
+      if (proc.status !== 0) {
+        throw new Error(`ffmpeg concat failed: ${proc.stderr?.toString()}`);
       }
       return outputPath;
     } finally {

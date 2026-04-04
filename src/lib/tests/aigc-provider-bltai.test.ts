@@ -3,7 +3,11 @@ import { BLTAI_PROVIDER } from '../../../scripts/aigc-provider-bltai.mjs';
 
 describe('BLTAI Provider Script', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
+    if (typeof vi.stubGlobal === 'function') {
+      vi.stubGlobal('fetch', vi.fn());
+    } else {
+      (globalThis as any).fetch = vi.fn();
+    }
   });
 
   it('buildPayload should correctly format image request', () => {

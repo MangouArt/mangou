@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * 复制这个模板实现新的 AIGC provider，然后注册到 `aigc-provider-registry.mjs`。

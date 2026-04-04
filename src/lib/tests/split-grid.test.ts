@@ -1,11 +1,24 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import sharp from 'sharp';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import yaml from 'js-yaml';
 import { afterEach, describe, expect, it } from 'vitest';
-import { runSplitGrid } from '../../../scripts/split-grid.mjs';
+import { runSplitGrid } from '../../cli/split';
 import { listLatestTasks } from '../../../scripts/tasks-jsonl.mjs';
+
+const execFileAsync = promisify(execFile);
+
+async function createTestImage(outputPath: string, width: number, height: number) {
+  // Use ffmpeg to generate a simple test grid image
+  await execFileAsync('ffmpeg', [
+    '-f', 'lavfi', 
+    '-i', `testsrc=size=${width}x${height}:rate=1`, 
+    '-vframes', '1', 
+    '-y', outputPath
+  ]);
+}
 
 async function readYamlDoc(filePath: string) {
   const raw = await fs.readFile(filePath, 'utf-8');
@@ -32,19 +45,7 @@ describe('split-grid', () => {
     await fs.mkdir(imagesDir, { recursive: true });
 
     const parentImagePath = path.join(imagesDir, 'parent-grid.png');
-    const pixels = Buffer.from([
-      255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-      0, 0, 255, 255, 0, 0, 255, 255, 255, 255, 0, 255, 255, 255, 0, 255,
-      255, 0, 255, 255, 255, 0, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255,
-      10, 10, 10, 255, 10, 10, 10, 255, 200, 200, 200, 255, 200, 200, 200, 255,
-    ]);
-    await sharp(pixels, {
-      raw: {
-        width: 4,
-        height: 4,
-        channels: 4,
-      },
-    }).png().toFile(parentImagePath);
+    await createTestImage(parentImagePath, 4, 4);
 
     const parentYamlPath = path.join(storyboardsDir, 'parent.yaml');
     const childAPath = path.join(storyboardsDir, 'child-a.yaml');
@@ -136,17 +137,7 @@ describe('split-grid', () => {
     await fs.mkdir(imagesDir, { recursive: true });
 
     const parentImagePath = path.join(imagesDir, 'prompt-grid.png');
-    const pixels = Buffer.from([
-      255, 0, 0, 255, 0, 255, 0, 255,
-      0, 0, 255, 255, 255, 255, 0, 255,
-    ]);
-    await sharp(pixels, {
-      raw: {
-        width: 2,
-        height: 2,
-        channels: 4,
-      },
-    }).png().toFile(parentImagePath);
+    await createTestImage(parentImagePath, 2, 2);
 
     const parentYamlPath = path.join(storyboardsDir, 'prompt-parent.yaml');
     await fs.writeFile(

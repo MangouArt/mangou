@@ -5,18 +5,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   materializeOutputs,
   resolveResumeTaskId,
-  updateYamlProjection,
-} from '../../../scripts/agent-generate.mjs';
+} from '../../../scripts/generation/utils.mjs';
+import { updateYamlProjection } from '../../../scripts/generation/projection.mjs';
 
 describe('agent-generate output materialization', () => {
   const tempDirs: string[] = [];
 
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
+    if (typeof vi.stubGlobal === 'function') {
+      vi.stubGlobal('fetch', vi.fn());
+    } else {
+      (globalThis as any).fetch = vi.fn();
+    }
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
+    if (typeof vi.unstubAllGlobals === 'function') {
+      vi.unstubAllGlobals();
+    }
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop();
       if (dir) await fs.rm(dir, { recursive: true, force: true });

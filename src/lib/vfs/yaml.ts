@@ -101,7 +101,7 @@ export function getYAMLValidationError(data: any, path: string): string | null {
 
   // 格式化 Zod 错误信息
   return result.error.issues
-    .map((err) => {
+    .map((err: any) => {
       const field = err.path.join('.');
       return `[${field}] ${err.message}`;
     })

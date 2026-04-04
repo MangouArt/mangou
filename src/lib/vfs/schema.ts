@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { z as ZodNamespace } from 'zod';
 
 /**
  * VFS 统一 Schema 定义
@@ -12,10 +13,10 @@ import { z } from 'zod';
 // --- 基础子 Schema ---
 
 // 统一日期 Schema：支持字符串 (ISO) 或 Date 对象，并自动转换为 ISO 字符串
-const DateTimeSchema = z.union([
+const DateTimeSchema = (z as any).union([
   z.string().datetime(),
   z.date()
-]).transform(val => (val instanceof Date ? val.toISOString() : val));
+]).transform((val: string | Date) => (val instanceof Date ? val.toISOString() : val));
 
 // 元数据
 export const MetaSchema = z.object({
@@ -126,10 +127,10 @@ export const ProjectSchema = z.object({
 });
 
 // --- 类型导出 ---
-export type StoryboardData = z.infer<typeof StoryboardSchema>;
-export type AssetData = z.infer<typeof AssetSchema>;
-export type ProjectData = z.infer<typeof ProjectSchema>;
-export type TaskLatest = z.infer<typeof TaskLatestSchema>;
+export type StoryboardData = ZodNamespace.infer<typeof StoryboardSchema>;
+export type AssetData = ZodNamespace.infer<typeof AssetSchema>;
+export type ProjectData = ZodNamespace.infer<typeof ProjectSchema>;
+export type TaskLatest = ZodNamespace.infer<typeof TaskLatestSchema>;
 
 /**
  * 校验函数映射

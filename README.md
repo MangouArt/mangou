@@ -33,8 +33,7 @@ For commercial partnerships or licensing questions, contact `business@mangou.art
 
 ## Requirements
 
-- Node.js `>= 18.18`
-- npm `>= 9`
+- Bun `>= 1.1`
 - `ffmpeg` available in your system `PATH`
 - At least one configured AIGC provider
 
@@ -56,7 +55,7 @@ If you want to hack on the source code or build the skill manually, follow these
 ### 1. Install dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 ### 2. Configure environment variables
@@ -96,13 +95,13 @@ If your agent supports zip installation, you can also use `bundled-skills/mangou
 ### 5. Initialize a workspace
 
 ```bash
-node .claude/skills/mangou/scripts/init-workspace.mjs --workspace .
+bun run mangou -- workspace init --workspace .
 ```
 
 ### 6. Create a project
 
 ```bash
-node .claude/skills/mangou/scripts/create-project.mjs \
+bun run mangou -- project create \
   --workspace . \
   --project demo \
   --name "Demo Project"
@@ -111,7 +110,7 @@ node .claude/skills/mangou/scripts/create-project.mjs \
 ### 7. Start the local web UI
 
 ```bash
-node .claude/skills/mangou/scripts/start-web.mjs --workspace . --port 3000
+bun run mangou -- web start --workspace . --port 3000
 ```
 
 Open `http://localhost:3000`.
@@ -143,20 +142,20 @@ Notes:
 
 ```bash
 # Frontend development
-npm run dev
+bun run dev
 
 # Type checking
-npm run typecheck
+bun run typecheck
 
 # Test suite
-npm test
+bun test
 
 # Build frontend and skill bundle
-npm run build
-npm run build:skill
+bun run build
+bun run build:skill
 
 # Full pre-release verification
-npm run ci
+bun run ci
 ```
 
 ## Script Entrypoints
