@@ -141,7 +141,7 @@ export async function runAIGC(provider: any, argv: string[] = process.argv.slice
   const { workspaceRoot, projectId, projectRoot, yamlPath } = context;
   
   const raw = await fs.readFile(absoluteYamlPath, "utf-8");
-  const docs = yaml.loadAll(raw).filter(Boolean) as any[];
+  const docs = (yaml as any).loadAll(raw).filter(Boolean) as any[];
 
   if (docs.length === 0) {
     throw new Error(`No documents found in ${yamlArg}`);
@@ -197,7 +197,7 @@ export async function runAIGC(provider: any, argv: string[] = process.argv.slice
     const refs = ensureArray(doc?.refs);
     const refImages = type === "image" ? await collectRefImageInputs(projectRoot, refs) : [];
 
-    function resolveTemplateVar(value: any) {
+    const resolveTemplateVar = (doc: any, value: any) => {
       if (typeof value !== "string") return value;
       return value.replace(/\{\{(tasks\.[^}]+)\}\}/g, (_match, dotPath) => {
         const parts = dotPath.split(".");
@@ -208,12 +208,12 @@ export async function runAIGC(provider: any, argv: string[] = process.argv.slice
         }
         return typeof current === "string" ? current : "";
       });
-    }
+    };
 
     const rawImages = [
       ...ensureArray(params.images),
-      ...(params.image_url ? [resolveTemplateVar(params.image_url)] : []),
-      ...(params.image ? [resolveTemplateVar(params.image)] : []),
+      ...(params.image_url ? [resolveTemplateVar(doc, params.image_url)] : []),
+      ...(params.image ? [resolveTemplateVar(doc, params.image)] : []),
       ...refImages,
     ];
 

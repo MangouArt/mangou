@@ -55,7 +55,7 @@ function parseDurationSeconds(value: any) {
 
 async function readStoryboardDoc(storyboardsDir: string, filename: string) {
   const raw = await fs.readFile(path.join(storyboardsDir, filename), "utf-8");
-  const docs = yaml.loadAll(raw).filter(Boolean) as any[];
+  const docs = (yaml as any).loadAll(raw).filter(Boolean) as any[];
   return docs[0] || null;
 }
 

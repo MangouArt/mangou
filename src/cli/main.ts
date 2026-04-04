@@ -1,9 +1,11 @@
-import path from "node:path";
 import fs from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
+import crypto from "node:crypto";
 import { runAIGC } from "./generate";
 import { runSplitGrid } from "./split";
 import { stitch, inferProjectRootFromCwd } from "./stitch";
+
+declare const Bun: any;
 
 // Asset embedding (Bun logic)
 // These will be available as paths in the compiled binary

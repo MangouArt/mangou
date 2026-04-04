@@ -142,7 +142,7 @@ export async function runSplitGrid(args: string[] = process.argv.slice(2)) {
   });
 
   const parentYamlRaw = await fs.readFile(absoluteParentYamlPath, "utf-8");
-  const parentDocs = yaml.loadAll(parentYamlRaw).filter(Boolean) as any[];
+  const parentDocs = (yaml as any).loadAll(parentYamlRaw).filter(Boolean) as any[];
   const parentDoc = parentDocs[0];
   
   if (!parentDoc) throw new Error(`Parent YAML ${parentYamlArg} is empty or invalid`);
@@ -202,7 +202,7 @@ export async function runSplitGrid(args: string[] = process.argv.slice(2)) {
               const filePath = path.join(storyboardDir, file);
               try {
                   const content = await fs.readFile(filePath, "utf-8");
-                  const docs = yaml.loadAll(content).filter(Boolean) as any[];
+                  const docs = (yaml as any).loadAll(content).filter(Boolean) as any[];
                   const doc = docs[0];
                   if (doc?.meta?.parent === parentId) {
                       siblingYamls.push({ 
@@ -244,7 +244,7 @@ export async function runSplitGrid(args: string[] = process.argv.slice(2)) {
     let docs;
     try {
       raw = await fs.readFile(absTargetYaml, "utf-8");
-      docs = yaml.loadAll(raw).filter(Boolean) as any[];
+      docs = (yaml as any).loadAll(raw).filter(Boolean) as any[];
     } catch (error: any) {
       log(`[ERROR] Failed to parse target YAML: ${absTargetYaml} (${error.message})`);
       continue;
