@@ -8,12 +8,13 @@
 - **走位 (Action)**：动作、镜头视角、交互（如：从主角背后视角，低角度向上看，老矿工正慢慢后退）。
 - **风格 (Style)**：艺术风格、媒介、负向约束（如：电影质感，写实风格，NO electrical lights, NO modern tools）。
 
-## 角色锁定索引机制 (Character Locking Index)
-在多图生成或长序列任务中，必须使用角色锁定索引来彻底解决特征漂移问题：
-
-- **引用格式**：在 Prompt 中显式指明 `image1 是 角色A`。
-- **关联引用**：将 `asset_defs/chars/xxx.yaml` 中的基准图（通常是 `latest.output`）作为生成输入（`params.images[0]`），然后在 Prompt 中指明：“此人正是 image1 中的老矿工”。
 - **一致性继承**：在后续分镜中，继续引用前一分镜的 `image` 产物，确保角色服饰、长相在帧间不发生跳变。
+
+## 资产设计图 (Asset Design Sheet / 3-view)
+在开始故事板生成前，必须为核心资产（角色、重要道具）生成一张 **3-view (front, side, back)** 的三视图设定图。
+- **作用**: 作为视觉锚点 (Visual Anchor) 实质性锁定模型在不同角度下的细节。
+- **引用规则**: 在母图 YAML 中将其列为 `IMAGE 1`, `IMAGE 2`，并在 Prompt 中明确说明：“IMAGE 1 是角色 A 的三视图，请在生成 9 宫格时严格遵循其服装细节”。
+- **细节要求**: 在三视图中明确功能点（如：胸口电池槽），并在后续分镜叙事中进行针对性强调。
 
 ## 防止文字污染与宫格逻辑 (Anti-Text Pollution & Grid Logic)
 在生成宫格图（Grid）用于切分时，AI 模型容易因 Prompt 中的数字列表产生文字渲染干扰（如在画面中生成 "1", "2" 等数字小标题）。
@@ -23,13 +24,14 @@
 - **负向提示注意事项**: 除非确定分镜不含任何文字需求，否则限制全局性的 `no text`，避免误伤分镜内的合法文本。针对宫格数字现象，建议针对性使用 `no numeric labels, no digits, no numbers` 等细分约束，提升画面纯净度的同时保留必要文本的渲染能力。
 
 ## 3x3 宫格母图强制后缀 (Required 3x3 Grid Suffix)
-当 `meta.grid` 为 `3x3`，且任务目标是生成可被 `split-grid` 物理切分的宫格母图时，Prompt 必须追加一段固定的无缝约束后缀，避免白边、间距和错位：
+当 `meta.grid` 为 `3x3`，且任务目标是生成可被 `split-grid` 物理切分的宫格母图时，Prompt 必须追加一段固定的无缝约束后缀。
 
-> A professional 3x3 SEAMLESS storyboard grid. NO WHITE BORDERS, NO MARGINS, NO SPACING BETWEEN TILES. The 9 panels are tightly packed. Full-bleed panels.
+> **强制后缀 (Standard Suffix)**:
+> A professional 3x3 SEAMLESS storyboard grid. NO WHITE BORDERS, NO MARGINS, NO GAPS, NO CAPTIONS, NO TEXT. The 9 panels are tightly tiled together. Industrial sci-fi cinematic style, photorealistic textures.
 
-- **强制性**：这是宫格母图的默认补充约束，不是可选建议。
-- **适用范围**：仅用于宫格母图，不要注入普通单镜 Prompt。
-- **目标**：保证物理切分时每个 tile 紧贴排列，减少白边、黑边和裁切偏移。
+- **强制性**：这是母图的默认补充约束。
+- **目的**: 避免 AI 模型自动在画面间添加说明文字、标号或白色边框，确保切分后的图片可直接作为 I2V 输入且无残留笔画。
+- **视觉层级**: 强调“电影化网格 (Cinematic Grid)”而非“排版示意 (Layout Mockup)”。
 ## 导演级视频提示词规范 (Director-level Video Prompting)
 
 在进行 I2V（图片转视频）生成时，核心逻辑是**从“审美描述”转向“导演调度约束”**。Agent 必须主动压低模型的自由度，通过物理约束来确保视频的连续性与真实感。
@@ -53,10 +55,13 @@
 - **主体静止原则**：对于环境驱动的镜头，需说明“背景中的雪地、地平线从头到尾静止，不滑动、不重构”。
 
 ### 4. 机械分段指令 (Timed Beats)
-当一段自然语言控制不住模型乱发挥时，必须使用分段式时间指令（Time-based Prompting）：
-- `0-2s: Camera starts steady rotation to the right.`
-- `2-4s: The crowd enters the frame from the right edge with physical parallax.`
-- `4-5s: Camera stops and settles on the central subject.`
+当一段自然语言控制不住模型乱发挥时，必须使用分段式时间指令，且必须保证 **全覆盖 (Full Coverage)**：
+- **母图溯源**: 必须在时间轴中显式提及宫格母图中的所有 9 个子分镜。
+- **示例格式**:
+  - `0-3s: Initial sweep across panels 1, 2, and 3.`
+  - `3-7s: Focus on movement in panel 4, leading to the flash in panel 5.`
+  - `...`
+- **目的**: 防止 AI 模型因简化任务而“跳过”某些关键情节。
 
 ### 5. 坏提示词 vs. 导演级提示词 (Comparison)
 - **❌ 坏 (Bad)**: "A cinematic camera move across the crowd, naturally transition to a new scene, high quality visual." （模型会用溶解或凭空生成来应付，物理逻辑一塌糊涂）
