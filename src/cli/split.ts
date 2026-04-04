@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "js-yaml";
-import { appendTaskEvent } from "../../scripts/tasks-jsonl.mjs";
+import { appendTaskEvent } from "./core/tasks";
 
 function log(...args: any[]) {
   console.error("[split-grid]", ...args);
