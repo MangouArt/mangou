@@ -104,9 +104,13 @@ export const BLTAI_PROVIDER = {
   },
   async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }) {
     const normalizedBase = normalizeBaseUrl(baseUrl);
-    const endpoint = scope === 'images'
+    let endpoint = scope === 'images'
       ? joinUrl(normalizedBase, 'v1', 'images', 'generations')
       : joinUrl(normalizedBase, 'v2', 'videos', 'generations');
+
+    if (scope === 'images') {
+      endpoint += '?async=true';
+    }
 
     const loggedPayload = {
       ...payload,
@@ -131,7 +135,12 @@ export const BLTAI_PROVIDER = {
       throw new Error(`Submit failed: ${response.status} ${JSON.stringify(data)}`);
     }
 
-    const taskId = data.id || data.task_id || data.data?.id || data.data?.task_id || data.task?.id || (Array.isArray(data.data) ? 'instant' : null);
+    let taskId = null;
+    if (scope === 'images' && typeof data.data === 'string') {
+      taskId = data.data;
+    } else {
+      taskId = data.id || data.task_id || data.data?.id || data.data?.task_id || data.task?.id || (Array.isArray(data.data) ? 'instant' : null);
+    }
     
     if (taskId === 'instant' || (data.data && Array.isArray(data.data) && data.data[0]?.url)) {
       return { instantData: data };
@@ -192,7 +201,12 @@ export const BLTAI_PROVIDER = {
   extractOutputs(scope, result) {
     console.error(`[bltai] Extracting outputs from ${scope}:`, JSON.stringify(result, null, 2));
     if (scope === 'images') {
-      const records = result?.data?.data || result?.data || [];
+      // Handle nested structures from polling results
+      let records = result?.data?.data?.data || result?.data?.data || result?.data || [];
+      if (!Array.isArray(records) && typeof records === 'object' && Array.isArray(records.data)) {
+        records = records.data;
+      }
+      if (!Array.isArray(records)) records = [];
       return records.map((item) => item.url).filter(Boolean);
     }
 

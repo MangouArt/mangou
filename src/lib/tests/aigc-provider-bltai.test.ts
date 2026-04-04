@@ -59,7 +59,7 @@ describe('BLTAI Provider Script', () => {
 
     expect(taskId).toBe('test-task-id');
     expect(fetchImpl).toHaveBeenCalledWith(
-      'https://api.bltcy.ai/v1/images/generations',
+      'https://api.bltcy.ai/v1/images/generations?async=true',
       expect.objectContaining({
         method: 'POST',
         headers: {

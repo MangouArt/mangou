@@ -91,21 +91,20 @@ export const KIE_PROVIDER = {
         : (params.images ? [params.images] : (params.image_url ? [params.image_url] : (params.image ? [params.image] : [])));
       
       if (model === 'bytedance/seedance-2-fast') {
+        const reference_image_urls = params.reference_image_urls || images || [];
         return {
           model,
           input: {
             prompt,
-            first_frame_url: params.first_frame_url || images[0] || '',
-            last_frame_url: params.last_frame_url || '',
-            reference_image_urls: params.reference_image_urls || [],
-            'reference_video_urls ': params.reference_video_urls || [],
+            reference_image_urls: Array.isArray(reference_image_urls) ? reference_image_urls : [reference_image_urls],
+            reference_video_urls: params.reference_video_urls || [],
             reference_audio_urls: params.reference_audio_urls || [],
             return_last_frame: params.return_last_frame || false,
             generate_audio: params.generate_audio !== undefined ? params.generate_audio : true,
-            resolution: params.resolution || '720p',
+            resolution: params.resolution || '480p',
             aspect_ratio: params.aspect_ratio || '16:9',
-            duration: Number(params.duration || 5),
-            web_search: params.web_search !== undefined ? params.web_search : true,
+            duration: Number(params.duration || 15),
+            web_search: params.web_search !== undefined ? params.web_search : false,
           },
         };
       }
@@ -188,18 +187,11 @@ export const KIE_PROVIDER = {
     if (scope === 'videos') {
       const model = finalPayload.model;
       if (model === 'bytedance/seedance-2-fast') {
-        // Handle first_frame_url
-        if (finalPayload.input?.first_frame_url?.startsWith('data:')) {
-          finalPayload.input.first_frame_url = await uploadToKie(apiKey, finalPayload.input.first_frame_url, fetchImpl);
-        }
-        // Handle last_frame_url
-        if (finalPayload.input?.last_frame_url?.startsWith('data:')) {
-          finalPayload.input.last_frame_url = await uploadToKie(apiKey, finalPayload.input.last_frame_url, fetchImpl);
-        }
         // Handle reference_image_urls
         if (Array.isArray(finalPayload.input?.reference_image_urls)) {
           for (let i = 0; i < finalPayload.input.reference_image_urls.length; i++) {
             if (finalPayload.input.reference_image_urls[i]?.startsWith('data:')) {
+              console.error(`[kie] Uploading reference image ${i + 1} to KIE...`);
               finalPayload.input.reference_image_urls[i] = await uploadToKie(apiKey, finalPayload.input.reference_image_urls[i], fetchImpl);
             }
           }

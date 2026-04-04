@@ -21,14 +21,12 @@ describe('KIE AI Provider', () => {
       model: 'bytedance/seedance-2-fast',
       input: {
         prompt: 'A cinematic video of a cat',
-        first_frame_url: 'https://example.com/first.png',
-        last_frame_url: '',
-        reference_image_urls: [],
-        'reference_video_urls ': [],
+        reference_image_urls: ['https://example.com/first.png'],
+        reference_video_urls: [],
         reference_audio_urls: [],
         return_last_frame: false,
         generate_audio: true,
-        resolution: '720p',
+        resolution: '480p',
         aspect_ratio: '16:9',
         duration: 10,
         web_search: false
@@ -224,10 +222,6 @@ describe('KIE AI Provider', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockUploadResponse
-      })
-      .mockResolvedValueOnce({
-        ok: true,
         json: async () => mockSubmitResponse
       });
 
@@ -239,7 +233,6 @@ describe('KIE AI Provider', () => {
         model: 'bytedance/seedance-2-fast',
         input: { 
           prompt: 'test',
-          first_frame_url: 'data:image/png;base64,xxxx',
           reference_image_urls: ['data:image/png;base64,yyyy']
         }
       },
@@ -247,8 +240,8 @@ describe('KIE AI Provider', () => {
     });
 
     expect(taskId).toBe('task-after-upload-multi');
-    // Expect two uploads (first_frame_url and one in reference_image_urls)
-    expect(fetchImpl).toHaveBeenCalledTimes(3); 
+    // Expect one upload in reference_image_urls and one submit
+    expect(fetchImpl).toHaveBeenCalledTimes(2); 
     expect(fetchImpl).toHaveBeenLastCalledWith(
       'https://api.kie.ai/api/v1/jobs/createTask',
       expect.objectContaining({
