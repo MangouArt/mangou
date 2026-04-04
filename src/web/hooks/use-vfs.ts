@@ -11,8 +11,8 @@ import {
   read,
   replace,
   list,
-  exportToExistingData,
   initializeProjectStructure,
+import { exportToExistingData } from '@server/ui-adapter';
   vfsStorageManager,
 } from '@core/vfs/index';
 import type {
@@ -22,7 +22,7 @@ import type {
   AgentToolContext,
 } from '@core/vfs/index';
 
-import { UIAsset as Asset, UIStoryboard as Storyboard } from '@core/mango';
+import { UIAsset as Asset, UIStoryboard as Storyboard } from '@core/schema';
 
 interface UseVFSOptions {
   projectId: string;
