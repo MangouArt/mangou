@@ -109,50 +109,6 @@ export function getYAMLValidationError(data: any, path: string): string | null {
 }
 
 /**
- * 更新 YAML 中的生成任务状态
- * 统一回写到 tasks[type].latest
- */
-function updateGenerationStatus(
-  content: string,
-  type: 'image' | 'video',
-  update: {
-    status?: string | null;
-    output?: string | null;
-    error?: string | null;
-    task_id?: string | null;
-    upstream_task_id?: string | null;
-  },
-  docIndex: number = 0
-): string {
-  try {
-    const docs = (yaml as any).loadAll(content, { json: true }) as any[];
-    const data = docs[docIndex];
-    if (!data) return content;
-    
-    // 初始化 tasks 结构
-    if (!data.tasks) data.tasks = {};
-    if (!data.tasks[type]) data.tasks[type] = { params: { prompt: '' } };
-    if (!data.tasks[type].latest) data.tasks[type].latest = {};
- 
-    const latest = data.tasks[type].latest;
-    if (update.status) latest.status = update.status;
-    if (update.output !== undefined) latest.output = update.output;
-    if (update.error !== undefined) latest.error = update.error;
-    if (update.task_id !== undefined) latest.task_id = update.task_id;
-    if (update.upstream_task_id !== undefined) latest.upstream_task_id = update.upstream_task_id;
-    latest.updated_at = new Date().toISOString();
- 
-    if (docs.length === 1) {
-      return stringifyYAML(data);
-    }
-    return docs.map(d => stringifyYAML(d)).join('---\n');
-  } catch (e) {
-    console.error('[YAML Update Status Failed]:', e);
-    return content;
-  }
-}
-
-/**
  * 格式化 YAML 错误信息供用户/Agent阅读
  */
 export function formatYAMLError(error: any): string {
@@ -164,4 +120,4 @@ export function formatYAMLError(error: any): string {
   }
   return String(error);
 }
-export { updateGenerationStatus };
+

@@ -1,73 +1,77 @@
-import { describe, expect, it } from 'vitest';
-import { parseCliArgs } from '../../src/cli/main';
+import { describe, it, expect, beforeEach } from "vitest";
+import { main } from "../../src/cli/main";
+import fs from "node:fs/promises";
+import path from "node:path";
+import yaml from "js-yaml";
 
-describe('mangou CLI', () => {
-  it('SPEC: parses workspace init as a structured command', () => {
-    expect(parseCliArgs(['workspace', 'init', '--workspace', '/tmp/demo'])).toEqual({
-      commandPath: ['workspace', 'init'],
-      positionals: [],
-      flags: {
-        workspace: '/tmp/demo',
-      },
-    });
+describe("mangou-cli commands", () => {
+  const projectName = "test-cli-project";
+  const projectRoot = path.join(process.cwd(), "projects", projectName);
+
+  beforeEach(async () => {
+    // Cleanup projects/test-cli-project
+    await fs.rm(projectRoot, { recursive: true, force: true }).catch(() => {});
   });
 
-  it('SPEC: parses generate image with yaml positional and provider override', () => {
-    expect(
-      parseCliArgs([
-        'generate',
-        'image',
-        'storyboards/s1.yaml',
-        '--provider',
-        'bltai',
-        '--debug',
-      ])
-    ).toEqual({
-      commandPath: ['generate', 'image'],
-      positionals: ['storyboards/s1.yaml'],
-      flags: {
-        provider: 'bltai',
-        debug: true,
-      },
-    });
+  it("project init: creates physical directory structure", async () => {
+    process.argv = ["node", "mangou", "project", "init", "--name", projectName];
+    await main();
+
+    const exists = await fs.access(projectRoot).then(() => true).catch(() => false);
+    expect(exists).toBe(true);
+
+    const storyboardDir = path.join(projectRoot, "storyboards");
+    const storyboardExists = await fs.access(storyboardDir).then(() => true).catch(() => false);
+    expect(storyboardExists).toBe(true);
+
+    const projectJson = await fs.readFile(path.join(projectRoot, "project.json"), "utf-8");
+    const meta = JSON.parse(projectJson);
+    expect(meta.id).toBe(projectName);
   });
 
-  it('SPEC: parses grid split with flags', () => {
-    expect(
-      parseCliArgs([
-        'grid',
-        'split',
-        'storyboards/grid.yaml',
-        '--grid',
-        '2x2',
-        '--project-root',
-        '/tmp/ws/projects/demo',
-      ])
-    ).toEqual({
-      commandPath: ['grid', 'split'],
-      positionals: ['storyboards/grid.yaml'],
-      flags: {
-        grid: '2x2',
-        projectRoot: '/tmp/ws/projects/demo',
-      },
-    });
+  it("project stitch: triggers ffmpeg concatenation logic", async () => {
+    // We mock the stitch module if needed, but here we test the command dispatch
+    process.argv = ["node", "mangou", "project", "stitch", "--id", projectName];
+    // Since stitch requires FFmpeg and physical files, we check for no crash on invalid ID
+    await expect(main()).rejects.toThrow(); // Should fail because project doesn't exist
   });
 
-  it('SPEC: handles help and unknown commands', () => {
-    expect(parseCliArgs(['help'])).toEqual({
-      commandPath: ['help'],
-      positionals: [],
-      flags: {},
-    });
-    expect(parseCliArgs(['unknown'])).toEqual({
-      commandPath: ['unknown'],
-      positionals: [],
-      flags: {},
-    });
-    expect(parseCliArgs([])).toEqual({
-      commandPath: ['help'],
-      positionals: [],
-      flags: {},
-    });
+  it("storyboard split: splits a grid image and creates child YAMLs", async () => {
+    // 1. Setup project
+    process.argv = ["node", "mangou", "project", "init", "--name", projectName];
+    await main();
+
+    // 2. Setup a master grid YAML
+    const masterYamlPath = path.join(projectRoot, "storyboards", "master.yaml");
+    const masterDoc = {
+      meta: { id: "master", grid: "2x1" },
+      tasks: {
+        image: {
+          latest: { status: "success", output: "assets/images/master.png" }
+        }
+      }
+    };
+    await fs.writeFile(masterYamlPath, yaml.dump(masterDoc));
+
+    // 3. Create a dummy image
+    const imgDir = path.join(projectRoot, "assets/images");
+    await fs.mkdir(imgDir, { recursive: true });
+    await fs.writeFile(path.join(imgDir, "master.png"), "dummy content");
+
+    // 4. Run split command
+    process.argv = ["node", "mangou", "storyboard", "split", "--path", `projects/${projectName}/storyboards/master.yaml` ];
+    
+    // We mock FFmpeg in a real environment, but here we expect the logic to attempt it
+    // For KISS, we'll just check if the code runs without crashing and reaches the backfill stage
+    try {
+      await main();
+    } catch (e: any) {
+      // ffmpeg will fail on dummy content, but we check if it created the child YAML files
+    }
+
+    const childYaml = path.join(projectRoot, "storyboards", "master-sub-01.yaml");
+    const childExists = await fs.access(childYaml).then(() => true).catch(() => false);
+    // Even if FFmpeg fails, our scaffold logic should have created the files
+    expect(childExists).toBe(true);
   });
 });

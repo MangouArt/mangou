@@ -1,21 +1,22 @@
 #!/usr/bin/env bun
-import fs from 'fs/promises';
-import path from 'path';
-import crypto from 'crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import crypto from 'node:crypto';
 
-export function log(...args) {
+export function log(...args: any[]) {
   console.error('[mangou]', ...args);
 }
 
-export function isHttpUrl(value) {
+export function isHttpUrl(value: string | undefined | null): boolean {
   return /^https?:\/\//i.test(value || '');
 }
 
-export function ensureArray(value) {
-  return Array.isArray(value) ? value.filter(Boolean) : [];
+export function ensureArray<T>(value: T | T[] | undefined | null): T[] {
+  if (value === null || value === undefined) return [];
+  return Array.isArray(value) ? value.filter(Boolean) : [value];
 }
 
-export async function fileExists(targetPath) {
+export async function fileExists(targetPath: string): Promise<boolean> {
   try {
     await fs.access(targetPath);
     return true;
@@ -24,7 +25,7 @@ export async function fileExists(targetPath) {
   }
 }
 
-function getRemoteExtension(url, fallback) {
+function getRemoteExtension(url: string, fallback: string): string {
   try {
     const pathname = new URL(url).pathname;
     const ext = path.extname(pathname).replace(/^\./, '');
@@ -34,12 +35,12 @@ function getRemoteExtension(url, fallback) {
   }
 }
 
-async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
-  let lastError;
+async function fetchWithRetry(url: string, options?: RequestInit, maxRetries = 3): Promise<Response> {
+  let lastError: any;
   for (let i = 0; i < maxRetries; i += 1) {
     try {
       return await fetch(url, options);
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
       log(`fetch failed (attempt ${i + 1}/${maxRetries}): ${error.message}`);
       if (i < maxRetries - 1) {
@@ -50,7 +51,7 @@ async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
   throw lastError;
 }
 
-export async function downloadFile(url, targetPath) {
+export async function downloadFile(url: string, targetPath: string): Promise<void> {
   log(`Downloading asset: ${url}`);
   const response = await fetchWithRetry(url);
   if (!response.ok) {
@@ -61,8 +62,18 @@ export async function downloadFile(url, targetPath) {
   await fs.writeFile(targetPath, buffer);
 }
 
-export async function materializeOutputs(projectRoot, yamlPath, type, taskId, outputs) {
-  const localized = [];
+/**
+ * Download remote outputs and save them into the project assets directory.
+ * Returns the local relative paths.
+ */
+export async function materializeOutputs(
+  projectRoot: string,
+  yamlPath: string,
+  type: 'image' | 'video',
+  taskId: string,
+  outputs: string[]
+): Promise<string[]> {
+  const localized: string[] = [];
   for (let index = 0; index < outputs.length; index += 1) {
     const output = outputs[index];
     if (!isHttpUrl(output)) {
@@ -72,7 +83,7 @@ export async function materializeOutputs(projectRoot, yamlPath, type, taskId, ou
 
     const ext = getRemoteExtension(output, type === 'image' ? 'png' : 'mp4');
     const subDir = type === 'image' ? 'images' : 'videos';
-    const taskIdStr = typeof taskId === 'string' ? taskId : crypto.randomUUID();
+    const taskIdStr = taskId || crypto.randomUUID();
     const filename = `${path.basename(yamlPath, '.yaml')}-${taskIdStr.slice(0, 8)}-${index}.${ext}`;
     const relativePath = path.posix.join('assets', subDir, filename);
     await downloadFile(output, path.join(projectRoot, relativePath));
@@ -81,7 +92,7 @@ export async function materializeOutputs(projectRoot, yamlPath, type, taskId, ou
   return localized;
 }
 
-export function resolveResumeTaskId(taskConfig) {
+export function resolveResumeTaskId(taskConfig: any): string | null {
   const latest = taskConfig?.latest;
   const taskId = typeof latest?.task_id === 'string' ? latest.task_id.trim() : '';
   const status = String(latest?.status || '').toLowerCase();

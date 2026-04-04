@@ -1,59 +1,35 @@
-import { describe, expect, it } from 'vitest';
-import { updateGenerationStatus } from '../../src/cli/core/vfs/yaml';
+import { describe, it, expect } from 'vitest';
+import { parseYAML, stringifyYAML, validateYAMLFile } from '../../src/cli/core/vfs/yaml';
 
 describe('YAML utilities', () => {
-  describe('updateGenerationStatus', () => {
-    it('updates a single document YAML', () => {
-      const content = `
-meta:
-  id: test
-tasks:
-  image:
-    params:
-      prompt: test prompt
-`;
-      const updated = updateGenerationStatus(content, 'image', {
-        status: 'success',
-        output: 'assets/images/test.png'
-      });
-      
-      expect(updated).toContain('status: success');
-      expect(updated).toContain('output: assets/images/test.png');
+  describe('parseYAML', () => {
+    it('parses basic YAML correctly', () => {
+      const content = 'meta:\n  id: test\ncontent:\n  title: Title';
+      const result = parseYAML(content);
+      expect(result.meta.id).toBe('test');
+      expect(result.content.title).toBe('Title');
     });
 
-    it('updates a specific document in a multi-document YAML', () => {
-      const content = `
-meta:
-  id: doc1
-tasks:
-  image:
-    params:
-      prompt: p1
----
-meta:
-  id: doc2
-tasks:
-  image:
-    params:
-      prompt: p2
-`;
-      const updated = updateGenerationStatus(content, 'image', {
-        status: 'success',
-        output: 'out2.png'
-      }, 1);
-      
-      const sections = updated.split('---\n');
-      expect(sections).toHaveLength(2);
-      expect(sections[0]).not.toContain('output: out2.png');
-      expect(sections[1]).toContain('id: doc2');
-      expect(sections[1]).toContain('status: success');
-      expect(sections[1]).toContain('output: out2.png');
+    it('throws error for empty content', () => {
+      expect(() => parseYAML('')).toThrow();
     });
+  });
 
-    it('returns original content if docIndex is out of bounds', () => {
-      const content = 'meta: { id: test }';
-      const updated = updateGenerationStatus(content, 'image', { status: 'success' }, 5);
-      expect(updated).toBe(content);
+  describe('stringifyYAML', () => {
+    it('stringifies objects correctly', () => {
+      const data = { meta: { id: 'test' } };
+      const result = stringifyYAML(data);
+      expect(result).toContain('id: test');
+    });
+  });
+
+  describe('validateYAMLFile', () => {
+    it('validates basic structure correctly', () => {
+      const valid = { meta: { id: 'test' }, content: { title: 'T' } };
+      expect(validateYAMLFile(valid, '/any.yaml')).toBe(true);
+      
+      const invalid = { only: 'meta' };
+      expect(validateYAMLFile(invalid, '/any.yaml')).toBe(false);
     });
   });
 });
