@@ -234,6 +234,7 @@ export async function runAIGC(provider, argv = process.argv.slice(2)) {
 
     const rawImages = [
       ...ensureArray(params.images),
+      ...ensureArray(params.reference_image_urls),
       ...(params.image_url ? [resolveTemplateVar(params.image_url)] : []),
       ...(params.image ? [resolveTemplateVar(params.image)] : []),
       ...refImages,

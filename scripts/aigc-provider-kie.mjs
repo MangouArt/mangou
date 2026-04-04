@@ -90,7 +90,7 @@ export const KIE_PROVIDER = {
         ? params.images.filter(Boolean)
         : (params.images ? [params.images] : (params.image_url ? [params.image_url] : (params.image ? [params.image] : [])));
       
-      if (model === 'bytedance/seedance-2-fast') {
+      if (model.includes('seedance-2')) {
         const reference_image_urls = params.reference_image_urls || images || [];
         return {
           model,
@@ -186,7 +186,7 @@ export const KIE_PROVIDER = {
     // Handle file uploads for KIE
     if (scope === 'videos') {
       const model = finalPayload.model;
-      if (model === 'bytedance/seedance-2-fast') {
+      if (model.includes('seedance-2')) {
         // Handle reference_image_urls
         if (Array.isArray(finalPayload.input?.reference_image_urls)) {
           for (let i = 0; i < finalPayload.input.reference_image_urls.length; i++) {
@@ -272,6 +272,20 @@ export const KIE_PROVIDER = {
       }
 
       if (state === 'success') {
+        const resultUrls = data.data?.resultUrls || [];
+        if (resultUrls.length === 0 && scope === 'videos') {
+          // If no resultUrls but state is success, it might be a false success or nested result
+          try {
+            const resultJson = typeof data.data?.resultJson === 'string' 
+              ? JSON.parse(data.data.resultJson) 
+              : data.data?.resultJson;
+            if (!resultJson?.resultUrls || resultJson.resultUrls.length === 0) {
+              throw new Error(`[kie] Task success but no resultUrls found in payload: ${JSON.stringify(data.data)}`);
+            }
+          } catch (e) {
+             throw new Error(`[kie] False success - result validation failed: ${e.message}`);
+          }
+        }
         return data.data;
       }
       if (state === 'fail') {

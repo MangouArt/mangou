@@ -78,9 +78,7 @@ async function copyDir(src, dest, options = {}) {
 
 async function createZipArchive(bundleRoot, archivePath) {
   await fs.rm(archivePath, { force: true });
-  const bundleDir = path.dirname(bundleRoot);
-  const bundleName = path.basename(bundleRoot);
-  await execFileAsync('zip', ['-qr', archivePath, bundleName], { cwd: bundleDir });
+  await execFileAsync('zip', ['-qr', archivePath, '.'], { cwd: bundleRoot });
 }
 
 export async function buildSkillBundle({
@@ -116,64 +114,7 @@ export async function buildSkillBundle({
     skipNames: ['.agents'],
   });
   await copyDir(resolvedDistSource, path.join(resolvedOutputRoot, 'dist'));
-  await ensureDir(path.join(resolvedOutputRoot, 'scripts'));
-  await ensureDir(path.join(resolvedOutputRoot, 'scripts-src'));
-
-  const scriptSourceRoot = path.join(resolvedPackageRoot, 'scripts');
-  const entries = [
-    'aigc-provider-template.mjs',
-    'aigc-provider-bltai.mjs',
-    'aigc-provider-kie.mjs',
-    'http-server.mjs',
-    'web-control.mjs',
-    'mangou.mjs',
-    'project-scaffold.mjs',
-    'agent-generate.mjs',
-    'agent-stitch.mjs',
-    'split-grid.mjs',
-    'tasks-jsonl.mjs',
-  ];
-
-  for (const filename of RUNTIME_SCRIPT_FILES) {
-    await fs.copyFile(
-      path.join(scriptSourceRoot, filename),
-      path.join(resolvedOutputRoot, 'scripts-src', filename),
-    );
-  }
-
-  for (const filename of entries) {
-    const sourcePath = path.join(scriptSourceRoot, filename);
-    const outputPath = path.join(resolvedOutputRoot, 'scripts', filename);
-
-    if (RAW_SCRIPT_FILES.has(filename)) {
-      const source = await fs.readFile(sourcePath, 'utf-8');
-      await writeExecutableScript(outputPath, source);
-      continue;
-    }
-
-    const define = filename === 'agent-generate.mjs'
-      ? { __BLTAI_MVP_CLI__: 'false' }
-      : undefined;
-
-    await build({
-      entryPoints: [sourcePath],
-      outfile: outputPath,
-      bundle: true,
-      format: 'esm',
-      platform: 'node',
-      target: 'node18',
-      tsconfig: path.join(resolvedPackageRoot, 'tsconfig.json'),
-      sourcemap: false,
-      logLevel: 'silent',
-      define,
-      banner: {
-        js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
-      },
-    });
-
-    const bundledSource = await fs.readFile(outputPath, 'utf-8');
-    await writeExecutableScript(outputPath, bundledSource);
-  }
+  // Skip bundling legacy scripts for Bun-based lightweight distribution
 
   await createZipArchive(resolvedOutputRoot, resolvedArchivePath);
 
@@ -206,6 +147,7 @@ if (isEntrypoint) {
   const args = parseArgs(process.argv.slice(2));
   buildSkillBundle({
     packageRoot: args.root || DEFAULT_PACKAGE_ROOT,
+    skillName: args.skill || DEFAULT_SKILL_NAME,
     outputRoot: args.output,
     distSource: args.dist,
   })

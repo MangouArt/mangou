@@ -47,7 +47,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:skill": "node scripts/build-skill.mjs",
+    "build:skill": "node scripts/build-skill.mjs --skill mangou",
     "prepack": "npm run build && npm run build:skill",
     "preview": "vite preview",
     "start": "TSX_TSCONFIG_PATH=./tsconfig.json node --import tsx scripts/http-server.ts",

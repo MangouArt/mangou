@@ -12,8 +12,6 @@ declare const Bun: any;
 // @ts-ignore
 import workspaceTemplateZip from "./assets/workspace_template.zip" with { type: "file" };
 // @ts-ignore
-import mangoAigcZip from "../../bundled-skills/mango-aigc.zip" with { type: "file" };
-// @ts-ignore
 import mangouSkillZip from "../../bundled-skills/mangou.zip" with { type: "file" };
 
 function toCamelCase(value: string) {
@@ -103,7 +101,6 @@ async function initWorkspace({ workspaceRoot }: { workspaceRoot: string }) {
   const skillsDir = path.join(resolvedRoot, ".agents", "skills");
   await fs.mkdir(skillsDir, { recursive: true });
   
-  await unzipAsset(mangoAigcZip, path.join(skillsDir, "mango-aigc"));
   await unzipAsset(mangouSkillZip, path.join(skillsDir, "mangou"));
 
   console.error(`[mangou] Workspace ready.`);
