@@ -97,7 +97,7 @@ describe('split-grid', () => {
       'utf-8',
     );
 
-    await runSplitGrid([parentYamlPath, '--project-root', projectRoot]);
+    await runSplitGrid({ yamlPath: parentYamlPath, projectRoot: projectRoot });
 
     const childA = await readYamlDoc(childAPath);
     const childB = await readYamlDoc(childBPath);
@@ -157,7 +157,7 @@ describe('split-grid', () => {
       'utf-8',
     );
 
-    const result = await runSplitGrid([parentYamlPath, '--project-root', projectRoot]);
+    const result = await runSplitGrid({ yamlPath: parentYamlPath, projectRoot: projectRoot });
 
     expect(result.outputs).toHaveLength(4);
     expect(result.outputs).toEqual([

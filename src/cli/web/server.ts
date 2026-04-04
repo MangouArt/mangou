@@ -1,17 +1,11 @@
 import http from 'http';
-import https from 'https';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { ProjectManager } from '@core/project-manager';
-import { configStore } from '@core/config-store';
-import { parseYAML } from '@core/vfs/yaml';
 import { getContentTypeByPath, getCacheControlByContentType } from '@core/vfs/server-utils';
-import { isMediaContentType, normalizeContentType, sniffContentType } from '@core/file-type';
-import { vfsStorageManager } from '@core/vfs/storage-manager';
-import { vfsEventManager } from '@core/vfs/event-manager';
-import { buildProjectSnapshot } from '@core/vfs/project-snapshot';
+import yaml from 'js-yaml';
+import type { Asset, Storyboard } from '@core/schema';
 
 type ServerOptions = {
   appRoot: string;
@@ -20,505 +14,192 @@ type ServerOptions = {
 };
 
 function log(...args: unknown[]) {
-  console.error('[mangou-web]', ...args);
+  console.error('[mangou-mirror]', ...args);
 }
 
-type VfsSseClient = { res: http.ServerResponse; projectId: string };
-const vfsSseClients = new Set<VfsSseClient>();
-let vfsEventBound = false;
+type SseClient = { res: http.ServerResponse; projectId: string };
+const sseClients = new Set<SseClient>();
 
 function sendSse(res: http.ServerResponse, event: string, payload: unknown) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-function bindVfsEventsOnce() {
-  if (vfsEventBound) return;
-  vfsEventBound = true;
-  vfsEventManager.on('change', (event) => {
-    for (const client of vfsSseClients) {
-      if (client.projectId && client.projectId !== event.projectId) continue;
-      sendSse(client.res, 'vfs', event);
+/**
+ * Real-time File Watcher
+ */
+function startWatcher(dataRoot: string) {
+  log(`Watching for changes in: ${dataRoot}`);
+  fsSync.watch(dataRoot, { recursive: true }, async (event, filename) => {
+    if (!filename || filename.includes('.git') || filename.includes('node_modules')) return;
+    const relPath = filename.split(path.sep).join('/');
+    const projectId = relPath.split('/')[0];
+    
+    if (filename.endsWith('.yaml') || isMediaFile(filename)) {
+      broadcast('file_change', { projectId, path: relPath, timestamp: Date.now() }, projectId);
     }
   });
+}
+
+function isMediaFile(filename: string) {
+  const ext = path.extname(filename).toLowerCase();
+  return ['.png', '.jpg', '.jpeg', '.mp4', '.webp'].includes(ext);
+}
+
+function broadcast(event: string, payload: any, projectId: string) {
+  for (const client of sseClients) {
+    if (client.projectId && client.projectId !== projectId) continue;
+    sendSse(client.res, event, payload);
+  }
+}
+
+/**
+ * Data Adapter: YAML -> UI Schema
+ */
+async function getProjectUIData(projectRoot: string, projectId: string) {
+  const assets: Asset[] = [];
+  const storyboards: Storyboard[] = [];
+
+  // 1. Load Assets
+  const assetTypes = ['chars', 'scenes', 'props'];
+  for (const type of assetTypes) {
+    const dir = path.join(projectRoot, 'asset_defs', type);
+    try {
+      const files = await fs.readdir(dir);
+      for (const file of files) {
+        if (!file.endsWith('.yaml')) continue;
+        const raw = await fs.readFile(path.join(dir, file), 'utf-8');
+        const doc = yaml.load(raw) as any;
+        assets.push({
+          id: doc.meta?.id || path.basename(file, '.yaml'),
+          project_id: projectId,
+          type: (type === 'chars' ? 'character' : type === 'scenes' ? 'scene' : 'prop') as Asset['type'],
+          name: doc.content?.name || file,
+          description: doc.content?.description || null,
+          status: doc.tasks?.image?.latest?.status || 'pending',
+          image_url: doc.tasks?.image?.latest?.output || null,
+          version: doc.meta?.version || '1.0',
+          metadata: doc.meta || {},
+          created_at: new Date().toISOString()
+        });
+      }
+    } catch {}
+  }
+
+  // 2. Load Storyboards
+  const sbDir = path.join(projectRoot, 'storyboards');
+  try {
+    const files = await fs.readdir(sbDir);
+    for (const file of files) {
+      if (!file.endsWith('.yaml')) continue;
+      const raw = await fs.readFile(path.join(sbDir, file), 'utf-8');
+      const doc = yaml.load(raw) as any;
+      storyboards.push({
+        id: doc.meta?.id || path.basename(file, '.yaml'),
+        project_id: projectId,
+        sequence_number: doc.content?.sequence || 0,
+        title: doc.content?.title || file,
+        description: doc.content?.story || null,
+        prompt: doc.tasks?.image?.params?.prompt || null,
+        image_url: doc.tasks?.image?.latest?.output || null,
+        video_url: doc.tasks?.video?.latest?.output || null,
+        status: doc.tasks?.video?.latest?.status === 'completed' ? 'completed' : (doc.tasks?.image?.latest?.status === 'completed' ? 'completed' : 'pending'),
+        asset_ids: doc.refs?.characters || [],
+        grid: doc.meta?.grid || null,
+        parentId: doc.meta?.parent || null,
+        tasks: doc.tasks || {},
+        metadata: doc.meta || {},
+        created_at: new Date().toISOString()
+      });
+    }
+  } catch {}
+
+  storyboards.sort((a, b) => a.sequence_number - b.sequence_number);
+  return { assets, storyboards };
 }
 
 function sendJson(res: http.ServerResponse, status: number, data: unknown) {
   const body = JSON.stringify(data);
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(body).toString(),
-  });
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(body);
 }
 
-function sendText(res: http.ServerResponse, status: number, text: string) {
-  res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end(text);
-}
+export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOptions) {
+  startWatcher(dataRoot);
 
-async function readBody(req: http.IncomingMessage): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
+  const server = http.createServer(async (req, res) => {
+    if (!req.url) return res.end();
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const pathname = url.pathname;
 
-async function readJson(req: http.IncomingMessage) {
-  const body = await readBody(req);
-  if (!body.length) return {};
-  try {
-    return JSON.parse(body.toString('utf-8'));
-  } catch {
-    return {};
-  }
-}
-
-function normalizeVfsPath(input: string | null) {
-  let vfsPath = input || '/';
-  if (vfsPath.startsWith('./')) {
-    vfsPath = vfsPath.slice(1);
-  }
-  if (!vfsPath.startsWith('/')) {
-    vfsPath = `/${vfsPath}`;
-  }
-  return vfsPath;
-}
-
-function resolveWorkspaceRoot(dataRoot: string) {
-  const explicitWorkspaceRoot = process.env.MANGOU_WORKSPACE_ROOT;
-  if (explicitWorkspaceRoot) {
-    return path.resolve(explicitWorkspaceRoot);
-  }
-  const workspaceDir = configStore.get('workspaceDir');
-  return path.resolve(dataRoot, workspaceDir);
-}
-
-function resolveProjectRoot(dataRoot: string, projectPath: string) {
-  const workspaceRoot = resolveWorkspaceRoot(dataRoot);
-  // projectPath must be relative to workspace root
-  if (path.isAbsolute(projectPath)) {
-    throw new Error('projectPath must be relative to workspace root');
-  }
-  const resolved = path.resolve(workspaceRoot, projectPath);
-  const prefix = workspaceRoot.endsWith(path.sep) ? workspaceRoot : `${workspaceRoot}${path.sep}`;
-  if (resolved !== workspaceRoot && !resolved.startsWith(prefix)) {
-    throw new Error(`Project must be under workspace: ${workspaceRoot}`);
-  }
-  return resolved;
-}
-
-function handleMeta(appRoot: string, dataRoot: string, res: http.ServerResponse) {
-  const workspaceDir = configStore.get('workspaceDir');
-  const workspaceRoot = resolveWorkspaceRoot(dataRoot);
-  return sendJson(res, 200, {
-    success: true,
-    data: {
-      appRoot,
-      dataRoot,
-      workspaceDir,
-      workspaceRoot,
-    },
-  });
-}
-
-async function handleVfsGet(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
-  const action = url.searchParams.get('action');
-  const projectId = url.searchParams.get('projectId') || 'demo';
-  const vfsPath = normalizeVfsPath(url.searchParams.get('path'));
-  const isAgentsPath = vfsPath === '/.agents' || vfsPath.startsWith('/.agents/');
-  if (isAgentsPath && action !== 'list') {
-    return sendJson(res, 404, { success: false, error: 'Ignored path' });
-  }
-
-  try {
-    const projectRoot = resolveProjectRoot(dataRoot, projectId);
-    if (action === 'list') {
-      if (isAgentsPath) {
-        return sendJson(res, 200, { success: true, entries: [] });
-      }
-      const fullPath = path.join(projectRoot, vfsPath);
+    // API: Proxy media and YAML via VFS URL
+    if (pathname === '/api/vfs') {
+      const projectId = url.searchParams.get('projectId');
+      const relPath = url.searchParams.get('path');
+      if (!projectId || !relPath) return sendJson(res, 400, { error: 'Missing params' });
+      const fullPath = path.join(dataRoot, projectId, relPath);
       try {
-        const stats = await fs.stat(fullPath);
-        if (!stats.isDirectory()) {
-          return sendJson(res, 200, { success: true, entries: [] });
-        }
-      } catch (error: any) {
-        if (error?.code === 'ENOENT') {
-          return sendJson(res, 200, { success: true, entries: [] });
-        }
-        throw error;
-      }
-
-      const entries = await fs.readdir(fullPath, { withFileTypes: true });
-      const data = entries.map((e) => ({
-        name: e.name,
-        type: e.isDirectory() ? 'directory' : 'file',
-        path: path.join(vfsPath, e.name),
-      }));
-      return sendJson(res, 200, { success: true, entries: data });
+        const contentType = getContentTypeByPath(relPath);
+        res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': getCacheControlByContentType(contentType) });
+        fsSync.createReadStream(fullPath).pipe(res);
+        return;
+      } catch { return sendJson(res, 404, { error: 'Not found' }); }
     }
 
-    if (action === 'read') {
-      const fullPath = path.join(projectRoot, vfsPath);
-      const stats = await fs.stat(fullPath);
-      if (stats.isDirectory()) {
-        return sendJson(res, 400, { success: false, error: 'Path is a directory', isDirectory: true });
-      }
-      const buffer = await fs.readFile(fullPath);
-      let contentType = getContentTypeByPath(vfsPath);
-      if (contentType === 'application/octet-stream') {
-        const sniffed = sniffContentType(buffer.subarray(0, 32));
-        if (sniffed) contentType = sniffed;
-      }
-
-      const normalized = normalizeContentType(contentType);
-      const isText =
-        normalized.startsWith('text/') ||
-        normalized.includes('json') ||
-        normalized.includes('yaml') ||
-        normalized.includes('markdown');
-
-      if (!isText || isMediaContentType(contentType)) {
-        return sendJson(res, 415, { success: false, error: 'Binary file not supported', isBinary: true });
-      }
-
-      return sendJson(res, 200, { success: true, content: buffer.toString('utf-8') });
+    // API: SSE Events
+    if (pathname === '/api/events') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+      const client = { res, projectId: url.searchParams.get('projectId') || '' };
+      sseClients.add(client);
+      req.on('close', () => sseClients.delete(client));
+      return;
     }
 
-    if (action === 'stat') {
-      const fullPath = path.join(projectRoot, vfsPath);
-      const stats = await fs.stat(fullPath);
-      return sendJson(res, 200, {
-        success: true,
-        stats: {
-          size: stats.size,
-          mtime: stats.mtime,
-          isDirectory: stats.isDirectory(),
-        },
-      });
-    }
-
-    const fullPath = path.join(projectRoot, vfsPath);
-    const stats = await fs.stat(fullPath);
-    if (stats.isDirectory()) {
-      return sendJson(res, 400, { success: false, error: 'Path is a directory', isDirectory: true });
-    }
-
-    let contentType = getContentTypeByPath(vfsPath);
-    if (contentType === 'application/octet-stream') {
-      try {
-        const handle = await fs.open(fullPath, 'r');
-        const preview = Buffer.alloc(32);
-        await handle.read(preview, 0, preview.length, 0);
-        await handle.close();
-        const sniffed = sniffContentType(preview);
-        if (sniffed) contentType = sniffed;
-      } catch {
-        // ignore
+    // API: Structured Project Snapshot
+    if (pathname.startsWith('/api/projects/')) {
+      const projectId = pathname.split('/')[2];
+      if (pathname.endsWith('/snapshot')) {
+        const projectRoot = path.join(dataRoot, projectId);
+        const data = await getProjectUIData(projectRoot, projectId);
+        return sendJson(res, 200, { success: true, ...data });
       }
     }
 
-    res.writeHead(200, {
-      'Content-Type': contentType,
-      'Cache-Control': getCacheControlByContentType(contentType),
-    });
-    fsSync.createReadStream(fullPath).pipe(res);
-    return;
-  } catch (error: any) {
-    log(`[VFS API Error] ${action ?? 'default'} ${vfsPath}:`, error?.message);
-    return sendJson(res, 404, { success: false, error: error?.message || 'Not Found' });
-  }
-}
-
-
-async function handleVfsEvents(req: http.IncomingMessage, res: http.ServerResponse) {
-  const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
-  const projectId = url.searchParams.get('projectId') || '';
-  bindVfsEventsOnce();
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-  });
-  res.write('event: ready\ndata: {}\n\n');
-
-  const heartbeat = setInterval(() => {
-    res.write(': heartbeat\n\n');
-  }, 30000);
-
-  const client = { res, projectId };
-  vfsSseClients.add(client);
-
-  req.on('close', () => {
-    clearInterval(heartbeat);
-    vfsSseClients.delete(client);
-  });
-}
-
-async function handleProjects(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse) {
-  if (req.method === 'GET') {
-    try {
+    // API: Projects List
+    if (pathname === '/api/projects') {
       const projects = await ProjectManager.listProjects();
-      return sendJson(res, 200, {
-        success: true,
-        projects: projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description || '',
-          video_url: p.videoUrl || null,
-          created_at: p.createdAt,
-          updated_at: p.updatedAt,
-        })),
-      });
-    } catch (error: any) {
-      log('[API-Error] Failed to list projects:', error?.message);
-      return sendJson(res, 500, { success: false, error: error?.message || 'Failed to list projects' });
+      return sendJson(res, 200, { success: true, projects });
     }
-  }
-  return sendJson(res, 405, { success: false, error: 'Method not allowed' });
-}
 
-async function handleProjectItem(dataRoot: string, req: http.IncomingMessage, res: http.ServerResponse, projectId: string) {
-  if (!projectId) {
-    return sendJson(res, 400, { success: false, error: 'Project ID is missing' });
-  }
-
-  if (req.method === 'GET') {
-    try {
-      const project = await ProjectManager.getProject(projectId);
-      if (!project) {
-        return sendJson(res, 404, { success: false, error: 'Project not found' });
-      }
-      return sendJson(res, 200, {
-        success: true,
-        project: {
-          id: project.id,
-          name: project.name,
-          description: project.description || '',
-          video_url: project.videoUrl || null,
-          created_at: project.createdAt,
-          updated_at: project.updatedAt,
-        },
-        assets: [],
-        storyboards: [],
-        keyframes: [],
-        videos: [],
-      });
-    } catch (error: any) {
-      log(`[Project API Error] ${projectId}:`, error?.message);
-      return sendJson(res, 500, { success: false, error: error?.message || 'Project error' });
-    }
-  }
-
-  return sendJson(res, 405, { success: false, error: 'Method not allowed' });
-}
-
-async function handleProjectSnapshot(dataRoot: string, res: http.ServerResponse, projectId: string) {
-  if (!projectId) {
-    return sendJson(res, 400, { success: false, error: 'Project ID is missing' });
-  }
-
-  try {
-    const projectRoot = resolveProjectRoot(dataRoot, projectId);
-    const snapshot = await buildProjectSnapshot(projectId, projectRoot);
-    return sendJson(res, 200, { success: true, snapshot });
-  } catch (error: any) {
-    log(`[Project Snapshot Error] ${projectId}:`, error?.message);
-    return sendJson(res, 500, { success: false, error: error?.message || 'Snapshot failed' });
-  }
-}
-
-async function handleWorkspace(dataRoot: string, res: http.ServerResponse) {
-  const workspaceDir = configStore.get('workspaceDir');
-  const projectsRoot = resolveWorkspaceRoot(dataRoot);
-  const workspaceRoot = process.env.MANGOU_HOME ? path.resolve(process.env.MANGOU_HOME) : path.dirname(projectsRoot);
-  return sendJson(res, 200, {
-    success: true,
-    data: {
-      root: workspaceRoot,
-      projectsRoot,
-      workspaceDir,
-    },
+    // Static SPA
+    return serveStatic(appRoot, req, res, url);
   });
-}
 
-
-function getStaticContentType(filePath: string) {
-  const ext = path.extname(filePath).toLowerCase();
-  switch (ext) {
-    case '.html':
-      return 'text/html; charset=utf-8';
-    case '.css':
-      return 'text/css; charset=utf-8';
-    case '.js':
-      return 'application/javascript; charset=utf-8';
-    case '.map':
-      return 'application/json; charset=utf-8';
-    case '.svg':
-      return 'image/svg+xml';
-    case '.ico':
-      return 'image/x-icon';
-    case '.png':
-      return 'image/png';
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg';
-    case '.webp':
-      return 'image/webp';
-    case '.gif':
-      return 'image/gif';
-    default:
-      return 'application/octet-stream';
-  }
+  server.listen(port, () => log(`Readonly mirror server running at http://localhost:${port}`));
+  return server;
 }
 
 async function serveStatic(appRoot: string, req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
   const distDir = path.join(appRoot, 'dist');
   const requestedPath = decodeURIComponent(url.pathname);
-  const safePath = requestedPath.replace(/^\/+/, '');
-  const targetPath = path.join(distDir, safePath);
-  const normalized = path.normalize(targetPath);
-  if (!normalized.startsWith(distDir)) {
-    return sendText(res, 403, 'Forbidden');
-  }
-
+  const targetPath = path.join(distDir, requestedPath === '/' ? 'index.html' : requestedPath);
   try {
     const stats = await fs.stat(targetPath);
     if (stats.isFile()) {
-      const contentType = getStaticContentType(targetPath);
-      res.writeHead(200, { 'Content-Type': contentType });
+      res.writeHead(200, { 'Content-Type': getStaticContentType(targetPath) });
       fsSync.createReadStream(targetPath).pipe(res);
       return;
     }
-  } catch {
-    // fallback to index.html
-  }
-
+  } catch {}
   try {
-    const indexPath = path.join(distDir, 'index.html');
-    const content = await fs.readFile(indexPath);
+    const content = await fs.readFile(path.join(distDir, 'index.html'));
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(content);
-  } catch {
-    sendText(res, 500, 'Frontend not built. Run `npm run build`.');
-  }
+  } catch { res.end('Frontend not built.'); }
 }
 
-export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOptions) {
-  const server = http.createServer(async (req, res) => {
-    if (!req.url) {
-      return sendText(res, 400, 'Bad Request');
-    }
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const pathname = url.pathname;
-    const devProxyOrigin = process.env.MANGOU_DEV_PROXY_ORIGIN;
-
-    if (pathname === '/api/workspace') {
-      return handleWorkspace(dataRoot, res);
-    }
-
-    if (pathname === '/api/vfs') {
-      if (req.method === 'GET') return handleVfsGet(dataRoot, req, res, url);
-      return sendJson(res, 403, { success: false, error: 'VFS write access is disabled in read-only mode' });
-    }
-
-    if (pathname === '/api/meta') {
-      return handleMeta(appRoot, dataRoot, res);
-    }
-
-    if (pathname === '/api/projects') {
-      return handleProjects(dataRoot, req, res);
-    }
-
-    if (pathname.startsWith('/api/vfs/events')) {
-      return handleVfsEvents(req, res);
-    }
-
-    if (pathname.startsWith('/api/projects/')) {
-      const parts = pathname.split('/').filter(Boolean);
-      const projectId = parts[2] || '';
-      const sub = parts[3];
-
-      if (sub === 'snapshot' && req.method === 'GET') {
-        return handleProjectSnapshot(dataRoot, res, projectId);
-      }
-      
-      return handleProjectItem(dataRoot, req, res, projectId);
-    }
-
-    if (devProxyOrigin && req.method && ['GET', 'HEAD'].includes(req.method)) {
-      return proxyToDevServer(req, res, devProxyOrigin, url);
-    }
-
-    return serveStatic(appRoot, req, res, url);
-  });
-
-  server.on('error', (error: NodeJS.ErrnoException) => {
-    if (error.code === 'EADDRINUSE') {
-      log(
-        `Web server failed to start: port ${port} is already in use. ` +
-          `Free the port or set MANGOU_WEB_PORT to another port.`
-      );
-      return;
-    }
-    log('Web server failed to start', error);
-  });
-
-  server.listen(port, () => {
-    log(`Web server running at http://localhost:${port}`);
-  });
-
-  return server;
-}
-
-async function proxyToDevServer(req: http.IncomingMessage, res: http.ServerResponse, origin: string, url: URL) {
-  const targetUrl = new URL(origin);
-  const isHttps = targetUrl.protocol === 'https:';
-  const proxyModule = isHttps ? https : http;
-  const headers = { ...req.headers };
-  headers.host = targetUrl.host;
-
-  const options: http.RequestOptions = {
-    protocol: targetUrl.protocol,
-    hostname: targetUrl.hostname,
-    port: targetUrl.port,
-    method: req.method,
-    path: url.pathname + url.search,
-    headers,
-  };
-
-  return new Promise<void>((resolve) => {
-    const proxyReq = proxyModule.request(options, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
-      proxyRes.pipe(res);
-      proxyRes.on('end', () => resolve());
-    });
-
-    proxyReq.on('error', () => {
-      sendText(res, 502, 'Bad Gateway');
-      resolve();
-    });
-
-    req.pipe(proxyReq);
-  });
-}
-
-// 自动启动逻辑（仅在直接执行当前脚本时运行）。
-// 不要用 TSX_TSCONFIG_PATH 这类环境变量做判断，否则打包进 skill 后会被误触发。
-const isEntrypoint =
-  typeof process.argv[1] === 'string' &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-
-if (isEntrypoint) {
-  const appRoot = path.resolve(process.cwd());
-  const dataRoot = process.env.MANGOU_HOME || appRoot;
-  const port = Number(process.env.MANGOU_WEB_PORT || process.env.PORT || '3000');
-  
-  startHttpServer({
-    appRoot,
-    dataRoot,
-    port,
-  });
+function getStaticContentType(filePath: string) {
+  const ext = path.extname(filePath).toLowerCase();
+  const types: any = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.png': 'image/png' };
+  return types[ext] || 'application/octet-stream';
 }
