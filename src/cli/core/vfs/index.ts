@@ -35,7 +35,6 @@ export {
   replace,
   list,
   initializeProjectStructure,
-  exportToExistingData,
 } from './tools';
 export type { AgentToolContext } from './tools';
 

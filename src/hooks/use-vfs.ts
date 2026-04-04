@@ -11,8 +11,8 @@ import {
   read,
   replace,
   list,
-  exportToExistingData,
   initializeProjectStructure,
+import { exportToExistingData } from '@server/ui-adapter';
   vfsStorageManager,
 } from '@core/vfs/index';
 import type {

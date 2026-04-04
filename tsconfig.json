@@ -14,6 +14,7 @@
       "@/*": ["./src/cli/*"],
       "@core/*": ["./src/cli/core/*"],
       "@logic/*": ["./src/cli/logic/*"],
+      "@server/*": ["./src/cli/server/*"],
       "@web/*": ["./src/web/*"],
       "@components/*": ["./src/web/components/*"]
     }

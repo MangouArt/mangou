@@ -7,6 +7,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src/cli'),
       '@core': path.resolve(__dirname, './src/cli/core'),
       '@logic': path.resolve(__dirname, './src/cli/logic'),
+      '@server': path.resolve(__dirname, './src/cli/server'),
       '@web': path.resolve(__dirname, './src/web'),
       '@components': path.resolve(__dirname, './src/web/components'),
       // Deep fixes for common frontend patterns
