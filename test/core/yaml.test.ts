@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseYAML, stringifyYAML, validateYAMLFile } from '../../src/cli/core/vfs/yaml';
+import { parseYAML, stringifyYAML, validateYAMLFile } from '../../src/cli/core/yaml';
 
 describe('YAML utilities', () => {
   describe('parseYAML', () => {

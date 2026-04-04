@@ -2,16 +2,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-// Force NODE_ENV to production during build to strip local paths from jsxDev
-if (process.env.npm_lifecycle_event === 'build' || process.argv.includes('build')) {
-  process.env.NODE_ENV = 'production';
-}
-
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(__dirname, './src/web'),
+      '@core': path.resolve(__dirname, './src/cli/core'),
+      '@components': path.resolve(__dirname, './src/web/components'),
+      '@server': path.resolve(__dirname, './src/cli/server'), // Backward compat for some imports
     },
   },
   server: {
@@ -24,5 +22,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    emptyOutDir: true,
   },
 });

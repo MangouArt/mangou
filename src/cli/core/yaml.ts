@@ -8,7 +8,7 @@
  */
 
 import yaml from 'js-yaml';
-import { getSchemaForPath } from './schema';
+import { getSchemaForPath } from './schema-vfs';
 
 // YAML 配置
 const DUMP_OPTIONS = {
