@@ -98,9 +98,26 @@ async function collectStoryboardSegments(projectRoot, tasks) {
   const storyboardsDir = path.join(projectRoot, 'storyboards');
   let yamlFiles = [];
   try {
-    yamlFiles = (await fs.readdir(storyboardsDir))
-      .filter((name) => name.endsWith('.yaml'))
-      .sort();
+    const rawFiles = (await fs.readdir(storyboardsDir))
+      .filter((name) => name.endsWith('.yaml') && name.startsWith('s') && !name.includes('grid') && !name.includes('test'));
+    
+    // Step 1: Parse all files to get their content.sequence
+    const docsWithMeta = await Promise.all(
+      rawFiles.map(async (file) => {
+        const doc = await readStoryboardDoc(storyboardsDir, file);
+        return { file, sequence: doc?.content?.sequence ?? Infinity };
+      })
+    );
+
+    // Step 2: Sort by content.sequence, falling back to natural filename sort
+    docsWithMeta.sort((a, b) => {
+      if (typeof a.sequence === 'number' && typeof b.sequence === 'number') {
+        if (a.sequence !== b.sequence) return a.sequence - b.sequence;
+      }
+      return a.file.localeCompare(b.file, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    yamlFiles = docsWithMeta.map(d => d.file);
   } catch (err) {
     throw new Error(`Failed to read storyboards directory: ${err.message}`);
   }

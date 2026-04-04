@@ -112,7 +112,7 @@ export function getYAMLValidationError(data: any, path: string): string | null {
  * 更新 YAML 中的生成任务状态
  * 统一回写到 tasks[type].latest
  */
-export function updateGenerationStatus(
+function updateGenerationStatus(
   content: string,
   type: 'image' | 'video',
   update: {
@@ -164,3 +164,4 @@ export function formatYAMLError(error: any): string {
   }
   return String(error);
 }
+export { updateGenerationStatus };

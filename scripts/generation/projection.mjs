@@ -1,6 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { updateGenerationStatus } from '../../src/lib/vfs/yaml.ts';
+import * as YAMLUtils from '../../src/lib/vfs/yaml.ts';
+const updateGenerationStatus = YAMLUtils.updateGenerationStatus || (YAMLUtils.default ? YAMLUtils.default.updateGenerationStatus : null);
+
 import { log } from './utils.mjs';
 
 export async function updateYamlProjection(payload) {
