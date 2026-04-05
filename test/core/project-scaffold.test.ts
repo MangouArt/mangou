@@ -11,6 +11,7 @@ describe('project scaffold', () => {
     await fs.rm(projectRoot, { recursive: true, force: true }).catch(() => {});
     await fs.mkdir(path.join(projectRoot, 'storyboards'), { recursive: true });
     await fs.mkdir(path.join(projectRoot, 'assets/images'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'project.json'), JSON.stringify({ id: 'test-scaffold' }));
   });
 
   it('SPEC: scaffolds child storyboards from a master grid yaml', async () => {
