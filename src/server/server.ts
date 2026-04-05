@@ -29,6 +29,10 @@ function sendSse(res: http.ServerResponse, event: string, payload: unknown) {
  * Real-time File Watcher
  */
 function startWatcher(dataRoot: string) {
+  if (!fsSync.existsSync(dataRoot)) {
+    log(`Warning: Watcher target directory does not exist: ${dataRoot}. Watcher disabled.`);
+    return;
+  }
   log(`Watching for changes in: ${dataRoot}`);
   fsSync.watch(dataRoot, { recursive: true }, async (event, filename) => {
     if (!filename || filename.includes('.git') || filename.includes('node_modules')) return;
@@ -124,59 +128,71 @@ function sendJson(res: http.ServerResponse, status: number, data: unknown) {
   res.end(body);
 }
 
-export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOptions) {
-  startWatcher(dataRoot);
+export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOptions): Promise<http.Server> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer(async (req, res) => {
+      if (!req.url) return res.end();
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const pathname = url.pathname;
 
-  const server = http.createServer(async (req, res) => {
-    if (!req.url) return res.end();
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const pathname = url.pathname;
-
-    // API: Proxy media and YAML via VFS URL
-    if (pathname === '/api/vfs') {
-      const projectId = url.searchParams.get('projectId');
-      const relPath = url.searchParams.get('path');
-      if (!projectId || !relPath) return sendJson(res, 400, { error: 'Missing params' });
-      const fullPath = path.join(dataRoot, projectId, relPath);
-      try {
-        const contentType = getContentTypeByPath(relPath);
-        res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': getCacheControlByContentType(contentType) });
-        fsSync.createReadStream(fullPath).pipe(res);
-        return;
-      } catch { return sendJson(res, 404, { error: 'Not found' }); }
-    }
-
-    // API: SSE Events
-    if (pathname === '/api/events') {
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
-      const client = { res, projectId: url.searchParams.get('projectId') || '' };
-      sseClients.add(client);
-      req.on('close', () => sseClients.delete(client));
-      return;
-    }
-
-    // API: Structured Project Snapshot
-    if (pathname.startsWith('/api/projects/')) {
-      const projectId = pathname.split('/')[2];
-      if (pathname.endsWith('/snapshot')) {
-        const projectRoot = path.join(dataRoot, projectId);
-        const data = await getProjectUIData(projectRoot, projectId);
-        return sendJson(res, 200, { success: true, ...data });
+      // API: Proxy media and YAML via VFS URL
+      if (pathname === '/api/vfs') {
+        const projectId = url.searchParams.get('projectId');
+        const relPath = url.searchParams.get('path');
+        if (!projectId || !relPath) return sendJson(res, 400, { error: 'Missing params' });
+        const fullPath = path.join(dataRoot, projectId, relPath);
+        try {
+          const contentType = getContentTypeByPath(relPath);
+          res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': getCacheControlByContentType(contentType) });
+          fsSync.createReadStream(fullPath).pipe(res);
+          return;
+        } catch { return sendJson(res, 404, { error: 'Not found' }); }
       }
-    }
 
-    // API: Projects List
-    if (pathname === '/api/projects') {
-      const projects = await ProjectManager.listProjects();
-      return sendJson(res, 200, { success: true, projects });
-    }
+      // API: SSE Events
+      if (pathname === '/api/events') {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+        const client = { res, projectId: url.searchParams.get('projectId') || '' };
+        sseClients.add(client);
+        req.on('close', () => sseClients.delete(client));
+        return;
+      }
 
-    // Static SPA
-    return serveStatic(appRoot, req, res, url);
+      // API: Structured Project Snapshot
+      if (pathname.startsWith('/api/projects/')) {
+        const projectId = pathname.split('/')[2];
+        if (pathname.endsWith('/snapshot')) {
+          const projectRoot = path.join(dataRoot, projectId);
+          const data = await getProjectUIData(projectRoot, projectId);
+          return sendJson(res, 200, { success: true, ...data });
+        }
+      }
+
+      // API: Projects List
+      if (pathname === '/api/projects') {
+        const projects = await ProjectManager.listProjects();
+        return sendJson(res, 200, { success: true, projects });
+      }
+
+      // Static SPA
+      return serveStatic(appRoot, req, res, url);
+    });
+
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        log(`Error: Port ${port} is already in use.`);
+      } else {
+        log(`Server error: ${err.message}`);
+      }
+      reject(err);
+    });
+
+    server.listen(port, () => {
+      log(`Readonly mirror server running at http://localhost:${port}`);
+      startWatcher(dataRoot);
+      resolve(server);
+    });
   });
-
-  server.listen(port, () => log(`Readonly mirror server running at http://localhost:${port}`));
-  return server;
 }
 
 async function serveStatic(appRoot: string, req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
@@ -195,8 +211,43 @@ async function serveStatic(appRoot: string, req: http.IncomingMessage, res: http
     const content = await fs.readFile(path.join(distDir, 'index.html'));
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(content);
-  } catch { res.end('Frontend not built.'); }
+  } catch { 
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(FALLBACK_HTML); 
+  }
 }
+
+const FALLBACK_HTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mangou AI Studio - Server Status</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { background: #09090b; color: #fafafa; font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; }
+    .card { background: #18181b; border: 1px solid #27272a; padding: 2.5rem; border-radius: 0.75rem; text-align: center; max-width: 480px; width: 100%; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); }
+    h1 { color: #f4f4f5; margin-bottom: 1.5rem; font-size: 1.5rem; letter-spacing: -0.025em; }
+    p { color: #a1a1aa; line-height: 1.6; margin: 1rem 0; font-size: 0.95rem; }
+    code { background: #27272a; padding: 0.2rem 0.45rem; border-radius: 0.375rem; color: #e4e4e7; font-family: monospace; font-size: 0.9em; }
+    .status { display: inline-flex; align-items: center; background: rgba(34, 197, 94, 0.1); color: #4ade80; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 500; margin-bottom: 1.5rem; }
+    .dot { width: 8px; height: 8px; background: currentColor; border-radius: 50%; margin-right: 0.5rem; }
+    hr { border: 0; border-top: 1px solid #27272a; margin: 2rem 0; }
+    a { color: #3b82f6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="status"><span class="dot"></span>Server Active</div>
+    <h1>Mangou CLI Server</h1>
+    <p>Readonly mirror server is running, but the frontend was not detected in <code>dist/</code>.</p>
+    <p>Run <code>bun run build</code> in the source directory to enable the full visual dashboard.</p>
+    <hr>
+    <p style="font-size: 0.85rem;">API is live at <a href="/api/projects"><code>/api/projects</code></a></p>
+  </div>
+</body>
+</html>
+`;
 
 function getStaticContentType(filePath: string) {
   const ext = path.extname(filePath).toLowerCase();

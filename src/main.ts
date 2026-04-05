@@ -64,10 +64,15 @@ Resources:
   asset        Operations on asset definition YAML files
   server       Launch the readonly mirror server (SSE)
 
+Options (Server):
+  --port <number>      Port to listen on (default: 3000)
+  --workspace <path>   Directory containing projects/ folder or raw projects
+  --data-root <path>   Alias for --workspace
+
 Examples:
   mangou project init --name my-movie
   mangou storyboard generate --path storyboards/shot1.yaml --type image
-  mangou server start --port 3000
+  mangou server start --port 3000 --workspace ./my-workspace
 `);
 }
 
