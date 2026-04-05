@@ -41,6 +41,48 @@ function ensureNoDeprecatedImageAliases(params: any) {
   }
 }
 
+function extractUploadedFileUrl(result: any) {
+  const url =
+    result?.url ||
+    result?.data?.url ||
+    result?.file?.url ||
+    result?.data?.file?.url;
+  if (!url || typeof url !== 'string') {
+    throw new Error(`[bltai] File upload succeeded but no file url was returned: ${JSON.stringify(result)}`);
+  }
+  return url;
+}
+
+async function uploadToBLTAI(baseUrl: string, apiKey: string, dataUrl: string, fetchImpl = fetchWithRetry) {
+  const matches = dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+  if (!matches) {
+    throw new Error('[bltai] Invalid Data URL: expected data:<mime>;base64,<data>');
+  }
+
+  const mimeType = matches[1];
+  const base64Data = matches[2];
+  const buffer = Buffer.from(base64Data, 'base64');
+  const blob = new Blob([buffer], { type: mimeType });
+  const endpoint = joinUrl(normalizeBaseUrl(baseUrl), 'v1', 'files');
+  const formData = new FormData();
+  formData.append('file', blob, 'upload.png');
+
+  const response = await fetchImpl(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(`[bltai] File upload failed: ${response.status} ${JSON.stringify(result)}`);
+  }
+
+  return extractUploadedFileUrl(result);
+}
+
 async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
   let lastError: unknown;
   for (let i = 0; i < maxRetries; i++) {
@@ -130,6 +172,7 @@ export const BLTAI_PROVIDER = {
     return params;
   },
   async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }: any) {
+    const finalPayload = JSON.parse(JSON.stringify(payload));
     const normalizedBase = normalizeBaseUrl(baseUrl);
     let endpoint = scope === 'images'
       ? joinUrl(normalizedBase, 'v1', 'images', 'generations')
@@ -137,12 +180,22 @@ export const BLTAI_PROVIDER = {
 
     if (scope === 'images') {
       endpoint += '?async=true';
+      if (Array.isArray(finalPayload.image)) {
+        for (let i = 0; i < finalPayload.image.length; i++) {
+          const image = finalPayload.image[i];
+          if (typeof image === 'string' && image.startsWith('data:')) {
+            console.error(`[bltai] Uploading image ${i + 1} to BLTAI...`);
+            finalPayload.image[i] = await uploadToBLTAI(normalizedBase, apiKey, image, fetchImpl);
+          }
+        }
+      }
     }
 
     const loggedPayload = {
-      ...payload,
-      images: payload.images?.map((img: any) => typeof img === 'string' && img.startsWith('data:') ? img.substring(0, 100) + '...' : img),
-      image_url: payload.image_url ? (payload.image_url.startsWith('data:') ? payload.image_url.substring(0, 100) + '...' : payload.image_url) : undefined
+      ...finalPayload,
+      images: finalPayload.images?.map((img: any) => typeof img === 'string' && img.startsWith('data:') ? img.substring(0, 100) + '...' : img),
+      image: finalPayload.image?.map((img: any) => typeof img === 'string' && img.startsWith('data:') ? img.substring(0, 100) + '...' : img),
+      image_url: finalPayload.image_url ? (finalPayload.image_url.startsWith('data:') ? finalPayload.image_url.substring(0, 100) + '...' : finalPayload.image_url) : undefined
     };
     console.error(`[bltai] Submit payload for ${scope}:`, JSON.stringify(loggedPayload, null, 2));
 
@@ -152,7 +205,7 @@ export const BLTAI_PROVIDER = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(finalPayload),
     });
 
     const data = await response.json();

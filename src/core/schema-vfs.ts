@@ -201,5 +201,6 @@ tasks:
 - 严禁扁平化结构。所有业务字段必须在 content 下。
 - 任务参数必须在 tasks.[type].params 下。
 - AIGC 参数名必须与供应商文档一致，文档索引见 docs/vendor-api/README.md。
+- BLTAI 图片任务仍然只写 \`image: []\`；如果其中是本地图片引用，运行时会先上传文件，再把返回 URL 直传给生成接口。
 - 状态信息由系统维护，Agent 仅需关注 params。`;
 }

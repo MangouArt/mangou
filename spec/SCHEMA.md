@@ -17,6 +17,7 @@ CLI 仅关注 `tasks.[type].params` 模块。
 - **YAML 引用**：仅限在图像字段中引用 `asset_defs/` 下的 YAML（如 `asset_defs/chars/hero.yaml`）。CLI 自动提取该资产的 `tasks.image.latest.output`。
 - **图片引用**：引用 `assets/images/` 下的物理图片。CLI 仅在当前字段内将其处理为 API 所需格式。
 - **基准说明**：所有路径必须相对于 **项目根目录 (Project Root)**。
+- **BLTAI 图片参考图上传**：当 `provider: bltai` 且 `params.image` 中的值被 CLI 解析为本地 `data:` 内容时，运行时会先调用 [bltai-file-upload.md](../docs/vendor-api/bltai-file-upload.md) 上传文件，再把返回的文件 URL 原样写回 `image[]` 后提交到图片生成接口。YAML 字段名不变，仍然只写 `image: [...]`。
 
 ### B. 参数名必须直传，不做跨字段映射
 - YAML 中的字段名必须与供应商 API 文档一致。不要使用 CLI 自造别名。
@@ -77,6 +78,8 @@ tasks:
         - asset_defs/chars/rebel-01.yaml
         - assets/images/reference.png
 ```
+
+说明：上面两个 `image` 项如果最终被 CLI 解析成本地图片内容，BLTAI provider 会先上传文件，再把上传后返回的 URL 传给 `/v1/images/generations`。Agent 不需要在 YAML 里手写上传接口或中间字段。
 
 ### B. KIE `google/nano-banana`
 ```yaml

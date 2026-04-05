@@ -76,6 +76,103 @@ describe('BLTAI Provider Script', () => {
     );
   });
 
+  it('submit should upload data url images before calling generations', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            url: 'https://cdn.bltcy.ai/uploads/ref-1.png',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'task-after-upload',
+        }),
+      });
+
+    const taskId = await BLTAI_PROVIDER.submit({
+      baseUrl: 'https://api.bltcy.ai',
+      apiKey: 'test-key',
+      scope: 'images',
+      payload: {
+        model: 'gemini-3.1-flash-image-preview',
+        prompt: 'A comic style hero',
+        response_format: 'url',
+        image: ['data:image/png;base64,aaaa'],
+      },
+      fetchImpl,
+    });
+
+    expect(taskId).toBe('task-after-upload');
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      'https://api.bltcy.ai/v1/files',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-key',
+        },
+        body: expect.any(FormData),
+      }),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      'https://api.bltcy.ai/v1/images/generations?async=true',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer test-key',
+        },
+        body: JSON.stringify({
+          model: 'gemini-3.1-flash-image-preview',
+          prompt: 'A comic style hero',
+          response_format: 'url',
+          image: ['https://cdn.bltcy.ai/uploads/ref-1.png'],
+        }),
+      }),
+    );
+  });
+
+  it('submit should keep remote image urls untouched for generations', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'remote-url-task',
+      }),
+    });
+
+    await BLTAI_PROVIDER.submit({
+      baseUrl: 'https://api.bltcy.ai',
+      apiKey: 'test-key',
+      scope: 'images',
+      payload: {
+        model: 'gemini-3.1-flash-image-preview',
+        prompt: 'A comic style hero',
+        response_format: 'url',
+        image: ['https://example.com/ref.png'],
+      },
+      fetchImpl,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.bltcy.ai/v1/images/generations?async=true',
+      expect.objectContaining({
+        body: JSON.stringify({
+          model: 'gemini-3.1-flash-image-preview',
+          prompt: 'A comic style hero',
+          response_format: 'url',
+          image: ['https://example.com/ref.png'],
+        }),
+      }),
+    );
+  });
+
   it('poll should return data on success', async () => {
     const mockPollResponse = {
       status: 'SUCCESS',
