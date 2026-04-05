@@ -7,7 +7,7 @@ import type { z as ZodNamespace } from 'zod';
  * 核心原则：
  * 1. YAML 是唯一真相源。
  * 2. 严格遵循嵌套结构：meta, content, tasks。
- * 3. AIGC 参数使用 snake_case (对接 API)，业务字段使用 camelCase (内部逻辑)。
+ * 3. AIGC 参数必须直接使用供应商 API 文档里的字段名，不做跨字段别名映射。
  */
 
 // --- 基础子 Schema ---
@@ -172,10 +172,15 @@ tasks: # 可选，用于 AIGC 任务
   image:
     params:
       prompt: "图片生成提示词"
-      aspect_ratio: "16:9" # 可选
+      model: "gemini-3.1-flash-image-preview"
+      image:
+        - "assets/images/reference.png"
   video:
     params:
       prompt: "视频生成提示词"
+      model: "bytedance/seedance-2-fast"
+      reference_image_urls:
+        - "assets/images/reference.png"
 \`\`\`
 
 2. 资产文件 (/characters/*.yaml, /scenes/*.yaml):
@@ -195,5 +200,6 @@ tasks:
 重要原则：
 - 严禁扁平化结构。所有业务字段必须在 content 下。
 - 任务参数必须在 tasks.[type].params 下。
+- AIGC 参数名必须与供应商文档一致，文档索引见 docs/vendor-api/README.md。
 - 状态信息由系统维护，Agent 仅需关注 params。`;
 }

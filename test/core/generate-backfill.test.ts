@@ -95,6 +95,53 @@ describe("AIGC Generate & Backfill", () => {
     );
   });
 
+  it("runAIGC: resolves local image references from exact KIE image and video fields", async () => {
+    await fs.mkdir(path.join(projectRoot, "assets/images"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "assets/images/reference.png"), "ref-image");
+    await fs.writeFile(path.join(projectRoot, "assets/images/first.png"), "first-image");
+
+    const sourceDoc = {
+      meta: { id: "shot1" },
+      tasks: {
+        image: {
+          provider: "mock-provider",
+          params: {
+            prompt: "Use KIE exact fields",
+            image_input: ["assets/images/reference.png"],
+            image_urls: ["assets/images/reference.png"],
+            reference_image_urls: ["assets/images/reference.png"],
+            first_frame_url: "assets/images/first.png",
+          }
+        }
+      }
+    };
+    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
+
+    const mockProvider = {
+      id: "mock-provider",
+      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
+      scopes: { image: "images" },
+      buildPayload: vi.fn((_s: any, p: any) => p),
+      submit: vi.fn().mockResolvedValue("task-235"),
+      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.png" } }),
+      extractOutputs: () => ["https://example.com/cat.png"],
+    };
+    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
+    process.env.MOCK_KEY = "dummy";
+
+    await runAIGC({ yamlPath, type: "image" });
+
+    expect(mockProvider.buildPayload).toHaveBeenCalledWith(
+      "images",
+      expect.objectContaining({
+        image_input: [expect.stringMatching(/^data:image\/png;base64,/)],
+        image_urls: [expect.stringMatching(/^data:image\/png;base64,/)],
+        reference_image_urls: [expect.stringMatching(/^data:image\/png;base64,/)],
+        first_frame_url: expect.stringMatching(/^data:image\/png;base64,/),
+      }),
+    );
+  });
+
   it("runAIGC: rejects missing localized outputs before writing audit logs", async () => {
     const sourceDoc = {
       meta: { id: "shot1" },

@@ -10,6 +10,32 @@ function joinUrl(base: any, ...parts: any[]) {
   return normalizedPath ? `${normalizedBase}/${normalizedPath}` : normalizedBase;
 }
 
+function requireArrayField(params: any, field: string) {
+  if (params[field] === undefined) {
+    return [];
+  }
+  if (!Array.isArray(params[field])) {
+    throw new Error(`[kie] '${field}' 必须是数组，格式请参考 docs/vendor-api/README.md`);
+  }
+  return params[field].filter(Boolean);
+}
+
+function requireStringField(params: any, field: string) {
+  if (params[field] === undefined || params[field] === null || params[field] === '') {
+    return undefined;
+  }
+  if (typeof params[field] !== 'string') {
+    throw new Error(`[kie] '${field}' 必须是字符串，格式请参考 docs/vendor-api/README.md`);
+  }
+  return params[field];
+}
+
+function rejectAlias(params: any, alias: string, expected: string) {
+  if (params[alias] !== undefined) {
+    throw new Error(`[kie] YAML 参数必须与接口文档一致。请使用 '${expected}'，不要使用 '${alias}'.`);
+  }
+}
+
 async function uploadToKie(apiKey: string, dataUrl: string, fetchImpl = fetchWithRetry) {
   const uploadBaseUrl = 'https://kieai.redpandaai.co';
   const endpoint = joinUrl(uploadBaseUrl, 'api/file-stream-upload');
@@ -88,19 +114,20 @@ export const KIE_PROVIDER = {
     }
 
     if (scope === 'videos') {
-      const images = Array.isArray(params.images)
-        ? params.images.filter(Boolean)
-        : (params.images ? [params.images] : (params.image_url ? [params.image_url] : (params.image ? [params.image] : [])));
-      
       if (model.includes('seedance-2')) {
-        const reference_image_urls = params.reference_image_urls || images || [];
+        rejectAlias(params, 'images', 'reference_image_urls / first_frame_url / last_frame_url');
+        rejectAlias(params, 'image', 'reference_image_urls / first_frame_url / last_frame_url');
+        const reference_image_urls = requireArrayField(params, 'reference_image_urls');
         return {
           model,
+          ...(params.callBackUrl ? { callBackUrl: params.callBackUrl } : {}),
           input: {
             prompt,
-            reference_image_urls: Array.isArray(reference_image_urls) ? reference_image_urls : [reference_image_urls],
-            reference_video_urls: params.reference_video_urls || [],
-            reference_audio_urls: params.reference_audio_urls || [],
+            ...(requireStringField(params, 'first_frame_url') ? { first_frame_url: requireStringField(params, 'first_frame_url') } : {}),
+            ...(requireStringField(params, 'last_frame_url') ? { last_frame_url: requireStringField(params, 'last_frame_url') } : {}),
+            ...(reference_image_urls.length > 0 ? { reference_image_urls } : {}),
+            reference_video_urls: requireArrayField(params, 'reference_video_urls'),
+            reference_audio_urls: requireArrayField(params, 'reference_audio_urls'),
             return_last_frame: params.return_last_frame || false,
             generate_audio: params.generate_audio !== undefined ? params.generate_audio : true,
             resolution: params.resolution || '480p',
@@ -111,15 +138,19 @@ export const KIE_PROVIDER = {
         };
       }
 
-      if (images.length === 0) {
-        throw new Error(`[kie] Missing required input: 'images' or 'image_url' is required for video generation`);
+      rejectAlias(params, 'images', 'image_url');
+      rejectAlias(params, 'image', 'image_url');
+      const imageUrl = requireStringField(params, 'image_url');
+      if (!imageUrl) {
+        throw new Error(`[kie] Missing required input: 'image_url' is required for video generation`);
       }
 
       return {
         model,
+        ...(params.callBackUrl ? { callBackUrl: params.callBackUrl } : {}),
         input: {
           prompt,
-          image_url: images[0] || '', // KIE expects single image_url string for this model
+          image_url: imageUrl,
           resolution: params.resolution || '720p',
           duration: String(params.duration || '5'),
           nsfw_checker: params.nsfw_checker !== undefined ? params.nsfw_checker : true,
@@ -128,17 +159,30 @@ export const KIE_PROVIDER = {
     }
 
     if (scope === 'images') {
-      const images = Array.isArray(params.images)
-        ? params.images.filter(Boolean)
-        : (params.images ? [params.images] : []);
+      rejectAlias(params, 'images', 'image / image_input / image_urls');
 
-      if (model === 'nano-banana' || model === 'nano-banana-2' || model === 'nano-banana-v1' || model === 'nano-banana-v2') {
+      if (model === 'google/nano-banana') {
+        rejectAlias(params, 'aspect_ratio', 'image_size');
         return {
           model,
+          ...(params.callBackUrl ? { callBackUrl: params.callBackUrl } : {}),
           input: {
             prompt,
-            image_input: images.length > 0 ? images : undefined,
-            aspect_ratio: params.aspect_ratio || params.ratio || 'auto',
+            output_format: params.output_format || 'png',
+            image_size: params.image_size || '1:1',
+          },
+        };
+      }
+
+      if (model === 'nano-banana-2') {
+        const imageInput = requireArrayField(params, 'image_input');
+        return {
+          model,
+          ...(params.callBackUrl ? { callBackUrl: params.callBackUrl } : {}),
+          input: {
+            prompt,
+            ...(imageInput.length > 0 ? { image_input: imageInput } : {}),
+            aspect_ratio: params.aspect_ratio || 'auto',
             resolution: params.resolution || '1K',
             output_format: params.output_format || 'jpg',
           },
@@ -146,16 +190,19 @@ export const KIE_PROVIDER = {
       }
 
       if (model === 'google/nano-banana-edit') {
-        if (images.length === 0) {
-          throw new Error(`[kie] Missing required input: 'images' is required for an 'edit' model`);
+        rejectAlias(params, 'aspect_ratio', 'image_size');
+        const imageUrls = requireArrayField(params, 'image_urls');
+        if (imageUrls.length === 0) {
+          throw new Error(`[kie] Missing required input: 'image_urls' is required for model 'google/nano-banana-edit'`);
         }
         return {
           model,
+          ...(params.callBackUrl ? { callBackUrl: params.callBackUrl } : {}),
           input: {
             prompt,
-            image_urls: images,
+            image_urls: imageUrls,
             output_format: params.output_format || 'png',
-            image_size: params.aspect_ratio || params.ratio || params.image_size || '1:1',
+            image_size: params.image_size || '1:1',
           },
         };
       }
@@ -163,9 +210,9 @@ export const KIE_PROVIDER = {
       // Fallback for custom/new models with basic input structure
       return {
         model,
+        ...(params.callBackUrl ? { callBackUrl: params.callBackUrl } : {}),
         input: {
             prompt,
-            images,
         },
       };
     }
@@ -207,12 +254,22 @@ export const KIE_PROVIDER = {
       }
     } else if (scope === 'images') {
       const model = finalPayload.model;
-      if (model === 'nano-banana' || model === 'nano-banana-2') {
+      if (model === 'nano-banana-2') {
         const images = finalPayload.input?.image_input || [];
         for (let i = 0; i < images.length; i++) {
           if (images[i].startsWith('data:')) {
             console.error(`[kie] Uploading image ${i + 1} to KIE...`);
             images[i] = await uploadToKie(apiKey, images[i], fetchImpl);
+          }
+        }
+      } else if (model === 'google/nano-banana') {
+        const image = finalPayload.input?.image;
+        if (Array.isArray(image)) {
+          for (let i = 0; i < image.length; i++) {
+            if (image[i].startsWith('data:')) {
+              console.error(`[kie] Uploading image ${i + 1} to KIE...`);
+              image[i] = await uploadToKie(apiKey, image[i], fetchImpl);
+            }
           }
         }
       } else if (model === 'google/nano-banana-edit') {
