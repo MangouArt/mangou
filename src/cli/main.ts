@@ -31,6 +31,14 @@ export async function main() {
           case "start": return await server.start(positionals, flags);
           default: throw new Error(`Unknown action "${action}" for resource "server"`);
         }
+      case "build:skill":
+        const { buildSkillBundle } = require("./logic/build-skill");
+        return await buildSkillBundle({ 
+          skillName: flags.skill || "mangou",
+          root: flags.root,
+          output: flags.output,
+          dist: flags.dist
+        });
       case "help":
       case "":
         return showHelp();

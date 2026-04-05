@@ -44,11 +44,10 @@
 4. **回填逻辑**: 生成脚本在完成任务后，会将产物路径（相对路径）和状态回填至 YAML 的 `latest` 字段中。
 5. **父子级联 (Cascading)**: 
     - **标准关联**: 始终使用 `meta.parent` 建立子镜与母图的逻辑链接。
-    - **分布式组织**: 推荐采用“一个 Grid 母图文件 + 多个子分镜文件”的物理布局。`split-grid.mjs` 在运行时若未指定 `--targets`，会优先全目录扫描关联了母图 ID 的子分镜 YAML 文件。
-    - **顺序回填**: 子分镜未声明 `meta.grid_index` 时，回填顺序由其自身的 `sequence` 值决定。
-    - **网格来源**: `split-grid.mjs` 只接受 `--grid` 和 `meta.grid` 两种来源，不依赖 Prompt 文本做网格尺寸推断。
-    - **脚手架入口**: 当母图需要大批量拆成子镜时，优先调用 `mangou.mjs project scaffold --grid <masterYaml>` 自动生成子分镜占位文件，不要手写 `meta.parent` / `meta.grid_index`。
-    - **真相源补写**: `split-grid.mjs` 在回填子镜 YAML 成功后，会同步把 `image/success` 事件写入 `tasks.jsonl`，保证后续 `stitch` 等工具看见完整状态。
+    - **分布式组织**: 推荐采用“一个 Grid 母图文件 + 多个子分镜文件”的物理布局。`storyboard split` 在运行时若未指定 `--targets`，会优先全目录扫描关联了母图 ID 的子分镜 YAML 文件。
+    - **网格来源**: `storyboard split` 只接受 `--grid` 和 `meta.grid` 两种来源，不依赖 Prompt 文本做网格尺寸推断。
+    - **脚手架入口**: 当母图需要大批量拆成子镜时，优先调用 `storyboard split` 自动生成子分镜占位文件，不要手写 `meta.parent` / `meta.grid_index`。
+    - **真相源补写**: `storyboard split` 在回填子镜 YAML 成功后，会同步把 `image/success` 事件写入 `tasks.jsonl`，保证后续 `stitch` 等工具看见完整状态。
 
 6. **预览合成 (Animatic Preview)**:
     - `stitch` 优先使用成功的视频产物。
