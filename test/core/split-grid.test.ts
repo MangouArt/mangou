@@ -1,23 +1,13 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import yaml from 'js-yaml';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runSplitGrid } from '../../src/split';
 import { listLatestTasks } from '@core/tasks';
 
-const execFileAsync = promisify(execFile);
-
-async function createTestImage(outputPath: string, width: number, height: number) {
-  // Use ffmpeg to generate a simple test grid image
-  await execFileAsync('ffmpeg', [
-    '-f', 'lavfi', 
-    '-i', `testsrc=size=${width}x${height}:rate=1`, 
-    '-vframes', '1', 
-    '-y', outputPath
-  ]);
+async function createTestImage(outputPath: string) {
+  await fs.writeFile(outputPath, 'dummy image content', 'utf-8');
 }
 
 async function readYamlDoc(filePath: string) {
@@ -45,7 +35,7 @@ describe('split-grid', () => {
     await fs.mkdir(imagesDir, { recursive: true });
 
     const parentImagePath = path.join(imagesDir, 'parent-grid.png');
-    await createTestImage(parentImagePath, 4, 4);
+    await createTestImage(parentImagePath);
 
     const parentYamlPath = path.join(storyboardsDir, 'parent.yaml');
     const childAPath = path.join(storyboardsDir, 'child-a.yaml');
@@ -137,7 +127,7 @@ describe('split-grid', () => {
     await fs.mkdir(imagesDir, { recursive: true });
 
     const parentImagePath = path.join(imagesDir, 'prompt-grid.png');
-    await createTestImage(parentImagePath, 2, 2);
+    await createTestImage(parentImagePath);
 
     const parentYamlPath = path.join(storyboardsDir, 'prompt-parent.yaml');
     await fs.writeFile(
