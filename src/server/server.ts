@@ -18,6 +18,7 @@ function log(...args: unknown[]) {
 }
 
 const ASSET_TYPES = new Set<Asset['type']>(['character', 'scene', 'prop']);
+const STORYBOARD_REF_KEYS = ["characters", "scenes", "props", "assets"] as const;
 
 type SseClient = { res: http.ServerResponse; projectId: string };
 const sseClients = new Set<SseClient>();
@@ -57,6 +58,34 @@ function broadcast(event: string, payload: any, projectId: string) {
     if (client.projectId && client.projectId !== projectId) continue;
     sendSse(client.res, event, payload);
   }
+}
+
+function normalizeStoryboardRefs(refs: unknown): string[] {
+  if (Array.isArray(refs)) {
+    return refs.filter((value): value is string => typeof value === "string" && value.length > 0);
+  }
+
+  if (!refs || typeof refs !== "object") {
+    return [];
+  }
+
+  const values = new Set<string>();
+  for (const key of STORYBOARD_REF_KEYS) {
+    const bucket = (refs as Record<string, unknown>)[key];
+    if (!Array.isArray(bucket)) continue;
+    for (const item of bucket) {
+      if (typeof item === "string" && item.length > 0) {
+        values.add(item);
+      }
+    }
+  }
+
+  return Array.from(values);
+}
+
+export function getProjectIdFromApiPath(pathname: string) {
+  const pathParts = pathname.split('/').filter(Boolean);
+  return pathParts[2] || null;
 }
 
 /**
@@ -107,7 +136,7 @@ export async function getProjectUIData(projectRoot: string, projectId: string) {
         image_url: doc.tasks?.image?.latest?.output || null,
         video_url: doc.tasks?.video?.latest?.output || null,
         status: doc.tasks?.video?.latest?.status === 'completed' ? 'completed' : (doc.tasks?.image?.latest?.status === 'completed' ? 'completed' : 'pending'),
-        asset_ids: doc.refs?.characters || [],
+        asset_ids: normalizeStoryboardRefs(doc.refs),
         grid: doc.meta?.grid || null,
         parentId: doc.meta?.parent || null,
         tasks: doc.tasks || {},
@@ -185,7 +214,10 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
 
       // API: Structured Project Snapshot
       if (pathname.startsWith('/api/projects/')) {
-        const projectId = pathname.split('/')[2];
+        const projectId = getProjectIdFromApiPath(pathname);
+        if (!projectId) {
+          return sendJson(res, 400, { success: false, error: 'Missing project id' });
+        }
         try {
           if (pathname.endsWith('/snapshot')) {
             const projectRoot = path.join(dataRoot, projectId);
