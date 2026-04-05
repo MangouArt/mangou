@@ -79,7 +79,7 @@ export function StoryboardDetail({ storyboard, assets }: StoryboardDetailProps) 
               {storyboard.imageUrl ? (
                 <img
                   src={storyboard.imageUrl}
-                  alt={storyboard.title}
+                  alt={storyboard.title || storyboard.id}
                   className="w-full h-full object-contain"
                 />
               ) : (

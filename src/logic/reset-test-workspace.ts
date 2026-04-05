@@ -7,7 +7,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..');
 const DEFAULT_SKILL_NAME = 'mangou';
 
-async function pathExists(targetPath) {
+async function pathExists(targetPath: string) {
   try {
     await fs.access(targetPath);
     return true;
@@ -16,7 +16,7 @@ async function pathExists(targetPath) {
   }
 }
 
-async function copyDir(src, dest) {
+async function copyDir(src: string, dest: string) {
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
@@ -32,11 +32,17 @@ async function copyDir(src, dest) {
   }
 }
 
+type ResetWorkspaceOptions = {
+  packageRoot?: string;
+  workspaceRoot?: string;
+  skillName?: string;
+};
+
 export async function resetTestWorkspace({
   packageRoot = DEFAULT_PACKAGE_ROOT,
   workspaceRoot,
   skillName = DEFAULT_SKILL_NAME,
-} = {}) {
+}: ResetWorkspaceOptions = {}) {
   const resolvedPackageRoot = path.resolve(packageRoot);
   const resolvedWorkspaceRoot = workspaceRoot
     ? path.resolve(workspaceRoot)
@@ -59,8 +65,8 @@ export async function resetTestWorkspace({
   };
 }
 
-function parseArgs(argv) {
-  const args = {};
+function parseArgs(argv: string[]) {
+  const args: Record<string, string | boolean> = {};
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
     if (!token.startsWith('--')) continue;
@@ -81,9 +87,9 @@ const isEntrypoint = process.argv[1] && path.resolve(process.argv[1]) === fileUR
 if (isEntrypoint) {
   const args = parseArgs(process.argv.slice(2));
   resetTestWorkspace({
-    packageRoot: args.root || DEFAULT_PACKAGE_ROOT,
-    workspaceRoot: args.workspace,
-    skillName: args.skill || DEFAULT_SKILL_NAME,
+    packageRoot: typeof args.root === 'string' ? args.root : DEFAULT_PACKAGE_ROOT,
+    workspaceRoot: typeof args.workspace === 'string' ? args.workspace : undefined,
+    skillName: typeof args.skill === 'string' ? args.skill : DEFAULT_SKILL_NAME,
   })
     .then((result) => {
       console.log(JSON.stringify({ success: true, data: result }, null, 2));

@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 
-async function fetchWithRetry(url: any, options: any, maxRetries = 3) { return fetch(url, options); }
+async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
+  return fetch(url, options);
+}
 /**
  * 复制这个模板实现新的 AIGC provider，然后注册到 `aigc-provider-registry.mjs`。
  * `agent-generate.mjs` 会复用同一套任务写入、YAML 投影和资源解析流程。
@@ -84,7 +86,7 @@ export const AIGC_PROVIDER_TEMPLATE = {
   },
   extractOutputs(scope: any, result: any) {
     if (scope === 'images') {
-      return result?.data?.map((item) => item.url).filter(Boolean) || [];
+      return result?.data?.map((item: any) => item.url).filter(Boolean) || [];
     }
     return result?.outputs?.filter(Boolean) || [];
   },

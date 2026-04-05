@@ -44,5 +44,5 @@ export async function stitch(positionals: string[], flags: any) {
   if (!projectId) throw new Error("Project ID is required.");
 
   const projectRoot = path.join(process.cwd(), "projects", projectId);
-  await runStitch({ projectRoot });
+  await runStitch(projectRoot);
 }

@@ -6,10 +6,12 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src/web'),
-      '@core': path.resolve(__dirname, './src/cli/core'),
+      '@': path.resolve(__dirname, './src'),
+      '@core': path.resolve(__dirname, './src/core'),
+      '@logic': path.resolve(__dirname, './src/logic'),
+      '@server': path.resolve(__dirname, './src/server'),
+      '@web': path.resolve(__dirname, './src/web'),
       '@components': path.resolve(__dirname, './src/web/components'),
-      '@server': path.resolve(__dirname, './src/cli/server'), // Backward compat for some imports
     },
   },
   server: {

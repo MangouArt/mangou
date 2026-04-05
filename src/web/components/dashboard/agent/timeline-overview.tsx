@@ -61,7 +61,7 @@ export function TimelineOverview({
                 {storyboard.imageUrl ? (
                   <img
                     src={storyboard.imageUrl}
-                    alt={storyboard.title}
+                    alt={storyboard.title || storyboard.id}
                     className="w-full h-full object-cover"
                   />
                 ) : (

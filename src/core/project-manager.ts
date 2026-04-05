@@ -51,9 +51,14 @@ export class ProjectManager {
   private readonly projectsRoot: string;
   private readonly indexPath: string;
 
-  constructor(workspaceRoot?: string) {
+  constructor(options?: string | { workspaceRoot?: string; projectsRoot?: string }) {
+    const workspaceRoot = typeof options === 'string' ? options : options?.workspaceRoot;
+    const projectsRoot = typeof options === 'string' ? undefined : options?.projectsRoot;
+
     this.workspaceRoot = workspaceRoot ? path.resolve(workspaceRoot) : resolveWorkspaceRoot();
-    this.projectsRoot = resolveProjectsRoot(this.workspaceRoot);
+    this.projectsRoot = projectsRoot
+      ? path.resolve(projectsRoot)
+      : resolveProjectsRoot(this.workspaceRoot);
     this.indexPath = path.join(this.workspaceRoot, 'projects.json');
   }
 

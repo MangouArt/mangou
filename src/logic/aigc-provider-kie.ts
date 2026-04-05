@@ -10,7 +10,7 @@ function joinUrl(base: any, ...parts: any[]) {
   return normalizedPath ? `${normalizedBase}/${normalizedPath}` : normalizedBase;
 }
 
-async function uploadToKie(apiKey, dataUrl, fetchImpl = fetchWithRetry) {
+async function uploadToKie(apiKey: string, dataUrl: string, fetchImpl = fetchWithRetry) {
   const uploadBaseUrl = 'https://kieai.redpandaai.co';
   const endpoint = joinUrl(uploadBaseUrl, 'api/file-stream-upload');
 
@@ -46,14 +46,15 @@ async function uploadToKie(apiKey, dataUrl, fetchImpl = fetchWithRetry) {
 }
 
 async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
-  let lastError;
+  let lastError: unknown;
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await fetch(url, options);
       return response;
-    } catch (err) {
+    } catch (err: unknown) {
       lastError = err;
-      console.error(`[kie] fetch failed (attempt ${i + 1}/${maxRetries}): ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[kie] fetch failed (attempt ${i + 1}/${maxRetries}): ${message}`);
       if (i < maxRetries - 1) {
         await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
       }
@@ -179,7 +180,7 @@ export const KIE_PROVIDER = {
       input: {
         ...finalPayload.input,
         image_url: finalPayload.input?.image_url?.startsWith('data:') ? finalPayload.input.image_url.substring(0, 100) + '...' : finalPayload.input?.image_url,
-        image_urls: finalPayload.input?.image_urls?.map(url => url.startsWith('data:') ? url.substring(0, 100) + '...' : url)
+        image_urls: finalPayload.input?.image_urls?.map((url: string) => url.startsWith('data:') ? url.substring(0, 100) + '...' : url)
       }
     };
     console.error(`[kie] Submit payload for ${scope}:`, JSON.stringify(loggedPayload, null, 2));
@@ -283,8 +284,8 @@ export const KIE_PROVIDER = {
             if (!resultJson?.resultUrls || resultJson.resultUrls.length === 0) {
               throw new Error(`[kie] Task success but no resultUrls found in payload: ${JSON.stringify(data.data)}`);
             }
-          } catch (e) {
-             throw new Error(`[kie] False success - result validation failed: ${e.message}`);
+          } catch (e: unknown) {
+             throw new Error(`[kie] False success - result validation failed: ${e instanceof Error ? e.message : String(e)}`);
           }
         }
         return data.data;
@@ -306,7 +307,7 @@ export const KIE_PROVIDER = {
         ? JSON.parse(result.resultJson) 
         : result.resultJson;
       return resultJson?.resultUrls || [];
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('[kie] extractOutputs error:', e);
       return [];
     }
