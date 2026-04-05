@@ -101,7 +101,8 @@ async function ensureTasksFile(projectRoot: string) {
   await fs.mkdir(projectRoot, { recursive: true });
   const tasksPath = path.join(projectRoot, TASKS_FILE);
   try {
-    await fs.access(tasksPath);
+    const handle = await fs.open(tasksPath, "a");
+    await handle.close();
   } catch {
     await fs.writeFile(tasksPath, "", "utf-8");
   }
