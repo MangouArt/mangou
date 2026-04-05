@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-**Mangou** (@mangou/core) 是一个轻量级、本地优先的 AI 漫剧导演插件（Skill Bundle）。它允许 AI Agent (如 Cursor, Claude Desktop) 直接管理本地工作区的漫剧项目，通过 YAML 定义资产和分镜，并调用本地脚本完成 AIGC 生成和视频合成。
+**Mangou** (@mangou/core) 是一个轻量级、本地优先的 AI 漫剧导演插件（Skill Bundle）。它允许 AI Agent (如 Cursor, Claude Desktop) 直接管理本地工作区的漫剧项目，通过 YAML 定义资产和分镜，并通过统一的 `mangou` CLI 调用本地能力。
 
 与传统的中心化平台不同，Mangou 的核心哲学是将 **项目状态留在本地文件**，将 **创作逻辑交给 Agent**，将 **重型任务交给 AIGC Provider**。
 
@@ -11,15 +11,15 @@
 - **YAML 驱动**: 角色、场景、道具和分镜全部采用 YAML 描述，便于 Agent 阅读和精确修改。
 - **任务系统**: 基于 `tasks.jsonl` 的轻量级任务追踪，确保长耗时 AI 任务的状态可追溯、可恢复。
 - **可视化面板**: 内置基于 Vite + React 的本地 Web UI，实时展示任务进度。
-- **全链路 AIGC**: 通过 `scripts/` 提供图片生成、视频生成、视频缝合等原子能力。
+- **统一 CLI**: 通过 `mangou` 命令提供图片生成、视频生成、视频缝合等原子能力。
 
 ---
 
 ## 技术栈
 
-- **运行时**: Node.js (>= 18.18)
+- **运行时**: Bun (>= 1.1)
 - **前端 (Dashboard)**: Vite + React + TypeScript + Tailwind CSS + Radix UI / Ant Design
-- **后端 (Agent Entrypoints)**: Node.js Scripts (ESM, .mjs)
+- **后端 (Agent Entrypoints)**: Unified CLI (`src/cli/main.ts`)
 - **数据存储**: 本地文件系统 (YAML/JSON/JSONL)
 - **多媒体处理**: FFmpeg (需安装在系统路径)
 
@@ -29,14 +29,12 @@
 
 ```text
 mangou/
-├── scripts/                # Agent 调用入口 (核心脚本)
-│   ├── init-workspace.mjs  # 初始化工作区
-│   ├── create-project.mjs  # 创建项目
-│   ├── aigc-runner.mjs     # AIGC 生成核心逻辑 (Runner)
-│   ├── agent-stitch.mjs    # 视频合成脚本
-│   ├── start-web.mjs       # 启动可视化 Web 服务
-│   └── build-skill.mjs     # 打包为 Agent Skill Bundle
-├── src/                    # 可视化 Dashboard 源码 (React)
+├── src/                    # 源码
+│   ├── cli/                # 统一 CLI 工具源码 (TypeScript)
+│   │   ├── commands/       # CLI 子命令实现
+│   │   ├── logic/          # 核心业务逻辑 (AIGC, Build, Workflows)
+│   │   └── main.ts         # CLI 入口
+│   └── web/                # 可视化 Dashboard 源码 (React)
 ├── skill-src/              # Skill 定义 (VFS/Tool 配置)
 ├── spec/                   # 核心数据协议规范 (YAML/JSON)
 ├── workspace_template/     # 新项目初始化模板
@@ -70,7 +68,7 @@ Agent 在执行任务时，会管理如下结构的目录：
 ### 1. 任务循环 (Task Loop)
 Agent 与 Mangou 的交互遵循 **"编辑-执行-回填"** 循环：
 1. **修改 YAML**: Agent 修改 `storyboards/` 或 `asset_defs/` 中的 `params` (如 Prompt)。
-2. **触发生成**: Agent 调用 `scripts/aigc-runner.mjs`。
+2. **触发生成**: Agent 调用 `bun run mangou storyboard generate` 或 `asset generate`。
 3. **状态同步**: Runner 提交任务给 Provider，更新 `tasks.jsonl`，并将 `latest` 投影写回 YAML。
 4. **Agent 确认**: Agent 读取 YAML 中的 `latest.status` 确认结果。
 
@@ -81,27 +79,30 @@ Agent 与 Mangou 的交互遵循 **"编辑-执行-回填"** 循环：
 
 ### 3. AIGC 逻辑
 - **引用不变性**: 在做视频生成时，优先在 `params.images` 中引用 `assets/images/` 下的本地路径。
-- **原子化**: 一个脚本只做一件事。不要在 `aigc-runner` 里写复杂的业务逻辑，业务逻辑应留在 Agent 的 Prompt 或 Domain 层。
+- **CLI 驱动**: 所有的操作都应该通过 `mangou` CLI 完成，避免直接调用内部代码。
 
 ---
 
 ## 常用命令
 
 ```bash
-# 开发模式 (Frontend & Server)
-npm run dev
+# 开发模式 (Frontend)
+bun run dev
 
 # 构建可视化面板
-npm run build
+bun run build
 
 # 打包 Skill Bundle (输出到 bundled-skills/)
-npm run build:skill
+bun run build:skill
 
 # 运行全链路测试
-npm run ci
+bun run ci
 
-# 快速初始化本地测试环境
-npm run workspace:reset:test
+# 核心 CLI 命令
+bun run mangou project init --name <my-project>
+bun run mangou storyboard generate --path <shot.yaml> --type video
+bun run mangou project stitch --id <my-project>
+bun run mangou server start --port 3000
 ```
 
 ---
@@ -128,10 +129,10 @@ npm run workspace:reset:test
 ## 协作建议
 
 如果你是负责 **Core 开发** 的 Agent：
-- 确保 `scripts/` 下的 entrypoints 具有良好的错误处理，并返回标准化的 JSON 结果。
+- 确保 `src/cli` 下的 entrypoints 具有良好的错误处理，并返回标准化的 JSON 结果。
 - 维护 `spec/` 的同步更新。
 - 保持 `bundled-skills/` 的构建脚本稳定，这是分发的关键。
 
 如果你是负责 **项目制作 (Storyboard Agent)** 的 Agent：
 - 遵守 YAML 嵌套规范，不要随意移动文件。
-- 优先修复 Prompt 质量，而不是修改 `aigc-runner.mjs`。
+- 优先修复 Prompt 质量，而不是修改 CLI 核心逻辑。

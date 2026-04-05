@@ -7,10 +7,10 @@ Thank you for contributing to Mangou.
 Run the following checks locally before opening a pull request:
 
 ```bash
-npm run typecheck
-npm test
-npm run build
-npm run build:skill
+bun run typecheck
+bun test
+bun run build
+bun run build:skill
 ```
 
 ## Development Principles
@@ -32,7 +32,7 @@ npm run build:skill
 
 Please include as much of the following as possible:
 
-- Node.js version
+- Bun version
 - Operating system
 - Reproduction steps
 - Expected behavior

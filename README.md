@@ -65,7 +65,7 @@ cp .env.example .env.local
 ```
 
 Fill in your provider settings as needed. The example file does not include real keys.
-If you use BLTAI, set `BLTAI_API_KEY` in `.env.local`. The detailed signup and token flow is documented in [`knowledge/assets.md`](./skill-src/mangou/knowledge/assets.md).
+If you use BLTAI, set `BLTAI_API_KEY` in `.env.local`. The detailed signup and token flow is documented in [`knowledge/provider-bltai.md`](./skill-src/mangou/knowledge/provider-bltai.md).
 
 ### 3. Build the skill bundle
 
@@ -92,25 +92,16 @@ cp -R bundled-skills/mangou /absolute/path/to/your-workspace/.claude/skills/
 
 If your agent supports zip installation, you can also use `bundled-skills/mangou.zip`.
 
-### 5. Initialize a workspace
+### 5. Initialize a project
 
 ```bash
-bun run mangou -- workspace init --workspace .
+bun run mangou -- project init --name demo
 ```
 
-### 6. Create a project
+### 6. Start the local web UI
 
 ```bash
-bun run mangou -- project create \
-  --workspace . \
-  --project demo \
-  --name "Demo Project"
-```
-
-### 7. Start the local web UI
-
-```bash
-bun run mangou -- web start --workspace . --port 3000
+bun run mangou -- server start --port 3000
 ```
 
 Open `http://localhost:3000`.
@@ -158,24 +149,22 @@ bun run build:skill
 bun run ci
 ```
 
-## Script Entrypoints
+## CLI Commands
 
-The built skill contains these core scripts:
+The built skill follows a resource-action pattern:
 
-- `init-workspace.mjs`
-- `create-project.mjs`
-- `start-web.mjs`
-- `stop-web.mjs`
-- `web-status.mjs`
-- `agent-generate.mjs`
-- `agent-stitch.mjs`
-- `split-grid.mjs`
+- `project init`: Initialize a new project directory.
+- `project stitch`: Assemble storyboard clips into a final video.
+- `storyboard generate`: Render images or videos for a specific storyboard YAML.
+- `storyboard split`: Physically split a grid storyboard image.
+- `asset generate`: Render an asset image.
+- `server start`: Launch the local visualization server.
 
 Responsibilities are intentionally split:
 
-- Scripts initialize the workspace, start services, call upstream APIs, and persist task state
-- The web layer provides visualization and read-only APIs
-- The agent edits YAML, assembles parameters, and invokes scripts
+- CLI commands manage the workspace, invoke AIGC APIs, and persist task state.
+- The web layer provides real-time visualization.
+- The agent (director) edits YAML, assembles parameters, and triggers CLI tasks.
 
 ## Distribution
 

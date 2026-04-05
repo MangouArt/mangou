@@ -37,6 +37,6 @@
 
 ## 4. Agent 执行建议
 
-- **失败诊断**: 当 `agent-generate` 报错时，Agent 应检查 YAML 中的 `latest.error` 或 `tasks.jsonl` 的末尾记录，以判断是 API 密钥失效、Prompt 违规还是网络超时。
+- **失败诊断**: 当 `storyboard generate` 报错时，Agent 应检查 YAML 中的 `latest.error` 或 `tasks.jsonl` 的末尾记录，以判断是 API 密钥失效、Prompt 违规还是网络超时。
 - **防止重复**: 幂等由稳定 `task id` 和上层 CLI 决定，不要假设 `tasks.jsonl` 写入器会替你拦截重复提交。
-- **Grid 回填不是例外**: `split-grid.mjs` 成功回填子镜后，也会向 `tasks.jsonl` 追加 `image/success` 记录。不要假设只有远程 AIGC 任务才会写入真相源。
+- **Grid 回填不是例外**: `storyboard split` 成功回填子镜后，也会向 `tasks.jsonl` 追加 `image/success` 记录。不要假设只有远程 AIGC 任务才会写入真相源。

@@ -65,8 +65,9 @@ cp .env.example .env.local
 ```
 
 按需填写你的模型服务配置。默认示例文件不会包含真实密钥。
-请在 `.env.local` 中设置 `KIE_API_KEY`。详细注册和取 token 流程请参考：
+请在 `.env.local` 中设置 `KIE_API_KEY` 或 `BLTAI_API_KEY`。详细注册和取 token 流程请参考：
 - **KIE AI (推荐)**: [`knowledge/provider-kie.md`](./skill-src/mangou/knowledge/provider-kie.md)
+- **BLTAI**: [`knowledge/provider-bltai.md`](./skill-src/mangou/knowledge/provider-bltai.md)
 
 ### 3. 构建技能包
 
@@ -93,25 +94,16 @@ cp -R bundled-skills/mangou /absolute/path/to/your-workspace/.claude/skills/
 
 如果你的 agent 支持 zip 包安装，也可以直接使用 `bundled-skills/mangou.zip`。
 
-### 5. 初始化工作区
+### 5. 初始化项目
 
 ```bash
-bun run mangou -- workspace init --workspace .
+bun run mangou -- project init --name demo
 ```
 
-### 6. 创建项目
+### 6. 启动本地可视化服务
 
 ```bash
-bun run mangou -- project create \
-  --workspace . \
-  --project demo \
-  --name "Demo Project"
-```
-
-### 7. 启动本地可视化服务
-
-```bash
-bun run mangou -- web start --workspace . --port 3000
+bun run mangou -- server start --port 3000
 ```
 
 访问：`http://localhost:3000`
@@ -159,24 +151,22 @@ bun run build:skill
 bun run ci
 ```
 
-## 脚本入口
+## CLI 命令
 
-构建后的 skill 目录里包含这些核心脚本：
+构建后的技能遵循 "资源-动作" 模式：
 
-- `init-workspace.mjs`
-- `create-project.mjs`
-- `start-web.mjs`
-- `stop-web.mjs`
-- `web-status.mjs`
-- `agent-generate.mjs`
-- `agent-stitch.mjs`
-- `split-grid.mjs`
+- `project init`: 初始化一个新的项目目录。
+- `project stitch`: 将所有分镜视频片段合成为最终漫剧。
+- `storyboard generate`: 为指定的分镜 YAML 渲染图片或视频。
+- `storyboard split`: 对宫格分镜图片进行物理切割。
+- `asset generate`: 为资产定义 YAML 渲染图片。
+- `server start`: 启动本地可视化服务。
 
 它们的职责边界很明确：
 
-- 脚本负责初始化、启动服务、调用上游、写入任务状态
-- Web 负责展示与只读 API
-- Agent 负责组织参数、修改 YAML、调用脚本
+- CLI 命令负责管理工作区、调用 AIGC API 以及持久化任务状态。
+- Web 负责实时可视化展示。
+- Agent (导演) 负责组织参数、修改 YAML 以及触发 CLI 任务。
 
 ## 发布物
 

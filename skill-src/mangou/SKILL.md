@@ -3,7 +3,7 @@ name: Mangou AI Comic Director
 description: A comprehensive AI comic production skill for directors. Supports workspace management, asset definition, and automated AIGC production pipelines (Image/Video). | 导演视角漫剧创作全流程技能，支持工作区管理、资产定义及全自动 AIGC 生产流水线。
 version: 1.2.2
 tags: [aigc, comic, director, storyboard, video-generation, automation, workflow, claude-skill, mcp-plugin]
-argument-hint: <workspace init|project create|project scaffold|web start|web stop|web status|generate image|generate video|stitch|grid split> [...args]
+argument-hint: <project init|project stitch|storyboard generate|storyboard split|asset generate|server start> [...args]
 disable-model-invocation: true
 ---
 
@@ -48,16 +48,16 @@ graph TD
 
 ### 1. 生命周期与项目环境 (Lifecycle)
 统一调用 `src/cli/main.ts`，内部再分发到对应模块。
-- **初始化工作区**: `bun run src/cli/main.ts workspace init --workspace <path>`。确保必要的运行时目录（如 `.mangou`）和技能插件存在。
-- **创建项目**: `bun run src/cli/main.ts project create --project <id> --name <name>`。
-- **宫格子镜脚手架**: `bun run src/cli/main.ts project scaffold --grid <master_yaml>`。
+- **初始化项目**: `bun run mangou project init --name <name>`。创建标准化的漫剧项目目录结构。
+- **全片合成**: `bun run mangou project stitch --id <projectId>`。优先拼接视频；若某镜还没有视频，则自动把静态图转成定长预览片段后再拼接，便于导演先看节奏。
 
 ### 2. AIGC 生产流水线 (AIGC Pipeline)
-- **任务执行**: `bun run src/cli/main.ts generate image <yaml_path>` 或 `bun run src/cli/main.ts generate video <yaml_path>`。
-- **宫格流水线**: `bun run src/cli/main.ts grid split <parent_yaml>`。使用 `ffmpeg` 自动执行物理切分并回填子分镜。
+- **任务执行**: `bun run mangou storyboard generate --path <yaml_path> --type image` 或 `bun run mangou storyboard generate --path <yaml_path> --type video`。
+- **资产生成**: `bun run mangou asset generate --path <yaml_path>`。
+- **宫格流水线**: `bun run mangou storyboard split --path <parent_yaml>`。使用 `ffmpeg` 自动执行物理切分并回填子分镜。
 
 ### 3. 媒体后期与监控 (Post-Processing)
-- **全片合成**: `bun run src/cli/main.ts stitch [projectRoot]`。优先拼接视频；若某镜还没有视频，则自动把静态图转成定长预览片段后再拼接，便于导演先看节奏。
+- **启动服务**: `bun run mangou server start --port <port>`。启动本地只读镜像服务。
 - **分布式组织**: 推荐采用 **“一个 Grid 母图文件 + 多个子分镜文件”** 的架构，通过 `meta.parent` 字段显式关联。
 
 ## 导演知识库索引 (Knowledge Base)
@@ -70,7 +70,7 @@ graph TD
 
 ## 执行规范 (Strict Policies)
 
-1. **项目先行**: 严禁在执行 `mangou.mjs project create` 前直接编写 YAML。
+1. **项目先行**: 严禁在执行 `mangou project init` 前直接编写 YAML。
 2. **资产优先**: 必须先定义并生成 `asset_defs/` 下的视觉基准，再进行分镜创作。
 3. **真相源意识**: 任务状态以 `tasks.jsonl` 为准，YAML 仅用于配置输入与展示投影。
 4. **路径确定性**: 调用脚本参数时，始终提供相对于当前执行目录 (CWD) 的路径。
