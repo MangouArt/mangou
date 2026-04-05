@@ -92,19 +92,20 @@ cp -R bundled-skills/mangou /absolute/path/to/your-workspace/.claude/skills/
 
 If your agent supports zip installation, you can also use `bundled-skills/mangou.zip`.
 
-### 5. Initialize a project
+### 2. Quick Start (CLI)
+
+All commands are unified at the `src/main.ts` entry point. Usage is identical in both development and skill environments:
 
 ```bash
-bun run mangou -- project init --name demo
+# Initialize project
+bun run src/main.ts project init --name my-story
+
+# Create content
+bun run src/main.ts storyboard generate --path storyboards/shot1.yaml --type image
+
+# Enable Visual Mirror
+bun run src/main.ts server start --port 3000
 ```
-
-### 6. Start the local web UI
-
-```bash
-bun run mangou -- server start --port 3000
-```
-
-Open `http://localhost:3000`.
 
 ## Workspace Layout
 

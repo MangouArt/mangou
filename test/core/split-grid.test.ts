@@ -5,7 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import yaml from 'js-yaml';
 import { afterEach, describe, expect, it } from 'vitest';
-import { runSplitGrid } from '../../src/cli/split';
+import { runSplitGrid } from '../../src/split';
 import { listLatestTasks } from '@core/tasks';
 
 const execFileAsync = promisify(execFile);

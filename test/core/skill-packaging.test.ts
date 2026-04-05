@@ -5,7 +5,7 @@ import { execFile } from 'child_process';
 import { pathToFileURL } from 'url';
 import { promisify } from 'util';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildSkillBundle } from '../../src/cli/logic/build-skill';
+import { buildSkillBundle } from '../../src/logic/build-skill';
 
 type BuildSkillBundle = (options?: {
   packageRoot?: string;

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { 
-  UIAsset as Asset, 
-  UIStoryboard as Storyboard, 
+  Asset, 
+  Storyboard, 
   Keyframe, 
   Video as VideoAsset,
 } from '@core/schema'

@@ -5,7 +5,7 @@ import yaml from "js-yaml";
 
 // We'll test the core mapping logic directly to avoid starting real HTTP server in CI
 // This is faster and covers the crucial YAML -> UI transformation.
-import { startHttpServer } from "../../src/cli/web/server";
+import { startHttpServer } from "../../src/server/server";
 
 describe("Readonly Mirror Server Logic", () => {
   const dataRoot = path.join(process.cwd(), "projects/test-mirror-logic");

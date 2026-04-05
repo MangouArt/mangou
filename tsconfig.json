@@ -11,10 +11,10 @@
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/cli/*"],
-      "@core/*": ["./src/cli/core/*"],
-      "@logic/*": ["./src/cli/logic/*"],
-      "@server/*": ["./src/cli/server/*"],
+      "@/*": ["./src/*"],
+      "@core/*": ["./src/core/*"],
+      "@logic/*": ["./src/logic/*"],
+      "@server/*": ["./src/server/*"],
       "@web/*": ["./src/web/*"],
       "@components/*": ["./src/web/components/*"]
     }

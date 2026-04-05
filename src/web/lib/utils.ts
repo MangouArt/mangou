@@ -1,1 +1,1 @@
-export { cn } from '../../cli/core/utils';
+export { cn } from '../../core/utils';

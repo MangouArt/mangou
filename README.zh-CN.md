@@ -92,18 +92,19 @@ mkdir -p /absolute/path/to/your-workspace/.claude/skills
 cp -R bundled-skills/mangou /absolute/path/to/your-workspace/.claude/skills/
 ```
 
-如果你的 agent 支持 zip 包安装，也可以直接使用 `bundled-skills/mangou.zip`。
+### 5. 快速入门 (CLI)
 
-### 5. 初始化项目
-
-```bash
-bun run mangou -- project init --name demo
-```
-
-### 6. 启动本地可视化服务
+所有核心指令已统一至入口 `src/main.ts`。无论是在源码仓库开发还是作为技能安装，调用方式完全一致：
 
 ```bash
-bun run mangou -- server start --port 3000
+# 初始化项目
+bun run src/main.ts project init --name [id]
+
+# 创作分镜 (图片/视频)
+bun run src/main.ts storyboard generate --path [path] --type [image|video]
+
+# 启动本地可视化服务 (SSE)
+bun run src/main.ts server start --port 3000
 ```
 
 访问：`http://localhost:3000`
@@ -156,17 +157,14 @@ bun run ci
 构建后的技能遵循 "资源-动作" 模式：
 
 - `project init`: 初始化一个新的项目目录。
-- `project stitch`: 将所有分镜视频片段合成为最终漫剧。
-- `storyboard generate`: 为指定的分镜 YAML 渲染图片或视频。
-- `storyboard split`: 对宫格分镜图片进行物理切割。
-- `asset generate`: 为资产定义 YAML 渲染图片。
-- `server start`: 启动本地可视化服务。
+- `project## 脚本入口
 
-它们的职责边界很明确：
+核心入口点已统一整合为 `src/main.ts`。通过此入口可以分发并执行所有导演级指令。
 
-- CLI 命令负责管理工作区、调用 AIGC API 以及持久化任务状态。
-- Web 负责实时可视化展示。
-- Agent (导演) 负责组织参数、修改 YAML 以及触发 CLI 任务。
+- **逻辑层**: 脚本负责初始化、启动服务、调用上游、写入任务状态
+- **展示层**: Web 负责展示与只读 API
+- **决策层**: Agent 负责组织参数、修改 YAML、调用脚本
+ 以及触发 CLI 任务。
 
 ## 发布物
 

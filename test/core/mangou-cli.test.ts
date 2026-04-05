@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { main } from "../../src/cli/main";
+import { main } from "../../src/main";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "js-yaml";

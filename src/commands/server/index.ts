@@ -1,4 +1,4 @@
-import { startHttpServer } from "../../web/server";
+import { startHttpServer } from "../../server/server";
 import path from "node:path";
 
 /**

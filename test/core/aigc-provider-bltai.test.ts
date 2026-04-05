@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BLTAI_PROVIDER } from '../../src/cli/logic/aigc-provider-bltai';
+import { BLTAI_PROVIDER } from '../../src/logic/aigc-provider-bltai';
 
 describe('BLTAI Provider Script', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { getAIGCProvider, listAIGCProviders, registerAIGCProvider } from '../../src/cli/logic/aigc-provider-registry';
-import { resolveProviderEnv } from '../../src/cli/logic/bltai-lib';
+import { getAIGCProvider, listAIGCProviders, registerAIGCProvider } from '../../src/logic/aigc-provider-registry';
+import { resolveProviderEnv } from '../../src/logic/bltai-lib';
 
 describe('AIGC provider registry', () => {
   it('returns bltai provider with env metadata', () => {

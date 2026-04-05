@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { buildProjectSnapshot } from '../../src/cli/core/project-snapshot';
+import { buildProjectSnapshot } from '../../src/core/project-snapshot';
 
 describe('project snapshot', () => {
   const projectRoot = path.join(process.cwd(), 'projects', 'test-snapshot');

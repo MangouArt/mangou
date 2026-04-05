@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { KIE_PROVIDER } from '../../src/cli/logic/aigc-provider-kie';
+import { KIE_PROVIDER } from '../../src/logic/aigc-provider-kie';
 
 describe('KIE AI Provider', () => {
   beforeEach(() => {
