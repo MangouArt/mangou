@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import yaml from "js-yaml";
-import { createProjectManager, getProjectUIData } from "../../src/server/server";
+import { createProjectManager, getProjectIdFromApiPath, getProjectUIData } from "../../src/server/server";
 
 describe("Readonly Mirror Server", () => {
   let tempRoot = "";
@@ -109,6 +109,29 @@ describe("Readonly Mirror Server", () => {
     );
   });
 
+  it("accepts flat refs arrays from storyboard yaml and projects them into asset_ids", async () => {
+    await fs.writeFile(
+      path.join(dataRoot, "demo-mirror", "storyboards", "shot2.yaml"),
+      yaml.dump({
+        meta: { id: "shot2" },
+        content: { title: "Flat Refs", sequence: 2 },
+        refs: ["duxiu"],
+      }),
+      "utf-8",
+    );
+
+    const snapshot = await getProjectUIData(path.join(dataRoot, "demo-mirror"), "demo-mirror");
+
+    expect(snapshot.storyboards).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "shot2",
+          asset_ids: ["duxiu"],
+        }),
+      ]),
+    );
+  });
+
   it("fails fast when an asset YAML omits meta.type", async () => {
     await fs.writeFile(
       path.join(dataRoot, "demo-mirror", "asset_defs", "broken.yaml"),
@@ -122,5 +145,10 @@ describe("Readonly Mirror Server", () => {
     await expect(
       getProjectUIData(path.join(dataRoot, "demo-mirror"), "demo-mirror"),
     ).rejects.toThrow(/meta\.type/);
+  });
+
+  it("extracts the real project id from /api/projects/:id/snapshot paths", async () => {
+    expect(getProjectIdFromApiPath("/api/projects/demo-mirror/snapshot")).toBe("demo-mirror");
+    expect(getProjectIdFromApiPath("/api/projects/demo-mirror")).toBe("demo-mirror");
   });
 });

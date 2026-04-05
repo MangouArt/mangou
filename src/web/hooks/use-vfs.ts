@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Asset as CoreAsset, Storyboard as CoreStoryboard } from '@core/schema';
 import type { Asset, Storyboard } from '@web/stores/director-agent-store';
+import { resolveProjectMediaUrl } from '@web/lib/project-media';
 
 interface UseVFSOptions {
   projectId: string;
@@ -19,28 +20,31 @@ interface UseVFSReturn {
   };
 }
 
-function normalizeAsset(asset: CoreAsset): Asset {
+function normalizeAsset(projectId: string, asset: CoreAsset): Asset {
+  const imageUrl = resolveProjectMediaUrl(projectId, asset.image_url);
   return {
     id: asset.id,
     type: asset.type,
     name: asset.name,
     description: asset.description,
-    imageUrl: asset.image_url,
-    image_url: asset.image_url,
+    imageUrl,
+    image_url: imageUrl,
     status: asset.status,
   };
 }
 
-function normalizeStoryboard(storyboard: CoreStoryboard): Storyboard {
+function normalizeStoryboard(projectId: string, storyboard: CoreStoryboard): Storyboard {
+  const imageUrl = resolveProjectMediaUrl(projectId, storyboard.image_url);
+  const videoUrl = resolveProjectMediaUrl(projectId, storyboard.video_url);
   return {
     id: storyboard.id,
     sequenceNumber: storyboard.sequence_number,
     title: storyboard.title,
     description: storyboard.description,
     prompt: storyboard.prompt,
-    imageUrl: storyboard.image_url,
-    image_url: storyboard.image_url,
-    videoUrl: storyboard.video_url,
+    imageUrl,
+    image_url: imageUrl,
+    videoUrl,
     status: storyboard.status,
     refAssetIds: storyboard.asset_ids,
     grid: storyboard.grid || undefined,
@@ -65,8 +69,8 @@ export function useVFS({ projectId }: UseVFSOptions): UseVFSReturn {
       const res = await fetch(`/api/projects/${projectId}/snapshot`);
       const data = await res.json();
       if (data.success) {
-        setAssets((data.assets || []).map(normalizeAsset));
-        setStoryboards((data.storyboards || []).map(normalizeStoryboard));
+        setAssets((data.assets || []).map((asset: CoreAsset) => normalizeAsset(projectId, asset)));
+        setStoryboards((data.storyboards || []).map((storyboard: CoreStoryboard) => normalizeStoryboard(projectId, storyboard)));
         setError(null);
       } else {
         setError(data.error || 'Failed to load project snapshot');

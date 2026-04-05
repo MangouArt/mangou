@@ -5,6 +5,7 @@ import {
   Keyframe, 
   Video as VideoAsset,
 } from '@core/schema'
+import { resolveProjectMediaUrl } from '@web/lib/project-media'
 
 export interface LocalProject {
   id: string
@@ -50,6 +51,7 @@ export const fetchProjectData = async (projectId: string): Promise<ProjectData> 
   return {
     project: {
       ...data.project,
+      video_url: resolveProjectMediaUrl(projectId, data.project?.video_url ?? data.project?.videoUrl) ?? null,
       createdAt: data.project?.createdAt || data.project?.created_at,
       updatedAt: data.project?.updatedAt || data.project?.updated_at,
     },
