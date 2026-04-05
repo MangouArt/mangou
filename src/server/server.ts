@@ -17,6 +17,8 @@ function log(...args: unknown[]) {
   console.error('[mangou-mirror]', ...args);
 }
 
+const ASSET_TYPES = new Set<Asset['type']>(['character', 'scene', 'prop']);
+
 type SseClient = { res: http.ServerResponse; projectId: string };
 const sseClients = new Set<SseClient>();
 
@@ -65,29 +67,26 @@ export async function getProjectUIData(projectRoot: string, projectId: string) {
   const storyboards: Storyboard[] = [];
 
   // 1. Load Assets
-  const assetTypes = ['chars', 'scenes', 'props'];
-  for (const type of assetTypes) {
-    const dir = path.join(projectRoot, 'asset_defs', type);
-    try {
-      const files = await fs.readdir(dir);
-      for (const file of files) {
-        if (!file.endsWith('.yaml')) continue;
-        const raw = await fs.readFile(path.join(dir, file), 'utf-8');
-        const doc = yaml.load(raw) as any;
-        assets.push({
-          id: doc.meta?.id || path.basename(file, '.yaml'),
-          project_id: projectId,
-          type: (type === 'chars' ? 'character' : type === 'scenes' ? 'scene' : 'prop') as Asset['type'],
-          name: doc.content?.name || file,
-          description: doc.content?.description || null,
-          status: doc.tasks?.image?.latest?.status || 'pending',
-          image_url: doc.tasks?.image?.latest?.output || null,
-          version: doc.meta?.version || '1.0',
-          metadata: doc.meta || {},
-          created_at: new Date().toISOString()
-        });
-      }
-    } catch {}
+  for (const assetPath of await collectYamlFiles(path.join(projectRoot, 'asset_defs'))) {
+    const raw = await fs.readFile(assetPath, 'utf-8');
+    const doc = yaml.load(raw) as any;
+    const assetType = doc?.meta?.type;
+    if (!ASSET_TYPES.has(assetType)) {
+      const relPath = path.relative(projectRoot, assetPath) || assetPath;
+      throw new Error(`Invalid asset type in ${relPath}. Expected meta.type to be one of: character, scene, prop.`);
+    }
+    assets.push({
+      id: doc.meta?.id || path.basename(assetPath, '.yaml'),
+      project_id: projectId,
+      type: assetType,
+      name: doc.content?.name || path.basename(assetPath),
+      description: doc.content?.description || null,
+      status: doc.tasks?.image?.latest?.status || 'pending',
+      image_url: doc.tasks?.image?.latest?.output || null,
+      version: doc.meta?.version || '1.0',
+      metadata: doc.meta || {},
+      created_at: new Date().toISOString()
+    });
   }
 
   // 2. Load Storyboards
@@ -120,6 +119,24 @@ export async function getProjectUIData(projectRoot: string, projectId: string) {
 
   storyboards.sort((a, b) => a.sequence_number - b.sequence_number);
   return { assets, storyboards };
+}
+
+async function collectYamlFiles(root: string): Promise<string[]> {
+  const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await collectYamlFiles(entryPath));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith('.yaml')) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
 }
 
 export function createProjectManager(dataRoot: string) {
@@ -169,19 +186,23 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
       // API: Structured Project Snapshot
       if (pathname.startsWith('/api/projects/')) {
         const projectId = pathname.split('/')[2];
-        if (pathname.endsWith('/snapshot')) {
-          const projectRoot = path.join(dataRoot, projectId);
-          const data = await getProjectUIData(projectRoot, projectId);
-          return sendJson(res, 200, { success: true, ...data });
-        }
-        if (projectId) {
-          const project = await projectManager.getProject(projectId);
-          if (!project) {
-            return sendJson(res, 404, { success: false, error: 'Project not found' });
+        try {
+          if (pathname.endsWith('/snapshot')) {
+            const projectRoot = path.join(dataRoot, projectId);
+            const data = await getProjectUIData(projectRoot, projectId);
+            return sendJson(res, 200, { success: true, ...data });
           }
-          const projectRoot = path.join(dataRoot, projectId);
-          const data = await getProjectUIData(projectRoot, projectId);
-          return sendJson(res, 200, { success: true, project, ...data, keyframes: [], videos: [] });
+          if (projectId) {
+            const project = await projectManager.getProject(projectId);
+            if (!project) {
+              return sendJson(res, 404, { success: false, error: 'Project not found' });
+            }
+            const projectRoot = path.join(dataRoot, projectId);
+            const data = await getProjectUIData(projectRoot, projectId);
+            return sendJson(res, 200, { success: true, project, ...data, keyframes: [], videos: [] });
+          }
+        } catch (error: any) {
+          return sendJson(res, 500, { success: false, error: error.message || 'Failed to load project data' });
         }
       }
 

@@ -15,9 +15,7 @@ describe("Readonly Mirror Server", () => {
     dataRoot = path.join(workspaceRoot, "projects");
 
     const projectRoot = path.join(dataRoot, "demo-mirror");
-    await fs.mkdir(path.join(projectRoot, "asset_defs/chars"), { recursive: true });
-    await fs.mkdir(path.join(projectRoot, "asset_defs/scenes"), { recursive: true });
-    await fs.mkdir(path.join(projectRoot, "asset_defs/props"), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, "asset_defs"), { recursive: true });
     await fs.mkdir(path.join(projectRoot, "storyboards"), { recursive: true });
     await fs.writeFile(path.join(projectRoot, "tasks.jsonl"), "", "utf-8");
     await fs.writeFile(
@@ -32,7 +30,7 @@ describe("Readonly Mirror Server", () => {
     );
 
     await fs.writeFile(
-      path.join(projectRoot, "asset_defs/chars/duxiu.yaml"),
+      path.join(projectRoot, "asset_defs/duxiu.yaml"),
       yaml.dump({
         meta: { id: "duxiu", type: "character" },
         content: { name: "杜休", description: "Miner" },
@@ -95,5 +93,34 @@ describe("Readonly Mirror Server", () => {
         }),
       ]),
     );
+  });
+
+  it("classifies flat asset_defs YAMLs strictly by meta.type", async () => {
+    const snapshot = await getProjectUIData(path.join(dataRoot, "demo-mirror"), "demo-mirror");
+
+    expect(snapshot.assets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "duxiu",
+          type: "character",
+          name: "杜休",
+        }),
+      ]),
+    );
+  });
+
+  it("fails fast when an asset YAML omits meta.type", async () => {
+    await fs.writeFile(
+      path.join(dataRoot, "demo-mirror", "asset_defs", "broken.yaml"),
+      yaml.dump({
+        meta: { id: "broken" },
+        content: { name: "Broken Asset" },
+      }),
+      "utf-8",
+    );
+
+    await expect(
+      getProjectUIData(path.join(dataRoot, "demo-mirror"), "demo-mirror"),
+    ).rejects.toThrow(/meta\.type/);
   });
 });
