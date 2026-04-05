@@ -7,7 +7,7 @@ import { promisify } from 'util';
 import { build } from 'esbuild';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..');
+const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..');
 const DEFAULT_SKILL_NAME = 'mangou';
 const execFileAsync = promisify(execFile);
 const RUNTIME_SCRIPT_FILES = [
