@@ -141,9 +141,17 @@ function parseGrid(gridStr: string) {
 
 async function getImageDimensions(imagePath: string) {
   const proc = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", imagePath]);
-  const stdout = proc.stdout.toString().trim();
-  if (!stdout) return { width: 1024, height: 1024 };
+  const stdout = typeof proc.stdout?.toString === "function" ? proc.stdout.toString().trim() : "";
+  if (proc.error || proc.status !== 0 || !stdout) {
+    const reason = proc.error?.message || proc.stderr?.toString?.().trim() || `status ${proc.status}`;
+    log(`[mangou] Warning: ffprobe unavailable for ${imagePath}, falling back to 1024x1024 (${reason})`);
+    return { width: 1024, height: 1024 };
+  }
   const [width, height] = stdout.split("x").map(Number);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    log(`[mangou] Warning: invalid ffprobe dimensions "${stdout}" for ${imagePath}, falling back to 1024x1024`);
+    return { width: 1024, height: 1024 };
+  }
   return { width, height };
 }
 
