@@ -57,4 +57,69 @@ describe("AIGC Generate & Backfill", () => {
     expect(updatedDoc.tasks.image.latest.status).toBe("completed");
     expect(updatedDoc.tasks.image.latest.output).toContain("shot1-task-123");
   });
+
+  it("runAIGC: resolves local image references from params.image", async () => {
+    await fs.mkdir(path.join(projectRoot, "assets/images"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "assets/images/reference.png"), "ref-image");
+
+    const sourceDoc = {
+      meta: { id: "shot1" },
+      tasks: {
+        image: {
+          provider: "mock-provider",
+          params: { prompt: "Use reference", image: ["assets/images/reference.png"] }
+        }
+      }
+    };
+    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
+
+    const mockProvider = {
+      id: "mock-provider",
+      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
+      scopes: { image: "images" },
+      buildPayload: vi.fn((_s: any, p: any) => p),
+      submit: vi.fn().mockResolvedValue("task-234"),
+      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.png" } }),
+      extractOutputs: () => ["https://example.com/cat.png"],
+    };
+    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
+    process.env.MOCK_KEY = "dummy";
+
+    await runAIGC({ yamlPath, type: "image" });
+
+    expect(mockProvider.buildPayload).toHaveBeenCalledWith(
+      "images",
+      expect.objectContaining({
+        image: [expect.stringMatching(/^data:image\/png;base64,/)],
+      }),
+    );
+  });
+
+  it("runAIGC: rejects missing localized outputs before writing audit logs", async () => {
+    const sourceDoc = {
+      meta: { id: "shot1" },
+      tasks: {
+        image: {
+          provider: "mock-provider",
+          params: { prompt: "Broken output" }
+        }
+      }
+    };
+    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
+
+    const mockProvider = {
+      id: "mock-provider",
+      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
+      scopes: { image: "images" },
+      buildPayload: (_s: any, p: any) => p,
+      submit: vi.fn().mockResolvedValue("task-404"),
+      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "assets/images/missing.png" } }),
+      extractOutputs: () => ["assets/images/missing.png"],
+    };
+    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
+    process.env.MOCK_KEY = "dummy";
+
+    await expect(runAIGC({ yamlPath, type: "image" })).rejects.toThrow(/Materialized output not found/);
+    await expect(fs.access(path.join(projectRoot, "tasks.jsonl"))).rejects.toBeDefined();
+  });
 });

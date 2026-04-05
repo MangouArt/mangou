@@ -4,6 +4,7 @@ import path from "node:path";
 import yaml from "js-yaml";
 import { appendTaskEvent } from "./core/tasks";
 import { fileExists, log } from "./logic/generation/utils";
+import { inferProjectRoot } from "./core/project-root";
 
 /**
  * Split a parent image into NxM grid and backfill into YAMLs.
@@ -148,13 +149,4 @@ async function getImageDimensions(imagePath: string) {
 
 async function cropImage(input: string, output: string, x: number, y: number, w: number, h: number) {
   spawnSync("ffmpeg", ["-i", input, "-vf", `crop=${w}:${h}:${x}:${y}`, "-y", output]);
-}
-
-async function inferProjectRoot(yamlPath: string): Promise<string> {
-  let curr = path.dirname(yamlPath);
-  while (curr !== path.dirname(curr)) {
-    if (curr.endsWith("projects") || await fileExists(path.join(curr, "project.json"))) return curr;
-    curr = path.dirname(curr);
-  }
-  return process.cwd();
 }

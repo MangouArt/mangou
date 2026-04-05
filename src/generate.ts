@@ -9,6 +9,7 @@ import {
   log,
   materializeOutputs,
 } from "./logic/generation/utils";
+import { inferProjectRoot } from "./core/project-root";
 
 /**
  * Core Generation Logic (Action & Backfill)
@@ -45,29 +46,7 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
 
   // 3. Resolve dynamic parameters (References & Local Paths)
   const params = JSON.parse(JSON.stringify(taskConfig.params)); // Deep clone
-  
-  // Resolve images (Sugar: YAML paths -> Image paths, Local paths -> Base64)
-  if (params.images && Array.isArray(params.images)) {
-    const resolvedImages = [];
-    for (const input of params.images) {
-      if (typeof input === "string") {
-        if (input.endsWith(".yaml")) {
-          // Resolve Asset YAML reference
-          const resolvedImg = await resolveAssetImage(projectRoot, input);
-          if (resolvedImg) resolvedImages.push(resolvedImg);
-        } else if (await isLocalImage(projectRoot, input)) {
-          // Encode local image to Base64
-          const b64 = await encodeLocalImage(projectRoot, input);
-          if (b64) resolvedImages.push(b64);
-        } else {
-          resolvedImages.push(input);
-        }
-      } else {
-        resolvedImages.push(input);
-      }
-    }
-    params.images = resolvedImages;
-  }
+  await resolveImageParams(projectRoot, params);
 
   // 4. Submit and Poll
   const scope = provider.scopes?.[type] || (type === "image" ? "images" : "videos");
@@ -97,6 +76,7 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
   // 5. Materialize outputs and Backfill
   const outputs = provider.extractOutputs(scope, result);
   const localOutputs = await materializeOutputs(projectRoot, relYamlPath, type, taskId, outputs);
+  await assertMaterializedOutputsExist(projectRoot, relYamlPath, localOutputs);
   const primaryOutput = localOutputs[0] || "";
 
   await updateYaml(absoluteYamlPath, {
@@ -125,21 +105,50 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
  * Helpers
  */
 
-async function inferProjectRoot(yamlPath: string): Promise<string> {
-  let curr = path.dirname(yamlPath);
-  while (curr !== path.dirname(curr)) {
-    if (curr.endsWith("projects") || await fileExists(path.join(curr, "project.json"))) {
-      return curr;
-    }
-    const projectsDir = path.join(curr, "projects");
-    if (await fileExists(projectsDir)) {
-      const rel = path.relative(projectsDir, yamlPath);
-      const topDir = rel.split(path.sep)[0];
-      return path.join(projectsDir, topDir);
-    }
-    curr = path.dirname(curr);
+async function resolveImageParams(projectRoot: string, params: Record<string, any>) {
+  if (Array.isArray(params.images)) {
+    params.images = await Promise.all(params.images.map((input) => resolveImageInput(projectRoot, input)));
   }
-  return process.cwd();
+
+  if (params.image !== undefined) {
+    if (Array.isArray(params.image)) {
+      params.image = await Promise.all(params.image.map((input) => resolveImageInput(projectRoot, input)));
+    } else {
+      params.image = await resolveImageInput(projectRoot, params.image);
+    }
+  }
+}
+
+async function resolveImageInput(projectRoot: string, input: any): Promise<any> {
+  if (typeof input !== "string") {
+    return input;
+  }
+
+  if (input.endsWith(".yaml")) {
+    return (await resolveAssetImage(projectRoot, input)) || input;
+  }
+
+  if (await isLocalImage(projectRoot, input)) {
+    return await encodeLocalImage(projectRoot, input);
+  }
+
+  return input;
+}
+
+async function assertMaterializedOutputsExist(projectRoot: string, relYamlPath: string, outputs: string[]) {
+  for (const output of outputs) {
+    if (!output || output.startsWith("http://") || output.startsWith("https://") || output.startsWith("data:")) {
+      continue;
+    }
+
+    const absoluteOutputPath = path.resolve(projectRoot, output);
+    if (await fileExists(absoluteOutputPath)) {
+      continue;
+    }
+
+    log(`[mangou] Warning: missing materialized output for ${relYamlPath}: ${output}`);
+    throw new Error(`Materialized output not found for ${relYamlPath}: ${output}`);
+  }
 }
 
 async function resolveAssetImage(projectRoot: string, yamlRelPath: string): Promise<string | null> {
