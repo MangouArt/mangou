@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "js-yaml";
-import { runAIGC } from "../../src/cli/generate";
-import * as registry from "../../src/cli/logic/aigc-provider-registry";
+import { runAIGC } from "../../src/generate";
+import * as registry from "../../src/logic/aigc-provider-registry";
 
 describe("AIGC Generate & Backfill", () => {
   const projectRoot = path.join(process.cwd(), "projects/test-backfill");

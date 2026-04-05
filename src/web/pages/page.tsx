@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Project Hooks
-import { useProjects } from '@/hooks/use-project';
+import { useProjects } from '@web/hooks/use-project';
 
 // UI
 import { Button } from '@components/ui/button';

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import yaml from 'js-yaml';
-import { runSplitGrid } from '../../src/cli/split';
+import { runSplitGrid } from '../../src/split';
 
 describe('project scaffold', () => {
   const projectRoot = path.join(process.cwd(), 'projects', 'test-scaffold');
