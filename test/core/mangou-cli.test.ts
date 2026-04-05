@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { main } from "../../src/main";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -7,10 +7,16 @@ import yaml from "js-yaml";
 describe("mangou-cli commands", () => {
   const projectName = "test-cli-project";
   const projectRoot = path.join(process.cwd(), "projects", projectName);
+  const originalArgv = [...process.argv];
 
   beforeEach(async () => {
-    // Cleanup projects/test-cli-project
+    process.argv = [...originalArgv];
     await fs.rm(projectRoot, { recursive: true, force: true }).catch(() => {});
+  });
+
+  afterEach(() => {
+    process.argv = [...originalArgv];
+    vi.restoreAllMocks();
   });
 
   it("project init: creates physical directory structure", async () => {
@@ -30,10 +36,16 @@ describe("mangou-cli commands", () => {
   });
 
   it("project stitch: triggers ffmpeg concatenation logic", async () => {
-    // We mock the stitch module if needed, but here we test the command dispatch
     process.argv = ["node", "mangou", "project", "stitch", "--id", projectName];
-    // Since stitch requires FFmpeg and physical files, we check for no crash on invalid ID
-    await expect(main()).rejects.toThrow(); // Should fail because project doesn't exist
+    const exitError = new Error("process.exit");
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(((code?: string | number | null) => {
+        throw Object.assign(exitError, { code });
+      }) as typeof process.exit);
+
+    await expect(main()).rejects.toMatchObject({ message: "process.exit", code: 1 });
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   it("storyboard split: splits a grid image and creates child YAMLs", async () => {

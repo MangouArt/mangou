@@ -60,7 +60,7 @@ function broadcast(event: string, payload: any, projectId: string) {
 /**
  * Data Adapter: YAML -> UI Schema
  */
-async function getProjectUIData(projectRoot: string, projectId: string) {
+export async function getProjectUIData(projectRoot: string, projectId: string) {
   const assets: Asset[] = [];
   const storyboards: Storyboard[] = [];
 
@@ -122,6 +122,13 @@ async function getProjectUIData(projectRoot: string, projectId: string) {
   return { assets, storyboards };
 }
 
+export function createProjectManager(dataRoot: string) {
+  return new ProjectManager({
+    workspaceRoot: path.dirname(dataRoot),
+    projectsRoot: dataRoot,
+  });
+}
+
 function sendJson(res: http.ServerResponse, status: number, data: unknown) {
   const body = JSON.stringify(data);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -130,6 +137,7 @@ function sendJson(res: http.ServerResponse, status: number, data: unknown) {
 
 export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOptions): Promise<http.Server> {
   return new Promise((resolve, reject) => {
+    const projectManager = createProjectManager(dataRoot);
     const server = http.createServer(async (req, res) => {
       if (!req.url) return res.end();
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -166,12 +174,31 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
           const data = await getProjectUIData(projectRoot, projectId);
           return sendJson(res, 200, { success: true, ...data });
         }
+        if (projectId) {
+          const project = await projectManager.getProject(projectId);
+          if (!project) {
+            return sendJson(res, 404, { success: false, error: 'Project not found' });
+          }
+          const projectRoot = path.join(dataRoot, projectId);
+          const data = await getProjectUIData(projectRoot, projectId);
+          return sendJson(res, 200, { success: true, project, ...data, keyframes: [], videos: [] });
+        }
       }
 
       // API: Projects List
       if (pathname === '/api/projects') {
-        const projects = await ProjectManager.listProjects();
+        const projects = await projectManager.listProjects();
         return sendJson(res, 200, { success: true, projects });
+      }
+
+      if (pathname === '/api/meta') {
+        return sendJson(res, 200, {
+          success: true,
+          data: {
+            appRoot,
+            dataRoot,
+          },
+        });
       }
 
       // Static SPA
@@ -187,8 +214,8 @@ export function startHttpServer({ appRoot, dataRoot, port = 3000 }: ServerOption
       reject(err);
     });
 
-    server.listen(port, () => {
-      log(`Readonly mirror server running at http://localhost:${port}`);
+    server.listen(port, '127.0.0.1', () => {
+      log(`Readonly mirror server running at http://127.0.0.1:${port}`);
       startWatcher(dataRoot);
       resolve(server);
     });

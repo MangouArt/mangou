@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Asset, Storyboard } from '@core/schema';
+import type { Asset as CoreAsset, Storyboard as CoreStoryboard } from '@core/schema';
+import type { Asset, Storyboard } from '@web/stores/director-agent-store';
 
 interface UseVFSOptions {
   projectId: string;
+  autoSync?: boolean;
 }
 
 interface UseVFSReturn {
@@ -11,6 +13,40 @@ interface UseVFSReturn {
   assets: Asset[];
   storyboards: Storyboard[];
   reload: () => Promise<void>;
+  exportData: () => {
+    assets: Asset[];
+    storyboards: Storyboard[];
+  };
+}
+
+function normalizeAsset(asset: CoreAsset): Asset {
+  return {
+    id: asset.id,
+    type: asset.type,
+    name: asset.name,
+    description: asset.description,
+    imageUrl: asset.image_url,
+    image_url: asset.image_url,
+    status: asset.status,
+  };
+}
+
+function normalizeStoryboard(storyboard: CoreStoryboard): Storyboard {
+  return {
+    id: storyboard.id,
+    sequenceNumber: storyboard.sequence_number,
+    title: storyboard.title,
+    description: storyboard.description,
+    prompt: storyboard.prompt,
+    imageUrl: storyboard.image_url,
+    image_url: storyboard.image_url,
+    videoUrl: storyboard.video_url,
+    status: storyboard.status,
+    refAssetIds: storyboard.asset_ids,
+    grid: storyboard.grid || undefined,
+    parentId: storyboard.parentId || undefined,
+    tasks: storyboard.tasks,
+  };
 }
 
 export function useVFS({ projectId }: UseVFSOptions): UseVFSReturn {
@@ -29,13 +65,14 @@ export function useVFS({ projectId }: UseVFSOptions): UseVFSReturn {
       const res = await fetch(`/api/projects/${projectId}/snapshot`);
       const data = await res.json();
       if (data.success) {
-        setAssets(data.assets || []);
-        setStoryboards(data.storyboards || []);
+        setAssets((data.assets || []).map(normalizeAsset));
+        setStoryboards((data.storyboards || []).map(normalizeStoryboard));
+        setError(null);
       } else {
         setError(data.error || 'Failed to load project snapshot');
       }
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsLoading(false);
     }
@@ -69,6 +106,7 @@ export function useVFS({ projectId }: UseVFSOptions): UseVFSReturn {
     error,
     assets,
     storyboards,
-    reload: loadSnapshot
+    reload: loadSnapshot,
+    exportData: () => ({ assets, storyboards }),
   };
 }

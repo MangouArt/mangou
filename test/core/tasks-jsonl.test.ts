@@ -54,6 +54,10 @@ describe('scripts/tasks', () => {
     expect(tasks.length).toBe(2);
     
     const t1 = tasks.find(t => t.id === 'task-1');
+    expect(t1).toBeDefined();
+    if (!t1) {
+      throw new Error('Expected task-1 to exist in latest tasks.');
+    }
     expect(t1.status).toBe('success');
     expect(t1.output).toBe('cat.png');
     

@@ -1,6 +1,24 @@
 #!/usr/bin/env bun
 import { AIGC_PROVIDER_TEMPLATE } from '@logic/aigc-provider-template';
 
+type BLTAIImagePayload = {
+  prompt: string;
+  model: string;
+  response_format: string;
+  aspect_ratio?: string;
+  image_size?: string;
+  image?: string[];
+};
+
+type BLTAIVideoPayload = {
+  model: string;
+  prompt: string;
+  images: string[];
+  duration: number;
+  ratio?: string;
+  resolution?: string;
+};
+
 function joinUrl(base: any, ...parts: any[]) {
   const normalizedBase = String(base || '').replace(/\/+$/, '');
   const normalizedPath = parts
@@ -18,14 +36,15 @@ function normalizeBaseUrl(baseUrl: any) {
 }
 
 async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
-  let lastError;
+  let lastError: unknown;
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await fetch(url, options);
       return response;
-    } catch (err) {
+    } catch (err: unknown) {
       lastError = err;
-      console.error(`[bltai] fetch failed (attempt ${i + 1}/${maxRetries}): ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[bltai] fetch failed (attempt ${i + 1}/${maxRetries}): ${message}`);
       if (i < maxRetries - 1) {
         await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
       }
@@ -63,7 +82,7 @@ export const BLTAI_PROVIDER = {
     }
 
     if (scope === 'images') {
-      const payload = {
+      const payload: BLTAIImagePayload = {
         prompt,
         model,
         response_format: 'url',
@@ -87,7 +106,7 @@ export const BLTAI_PROVIDER = {
         ? params.images.filter(Boolean)
         : (params.images ? [params.images] : []);
       
-      const payload = {
+      const payload: BLTAIVideoPayload = {
         model,
         prompt,
         images,
@@ -115,7 +134,7 @@ export const BLTAI_PROVIDER = {
 
     const loggedPayload = {
       ...payload,
-      images: payload.images?.map(img => typeof img === 'string' && img.startsWith('data:') ? img.substring(0, 100) + '...' : img),
+      images: payload.images?.map((img: any) => typeof img === 'string' && img.startsWith('data:') ? img.substring(0, 100) + '...' : img),
       image_url: payload.image_url ? (payload.image_url.startsWith('data:') ? payload.image_url.substring(0, 100) + '...' : payload.image_url) : undefined
     };
     console.error(`[bltai] Submit payload for ${scope}:`, JSON.stringify(loggedPayload, null, 2));
@@ -208,7 +227,7 @@ export const BLTAI_PROVIDER = {
         records = records.data;
       }
       if (!Array.isArray(records)) records = [];
-      return records.map((item) => item.url).filter(Boolean);
+      return records.map((item: any) => item.url).filter(Boolean);
     }
 
     const data = result?.data || result;

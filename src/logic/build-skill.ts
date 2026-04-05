@@ -7,40 +7,11 @@ import { promisify } from 'util';
 import { build } from 'esbuild';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..');
+const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 const DEFAULT_SKILL_NAME = 'mangou';
 const execFileAsync = promisify(execFile);
-const RUNTIME_SCRIPT_FILES = [
-  'aigc-provider-template',
-  'aigc-provider-bltai',
-  'aigc-provider-kie',
-  'aigc-provider-registry',
-  'aigc-runner',
-  'agent-generate',
-  'agent-stitch',
-  'bltai-lib',
-  'http-server',
-  'http-server.ts',
-  'mangou',
-  'project-scaffold',
-  'register-alias.ts',
-  'split-grid',
-  'tasks-jsonl',
-  'web-control',
-];
-const RAW_SCRIPT_FILES = new Set([
-  'aigc-provider-template',
-  'aigc-provider-bltai',
-  'aigc-provider-kie',
-  'mangou',
-]);
 
-async function writeExecutableScript(targetPath, content) {
-  const normalized = String(content).replace(/^(#![^\n]*\n)+/, '');
-  await fs.writeFile(targetPath, `#!/usr/bin/env bun\n${normalized}`);
-}
-
-async function pathExists(targetPath) {
+async function pathExists(targetPath: string) {
   try {
     await fs.access(targetPath);
     return true;
@@ -49,16 +20,16 @@ async function pathExists(targetPath) {
   }
 }
 
-async function ensureDir(targetPath) {
+async function ensureDir(targetPath: string) {
   await fs.mkdir(targetPath, { recursive: true });
 }
 
-async function emptyDir(targetPath) {
+async function emptyDir(targetPath: string) {
   await fs.rm(targetPath, { recursive: true, force: true });
   await ensureDir(targetPath);
 }
 
-async function copyDir(src, dest, options = {}) {
+async function copyDir(src: string, dest: string, options: any = {}) {
   const skipNames = new Set(options.skipNames || []);
   await ensureDir(dest);
   const entries = await fs.readdir(src, { withFileTypes: true });
@@ -76,19 +47,28 @@ async function copyDir(src, dest, options = {}) {
   }
 }
 
-async function createZipArchive(bundleRoot, archivePath) {
+async function createZipArchive(bundleRoot: string, archivePath: string) {
   await fs.rm(archivePath, { force: true });
   await execFileAsync('zip', ['-qr', archivePath, '.'], { cwd: bundleRoot });
 }
 
-export async function buildSkillBundle({
-  packageRoot = DEFAULT_PACKAGE_ROOT,
-  skillName = DEFAULT_SKILL_NAME,
-  outputRoot,
-  distSource,
-} = {}) {
+export interface BuildOptions {
+  packageRoot?: string;
+  skillName?: string;
+  outputRoot?: string;
+  distSource?: string;
+}
+
+export async function buildSkillBundle(options: BuildOptions = {}) {
+  const {
+    packageRoot = DEFAULT_PACKAGE_ROOT,
+    skillName = DEFAULT_SKILL_NAME,
+    outputRoot,
+    distSource,
+  } = options;
+
   const resolvedPackageRoot = path.resolve(packageRoot);
-  const skillSourceRoot = path.join(resolvedPackageRoot, 'skill-src', skillName);
+  const skillMetadataRoot = path.join(resolvedPackageRoot, 'skill-src', skillName);
   const workspaceTemplateRoot = path.join(resolvedPackageRoot, 'workspace_template');
   const resolvedOutputRoot = outputRoot
     ? path.resolve(outputRoot)
@@ -98,24 +78,53 @@ export async function buildSkillBundle({
     ? path.resolve(distSource)
     : path.join(resolvedPackageRoot, 'dist');
 
-  if (!(await pathExists(skillSourceRoot))) {
-    throw new Error(`Missing skill source: ${skillSourceRoot}`);
+  console.log(`[build-skill] Building bundle for "${skillName}"...`);
+  console.log(`[build-skill] Package Root: ${resolvedPackageRoot}`);
+
+  if (!(await pathExists(skillMetadataRoot))) {
+    throw new Error(`Missing skill metadata: ${skillMetadataRoot}`);
   }
   if (!(await pathExists(workspaceTemplateRoot))) {
     throw new Error(`Missing workspace template: ${workspaceTemplateRoot}`);
   }
   if (!(await pathExists(resolvedDistSource))) {
-    throw new Error(`Missing frontend build: ${resolvedDistSource}. Run npm run build first.`);
+    console.warn(`[build-skill] Warning: Missing frontend build at ${resolvedDistSource}. Creating empty dist.`);
   }
 
+  // 1. Prepare output
   await emptyDir(resolvedOutputRoot);
-  await copyDir(skillSourceRoot, resolvedOutputRoot);
+
+  // 2. Copy source code (excluding web if it exists)
+  const srcSource = path.join(resolvedPackageRoot, 'src');
+  const srcDest = path.join(resolvedOutputRoot, 'src');
+  await copyDir(srcSource, srcDest, { skipNames: ['web'] });
+
+  // 3. Copy metadata (SKILL.md, knowledge/)
+  await copyDir(skillMetadataRoot, resolvedOutputRoot);
+
+  // 4. Copy workspace template
   await copyDir(workspaceTemplateRoot, path.join(resolvedOutputRoot, 'workspace_template'), {
     skipNames: ['.agents'],
   });
-  await copyDir(resolvedDistSource, path.join(resolvedOutputRoot, 'dist'));
-  // Skip bundling legacy scripts for Bun-based lightweight distribution
 
+  // 5. Copy frontend build
+  if (await pathExists(resolvedDistSource)) {
+    await copyDir(resolvedDistSource, path.join(resolvedOutputRoot, 'dist'));
+  } else {
+    await ensureDir(path.join(resolvedOutputRoot, 'dist'));
+  }
+
+  // 6. Copy core configs
+  const coreFiles = ['package.json', 'tsconfig.json', 'README.md', 'README.zh-CN.md'];
+  for (const file of coreFiles) {
+    const filePath = path.join(resolvedPackageRoot, file);
+    if (await pathExists(filePath)) {
+      await fs.copyFile(filePath, path.join(resolvedOutputRoot, file));
+    }
+  }
+
+  // 7. Create ZIP
+  console.log(`[build-skill] Archiving to ${resolvedArchivePath}...`);
   await createZipArchive(resolvedOutputRoot, resolvedArchivePath);
 
   return {
@@ -124,8 +133,8 @@ export async function buildSkillBundle({
   };
 }
 
-function parseArgs(argv) {
-  const args = {};
+function parseArgs(argv: string[]) {
+  const args: any = {};
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
     if (!token.startsWith('--')) continue;

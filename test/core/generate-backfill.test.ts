@@ -15,10 +15,10 @@ describe("AIGC Generate & Backfill", () => {
     await fs.writeFile(path.join(projectRoot, "project.json"), JSON.stringify({ id: "test-backfill" }));
     
     // Mock global fetch for downloadFile
-    global.fetch = vi.fn().mockResolvedValue({
+    global.fetch = Object.assign(vi.fn().mockResolvedValue({
       ok: true,
       arrayBuffer: () => Promise.resolve(Buffer.from("fake-image-content")),
-    } as any);
+    }), { preconnect: vi.fn() }) as typeof fetch;
   });
 
   it("runAIGC: reads params from YAML, calls provider, and backfills result to YAML", async () => {
