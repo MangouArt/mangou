@@ -35,6 +35,12 @@ function normalizeBaseUrl(baseUrl: any) {
   return normalized;
 }
 
+function ensureNoDeprecatedImageAliases(params: any) {
+  if (params.images !== undefined) {
+    throw new Error(`[bltai] YAML 参数必须与接口文档一致。图像生成请使用 'image: []'，不要使用 'images'.`);
+  }
+}
+
 async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
   let lastError: unknown;
   for (let i = 0; i < maxRetries; i++) {
@@ -82,6 +88,7 @@ export const BLTAI_PROVIDER = {
     }
 
     if (scope === 'images') {
+      ensureNoDeprecatedImageAliases(params);
       const payload: BLTAIImagePayload = {
         prompt,
         model,
@@ -93,10 +100,10 @@ export const BLTAI_PROVIDER = {
       if (params.image_size) {
         payload.image_size = params.image_size;
       }
-      if (Array.isArray(params.images) && params.images.length > 0) {
-        payload.image = params.images;
-      } else if (params.image) {
-        payload.image = [params.image];
+      if (Array.isArray(params.image) && params.image.length > 0) {
+        payload.image = params.image;
+      } else if (params.image !== undefined) {
+        throw new Error(`[bltai] 'image' 必须是数组，格式请参考 docs/vendor-api/bltai-gemini-3.1-flash-image-preview.md`);
       }
       return payload;
     }

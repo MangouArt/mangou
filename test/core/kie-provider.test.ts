@@ -14,7 +14,9 @@ describe('KIE AI Provider', () => {
     const params = {
       model: 'bytedance/seedance-2-fast',
       prompt: 'A cinematic video of a cat',
-      images: ['https://example.com/first.png'],
+      reference_image_urls: ['https://example.com/reference.png'],
+      first_frame_url: 'https://example.com/first.png',
+      last_frame_url: 'https://example.com/last.png',
       duration: 10,
       aspect_ratio: '16:9',
       web_search: false
@@ -25,7 +27,9 @@ describe('KIE AI Provider', () => {
       model: 'bytedance/seedance-2-fast',
       input: {
         prompt: 'A cinematic video of a cat',
-        reference_image_urls: ['https://example.com/first.png'],
+        first_frame_url: 'https://example.com/first.png',
+        last_frame_url: 'https://example.com/last.png',
+        reference_image_urls: ['https://example.com/reference.png'],
         reference_video_urls: [],
         reference_audio_urls: [],
         return_last_frame: false,
@@ -42,7 +46,7 @@ describe('KIE AI Provider', () => {
     const params = {
       model: 'bytedance/v1-pro-fast-image-to-video',
       prompt: 'A cinematic coffee pour',
-      images: ['https://example.com/image.png']
+      image_url: 'https://example.com/image.png'
     };
     const payload = KIE_PROVIDER.buildPayload('videos', params);
 
@@ -62,7 +66,7 @@ describe('KIE AI Provider', () => {
     const params = {
       model: 'nano-banana-2',
       prompt: 'A Hindi text translation',
-      images: ['https://example.com/ref.png'],
+      image_input: ['https://example.com/ref.png'],
       aspect_ratio: '16:9'
     };
     const payload = KIE_PROVIDER.buildPayload('images', params);
@@ -83,8 +87,8 @@ describe('KIE AI Provider', () => {
     const params = {
       model: 'google/nano-banana-edit',
       prompt: 'Change to character figure',
-      images: ['https://example.com/source.png'],
-      aspect_ratio: '1:1'
+      image_urls: ['https://example.com/source.png'],
+      image_size: '1:1'
     };
     const payload = KIE_PROVIDER.buildPayload('images', params);
 
@@ -97,6 +101,41 @@ describe('KIE AI Provider', () => {
         image_size: '1:1'
       }
     });
+  });
+
+  it('buildPayload should correctly format google/nano-banana request', () => {
+    const params = {
+      model: 'google/nano-banana',
+      prompt: 'A surreal banana ship',
+      image_size: '16:9',
+      output_format: 'jpeg'
+    };
+    const payload = KIE_PROVIDER.buildPayload('images', params);
+
+    expect(payload).toEqual({
+      model: 'google/nano-banana',
+      input: {
+        prompt: 'A surreal banana ship',
+        output_format: 'jpeg',
+        image_size: '16:9'
+      }
+    });
+  });
+
+  it('buildPayload should reject deprecated images alias for KIE image models', () => {
+    expect(() => KIE_PROVIDER.buildPayload('images', {
+      model: 'nano-banana-2',
+      prompt: 'test',
+      images: ['https://example.com/ref.png']
+    })).toThrow(/请使用 'image \/ image_input \/ image_urls'/);
+  });
+
+  it('buildPayload should reject deprecated images alias for KIE video models', () => {
+    expect(() => KIE_PROVIDER.buildPayload('videos', {
+      model: 'bytedance/seedance-2-fast',
+      prompt: 'test',
+      images: ['https://example.com/ref.png']
+    })).toThrow(/请使用 'reference_image_urls \/ first_frame_url \/ last_frame_url'/);
   });
 
   it('submit should return taskId on success', async () => {

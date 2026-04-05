@@ -12,17 +12,19 @@ describe('BLTAI Provider Script', () => {
 
   it('buildPayload should correctly format image request', () => {
     const params = {
-      model: 'nano-banana',
+      model: 'gemini-3.1-flash-image-preview',
       prompt: 'A comic style hero',
-      aspect_ratio: '16:9'
+      aspect_ratio: '16:9',
+      image: ['https://example.com/ref.png']
     };
     const payload = BLTAI_PROVIDER.buildPayload('images', params);
 
     expect(payload).toEqual({
       prompt: 'A comic style hero',
-      model: 'nano-banana',
+      model: 'gemini-3.1-flash-image-preview',
       response_format: 'url',
-      aspect_ratio: '16:9'
+      aspect_ratio: '16:9',
+      image: ['https://example.com/ref.png']
     });
   });
 
@@ -118,6 +120,14 @@ describe('BLTAI Provider Script', () => {
 
     const urls = BLTAI_PROVIDER.extractOutputs('videos', mockResult);
     expect(urls).toEqual(['https://example.com/video.mp4']);
+  });
+
+  it('buildPayload should reject deprecated images alias for image generation', () => {
+    expect(() => BLTAI_PROVIDER.buildPayload('images', {
+      model: 'gemini-3.1-flash-image-preview',
+      prompt: 'test',
+      images: ['https://example.com/ref.png'],
+    })).toThrow(/请使用 'image: \[\]'/);
   });
 
   it('buildPayload should throw informative error if model is missing for images', () => {

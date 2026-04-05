@@ -14,9 +14,24 @@ YAML 文件是系统的唯一“真理源”。它由四个核心模块组成，
 CLI 仅关注 `tasks.[type].params` 模块。
 
 ### A. 路径引用的解析
-- **YAML 引用**：仅限 `storyboard` 引用 `asset_defs/` 下的 YAML（如 `asset_defs/chars/hero.yaml`）。CLI 自动提取该资产的 `tasks.image.latest.output`。
-- **图片引用**：引用 `assets/images/` 下的物理图片。CLI 自动将其处理为 API 所需格式。
+- **YAML 引用**：仅限在图像字段中引用 `asset_defs/` 下的 YAML（如 `asset_defs/chars/hero.yaml`）。CLI 自动提取该资产的 `tasks.image.latest.output`。
+- **图片引用**：引用 `assets/images/` 下的物理图片。CLI 仅在当前字段内将其处理为 API 所需格式。
 - **基准说明**：所有路径必须相对于 **项目根目录 (Project Root)**。
+
+### B. 参数名必须直传，不做跨字段映射
+- YAML 中的字段名必须与供应商 API 文档一致。不要使用 CLI 自造别名。
+- 文档索引见 [docs/vendor-api/README.md](../docs/vendor-api/README.md)。
+- 当前允许 CLI 自动解析本地路径的字段只有：
+  - 数组字段：`image`、`images`、`image_input`、`image_urls`、`reference_image_urls`
+  - 单值字段：`image_url`、`first_frame_url`、`last_frame_url`
+- 自动解析只发生在“同字段内”：
+  - 本地图片路径 -> `data:` URL
+  - `asset_defs/*.yaml` -> 该 YAML 的 `tasks.image.latest.output`
+- CLI 不再做以下隐式重写：
+  - `images` -> `image`
+  - `images` -> `image_input`
+  - `images` -> `image_urls`
+  - `aspect_ratio` -> `image_size`
 
 ## 3. 任务状态规范 (Task Status)
 任务状态必须严格维护在 `tasks.[type].latest` 路径下：
@@ -38,9 +53,85 @@ tasks:
     provider: bltai
     params:
       prompt: "A soldier pulls a battery."
-      images: 
+      model: "gemini-3.1-flash-image-preview"
+      image:
         - asset_defs/chars/rebel-01.yaml      # CLI 自动解析
     latest:
       status: completed
       output: assets/images/s1.png             # 项目根目录相对路径
+```
+
+## 5. AIGC 参数示例
+
+### A. BLTAI `gemini-3.1-flash-image-preview`
+```yaml
+tasks:
+  image:
+    provider: bltai
+    params:
+      model: gemini-3.1-flash-image-preview
+      prompt: "A soldier pulls a battery."
+      response_format: url
+      aspect_ratio: "16:9"
+      image:
+        - asset_defs/chars/rebel-01.yaml
+        - assets/images/reference.png
+```
+
+### B. KIE `google/nano-banana`
+```yaml
+tasks:
+  image:
+    provider: kie
+    params:
+      model: google/nano-banana
+      prompt: "A surreal banana spaceship."
+      image_size: "1:1"
+      output_format: png
+```
+
+### C. KIE `nano-banana-2`
+```yaml
+tasks:
+  image:
+    provider: kie
+    params:
+      model: nano-banana-2
+      prompt: "A cinematic banana spaceship."
+      aspect_ratio: "16:9"
+      resolution: 2K
+      output_format: jpg
+      image_input:
+        - assets/images/reference.png
+```
+
+### D. KIE `google/nano-banana-edit`
+```yaml
+tasks:
+  image:
+    provider: kie
+    params:
+      model: google/nano-banana-edit
+      prompt: "Turn this into a toy figure."
+      image_size: "1:1"
+      output_format: png
+      image_urls:
+        - assets/images/source.png
+```
+
+### E. KIE `bytedance/seedance-2-fast`
+```yaml
+tasks:
+  video:
+    provider: kie
+    params:
+      model: bytedance/seedance-2-fast
+      prompt: "The camera pushes in slowly."
+      aspect_ratio: "16:9"
+      resolution: 480p
+      duration: 10
+      reference_image_urls:
+        - assets/images/reference-1.png
+      first_frame_url: assets/images/first-frame.png
+      last_frame_url: assets/images/last-frame.png
 ```
