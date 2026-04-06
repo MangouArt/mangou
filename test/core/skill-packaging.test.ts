@@ -7,6 +7,8 @@ import { promisify } from 'util';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildSkillBundle } from '../../src/logic/build-skill';
 
+const GENERATED_NOTICE = '<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->';
+
 type BuildSkillBundle = (options?: {
   packageRoot?: string;
   skillName?: string;
@@ -15,6 +17,7 @@ type BuildSkillBundle = (options?: {
   includeDistInSkill?: boolean;
 }) => Promise<{
   skillRoot: string;
+  standardSkillRoot?: string;
   archivePath: string;
   distRoot?: string;
   distArchivePath?: string;
@@ -39,6 +42,26 @@ async function copyDir(src: string, dest: string) {
       await fs.copyFile(srcPath, destPath);
     }
   }
+}
+
+async function listFilesRecursive(root: string, base = root): Promise<string[]> {
+  const results: string[] = [];
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...await listFilesRecursive(fullPath, base));
+      continue;
+    }
+    if (entry.isFile()) {
+      results.push(path.relative(base, fullPath));
+    }
+  }
+  return results.sort();
+}
+
+function stripGeneratedNotice(markdown: string) {
+  return markdown.replace(`${GENERATED_NOTICE}\n`, '');
 }
 
 const execFileAsync = promisify(execFile);
@@ -74,6 +97,19 @@ describe('skill packaging', () => {
     expect(built.skillRoot).toBe(buildOut);
     await fs.access(path.join(buildOut, 'SKILL.md'));
     await expect(fs.access(path.join(buildOut, 'dist', 'index.html'))).rejects.toThrow();
+    expect(path.basename(built.standardSkillRoot as string)).toBe('managing-motion-comics');
+    await fs.access(path.join(built.standardSkillRoot as string, 'SKILL.md'));
+    const sourceRoot = path.join(process.cwd(), 'skill-src', 'mangou');
+    const standardRoot = built.standardSkillRoot as string;
+    const sourceFiles = await listFilesRecursive(sourceRoot);
+    const standardFiles = await listFilesRecursive(standardRoot);
+    expect(standardFiles).toEqual(sourceFiles);
+    for (const relativePath of sourceFiles) {
+      const sourceContent = await fs.readFile(path.join(sourceRoot, relativePath), 'utf-8');
+      const standardContent = await fs.readFile(path.join(standardRoot, relativePath), 'utf-8');
+      expect(standardContent).toContain(GENERATED_NOTICE);
+      expect(stripGeneratedNotice(standardContent)).toBe(sourceContent);
+    }
     expect(built.distArchivePath).toBeTruthy();
     await fs.access(built.distArchivePath as string);
     expect(path.basename(built.archivePath)).toBe('mangou.zip');

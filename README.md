@@ -37,16 +37,31 @@ For commercial partnerships or licensing questions, contact `business@mangou.art
 - `ffmpeg` available in your system `PATH`
 - At least one configured AIGC provider
 
+## Installation Model
+
+Mangou uses three separate install surfaces:
+
+- **Skill:** installed into your agent via `vercel-labs/skills` or `mangou.zip`
+- **Runtime:** installed separately from `mangou-runtime.zip` when you need Bun CLI execution
+- **Dashboard:** shipped as a standalone npm package
+
+This keeps the skill lightweight enough for agent installers while preserving the full local runtime.
+
 ## Quick Start
 
 If you are using an Agent capable of running tools and shell commands, just copy & paste the following prompt to your AI:
 
 ```text
-Download skill package: https://www.mangou.art/downloads/mangou.zip 
-Please install and set up the Mangou AI Comic Director skill for me.
+Install the Mangou skill from MangouArt/mangou using vercel-labs/skills.
+If I need to generate assets or videos, install mangou-runtime.zip too.
 ```
 
-*(The AI will download, extract, and configure everything automatically).*
+Manual fallback:
+
+```text
+https://www.mangou.art/downloads/mangou.zip
+https://www.mangou.art/downloads/mangou-runtime.zip
+```
 
 ## For Developers
 
@@ -81,12 +96,28 @@ Build outputs:
 
 ### 4. Install into your agent skill directory
 
-Mangou does not depend on a single agent vendor. Install `bundled-skills/mangou.zip` as the base skill first, then merge `bundled-skills/mangou-runtime.zip` into the same skill directory when you need the actual runtime.
+Preferred:
 
-If your agent supports zip installation, use `bundled-skills/mangou.zip`.
-After that, extract `bundled-skills/mangou-runtime.zip` into the same installed skill root.
+```bash
+npx skills add MangouArt/mangou --skill managing-motion-comics
+```
 
-### 2. Quick Start (CLI)
+Fallback:
+
+- Install `bundled-skills/mangou.zip` as the base skill
+- Merge `bundled-skills/mangou-runtime.zip` into the same skill root when you need Bun CLI execution
+
+### 5. Install dashboard separately
+
+The local read-only dashboard is not part of the base skill package anymore.
+
+Target install model:
+
+```bash
+npx @mangou/dashboard
+```
+
+### 6. Quick Start (CLI)
 
 All commands are unified at the `src/main.ts` entry point. Usage is identical in both development and skill environments:
 
@@ -167,9 +198,11 @@ Recommended release artifact:
 
 - `bundled-skills/mangou.zip`
 - `bundled-skills/mangou-runtime.zip`
+- `skills/managing-motion-comics/`
 
-Use `mangou.zip` as the canonical base skill package.
-Download `mangou-runtime.zip` separately when you need CLI, workspace templates, and the local dashboard frontend.
+Use `skills/managing-motion-comics/` for `vercel-labs/skills` installation.
+Use `mangou.zip` as the canonical fallback base skill package.
+Download `mangou-runtime.zip` separately when you need Bun CLI and workspace templates.
 
 ## Security
 

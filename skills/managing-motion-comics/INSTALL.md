@@ -1,3 +1,4 @@
+<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->
 # Mangou Installation
 
 ## Install order

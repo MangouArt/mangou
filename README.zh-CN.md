@@ -37,16 +37,31 @@
 - `ffmpeg` 可执行文件在系统 PATH 中
 - 至少一套可用的 AIGC 提供商配置
 
+## 安装模型
+
+Mangou 现在分成三层安装面：
+
+- **Skill**：通过 `vercel-labs/skills` 或 `mangou.zip` 安装到 agent
+- **Runtime**：需要执行 Bun CLI 时，再安装 `mangou-runtime.zip`
+- **Dashboard**：通过独立 npm 包分发
+
+这样 skill 保持轻量，runtime 和前端页面继续独立演进。
+
 ## 快速开始
 
 如果你使用的是支持工具调用、能够执行本地脚本的 Agent，你可以直接将以下指令复制并发送给 AI：
 
 ```text
-下载技能包：https://www.mangou.art/downloads/mangou.zip 
-请帮我安装并配置 Mangou AI 漫剧导演插件。
+请通过 vercel-labs/skills 从 MangouArt/mangou 安装 Mangou skill。
+如果需要生成图片、视频或启动本地服务，再安装 mangou-runtime.zip。
 ```
 
-AI 会自动帮你完成下载、解压和工作区安装。
+手动兜底地址：
+
+```text
+https://www.mangou.art/downloads/mangou.zip
+https://www.mangou.art/downloads/mangou-runtime.zip
+```
 
 ## 开发者指南
 
@@ -83,7 +98,26 @@ npm run build:skill
 
 ### 4. 安装到你的 agent skill 目录
 
-Mangou 不强绑定某个特定 agent。先安装 `bundled-skills/mangou.zip` 作为基础技能包；当你需要实际运行 Mangou 时，再把 `bundled-skills/mangou-runtime.zip` 解压合并到同一个技能目录。
+推荐方式：
+
+```bash
+npx skills add MangouArt/mangou --skill managing-motion-comics
+```
+
+兜底方式：
+
+- 安装 `bundled-skills/mangou.zip` 作为基础 skill
+- 需要执行 Bun CLI 时，再把 `bundled-skills/mangou-runtime.zip` 合并到同一个技能根目录
+
+### 5. 单独安装 dashboard
+
+本地只读 dashboard 不再并入基础 skill 包。
+
+目标安装方式：
+
+```bash
+npx @mangou/dashboard
+```
 
 ### 5. 快速入门 (CLI)
 
@@ -150,14 +184,17 @@ bun run ci
 构建后的技能遵循 "资源-动作" 模式：
 
 - `project init`: 初始化一个新的项目目录。
-- `project## 脚本入口
+- `project stitch`: 合成项目最终影片。
+- `storyboard generate`: 渲染单个分镜 YAML 的图片或视频。
+- `storyboard split`: 对 grid 分镜图执行物理切分。
+- `asset generate`: 渲染资产图片。
+- `server start`: 启动本地只读可视化服务。
 
-核心入口点已统一整合为 `src/main.ts`。通过此入口可以分发并执行所有导演级指令。
+职责拆分保持不变：
 
-- **逻辑层**: 脚本负责初始化、启动服务、调用上游、写入任务状态
+- **逻辑层**: CLI 负责初始化、启动服务、调用上游、写入任务状态
 - **展示层**: Web 负责展示与只读 API
-- **决策层**: Agent 负责组织参数、修改 YAML、调用脚本
- 以及触发 CLI 任务。
+- **决策层**: Agent 负责组织参数、修改 YAML，并触发 CLI 任务
 
 ## 发布物
 
@@ -165,9 +202,11 @@ bun run ci
 
 - `bundled-skills/mangou.zip`
 - `bundled-skills/mangou-runtime.zip`
+- `skills/managing-motion-comics/`
 
-其中 `mangou.zip` 是唯一的基础技能包。
-需要 CLI、工作区模板和本地 Dashboard 时，再额外下载 `mangou-runtime.zip`。
+其中 `skills/managing-motion-comics/` 用于 `vercel-labs/skills` 安装。
+`mangou.zip` 是标准兜底基础技能包。
+需要 Bun CLI 和工作区模板时，再额外下载 `mangou-runtime.zip`。
 
 ## 安全说明
 
