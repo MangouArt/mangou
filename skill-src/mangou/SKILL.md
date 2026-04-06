@@ -1,10 +1,10 @@
 ---
-name: mangou-ai-comic-director
+name: managing-motion-comics
 version: 2.1.0
 author: mangou-ai-studio
 homepage: https://www.mangou.art
 license: FSL-1.1-Apache-2.0
-description: Manages AI motion comic production projects with YAML assets and storyboards. Use when producing AI motion comics with Mangou, including project setup, storyboard or asset editing, image or video generation, grid splitting, final stitching, and task backfill debugging.
+description: Manages AI motion comic production projects with YAML assets and storyboards. Use when users need to initialize Mangou projects, edit storyboard or asset YAML, generate images or videos, split grid shots, stitch final videos, or debug task backfill.
 metadata:
   skill_type: local_runtime
   external_endpoints:
