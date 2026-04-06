@@ -10,7 +10,7 @@
 
 ```text
 <workspace_root>/
-  .claude/skills/mangou-ai-motion-comics/
+  <skill-root>/
   config.json
   projects.json
   projects/
@@ -25,7 +25,7 @@
 
 ## 目录职责
 
-- `.claude/skills/mangou-ai-motion-comics/`: skill 入口本体
+- `<skill-root>/`: Mangou skill 根目录。不同 agent 会把它安装到不同位置，不要写死 `.claude`、`.agents` 或其他平台专属路径。
 - `config.json`: 全局 provider 配置
 - `projects/<project_id>/storyboards/`: 分镜 YAML
 - `projects/<project_id>/asset_defs/`: 资产 YAML
@@ -39,3 +39,4 @@
 2. 不要跨项目引用别的 `assets/`。
 3. 不要手动删除 `tasks.jsonl`。
 4. skill 根目录与项目工作区是两个不同层级，不要把 `projects/` 放进 skill 根目录。
+5. 先通过当前 agent 的技能机制定位实际 `<skill-root>`，再执行 runtime 合并或 Bun 命令。

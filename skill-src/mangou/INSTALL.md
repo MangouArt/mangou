@@ -31,6 +31,7 @@ https://www.mangou.art/downloads/mangou.zip
 ## 2. Install Bun runtime
 
 - runtime 包：`https://www.mangou.art/downloads/mangou-runtime.zip`
+- 自动安装脚本：`node bootstrap-runtime.mjs`
 
 ## When runtime is required
 
@@ -45,9 +46,11 @@ https://www.mangou.art/downloads/mangou.zip
 ## Runtime install steps
 
 1. 先确保 skill 已安装
-2. 下载 `mangou-runtime.zip`
-3. 把 `mangou-runtime.zip` 解压后的内容合并到技能根目录，与 `SKILL.md` 同级
-4. 确认技能根目录至少包含这些内容：
+2. 先确认当前技能根目录实际位置，再继续
+3. 优先在技能根目录执行 `node bootstrap-runtime.mjs`
+4. 如果 bootstrap 不可用，再手动下载 `mangou-runtime.zip`
+5. 把 `mangou-runtime.zip` 解压后的内容合并到技能根目录，与 `SKILL.md` 同级
+6. 确认技能根目录至少包含这些内容：
 
 ```text
 <skill-root>/
@@ -58,6 +61,14 @@ https://www.mangou.art/downloads/mangou.zip
   src/
   workspace_template/
 ```
+
+如果仍然没有 `src/main.ts`，说明 runtime 还没合并成功，不要继续执行 Bun 命令。
+
+## Bootstrap notes
+
+- `bootstrap-runtime.mjs` 会下载 `mangou-runtime.zip` 并自动合并到当前技能根目录。
+- 该脚本依赖 `node`，并且解压阶段需要 `python3` 或 `unzip`。
+- 如果下载地址需要切换，可设置环境变量 `MANGOU_RUNTIME_URL`。
 
 ## 3. Install dashboard
 
