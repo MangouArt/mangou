@@ -29,16 +29,16 @@
 
 ```text
 mangou/
-├── src/                    # 源码
-│   ├── cli/                # 统一 CLI 工具源码 (TypeScript)
-│   │   ├── commands/       # CLI 子命令实现
-│   │   ├── logic/          # 核心业务逻辑 (AIGC, Build, Workflows)
-│   │   └── main.ts         # CLI 入口
+├── src/                    # CLI 与 runtime 源码
+│   ├── commands/           # CLI 子命令实现
+│   ├── logic/              # 核心业务逻辑 (AIGC, Build, Workflows)
+│   ├── server/             # 本地只读服务
 │   └── web/                # 可视化 Dashboard 源码 (React)
-├── skill-src/              # Skill 定义 (VFS/Tool 配置)
+├── skill-src/              # Skill 定义唯一编辑源
+├── packages/dashboard/     # dashboard npm 包源码
 ├── spec/                   # 核心数据协议规范 (YAML/JSON)
 ├── workspace_template/     # 新项目初始化模板
-└── bundled-skills/         # 构建产物 (供 Agent 安装)
+└── bundled-skills/         # 构建产物 (不作为编辑源)
 ```
 
 ---
@@ -132,6 +132,7 @@ bun run mangou server start --port 3000
 - 确保 `src/cli` 下的 entrypoints 具有良好的错误处理，并返回标准化的 JSON 结果。
 - 维护 `spec/` 的同步更新。
 - 保持 `bundled-skills/` 的构建脚本稳定，这是分发的关键。
+- 不要在主仓库里维护 `skills/` 或 `skill-repos/` 的副本；轻量 skill 仓库单独维护在 `MangouArt/mangou-ai-motion-comics`。
 
 如果你是负责 **项目制作 (Storyboard Agent)** 的 Agent：
 - 遵守 YAML 嵌套规范，不要随意移动文件。

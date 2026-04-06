@@ -11,8 +11,12 @@ dev.log
 .mcp.json
 dist
 bundled-skills
+skills
+skill-repos
+bin
 .npm-cache
 *.tgz
+mangou-full.zip
 .DS_Store
 tsconfig.tsbuildinfo
 workspace/
@@ -53,4 +57,5 @@ projects/
 coverage-output.txt
 *.txt
 projects.json
+tasks.jsonl
 src/cli/assets/

@@ -31,13 +31,10 @@
   },
   "files": [
     "bundled-skills",
-    "skills",
     "skill-src",
     "src",
-    "public",
     "dist",
     "workspace_template",
-    "styles",
     "tsconfig.json",
     "index.html",
     "README.md",
@@ -66,7 +63,6 @@
     "workspace:reset:test": "bun src/logic/reset-test-workspace.ts",
     "test": "vitest run",
     "test:skill": "vitest run test/core/skill-packaging.test.ts",
-    "test:skill:zip": "bun src/logic/pack-full.ts",
     "test:skill:aigc:heavy": "bun src/logic/test-aigc-heavy.ts",
     "prepare": "husky install"
   },

@@ -107,7 +107,7 @@ npx skills add MangouArt/mangou-ai-motion-comics -a claude-code -y
 如果你在本地开发 `mangou` 主仓库，也可以改用：
 
 ```bash
-npx skills add ./skills/mangou-ai-motion-comics --agent claude-code
+npx skills add ./skill-src/mangou --agent claude-code
 ```
 
 兜底方式：
@@ -208,11 +208,10 @@ bun run ci
 
 - `bundled-skills/mangou.zip`
 - `bundled-skills/mangou-runtime.zip`
-- `skills/mangou-ai-motion-comics/`
-- `skill-repos/mangou-ai-motion-comics/`
+- `MangouArt/mangou-ai-motion-comics`
 
-其中 `skill-repos/mangou-ai-motion-comics/` 用于独立轻量 skill 仓库发布。
-`skills/mangou-ai-motion-comics/` 只作为主仓库内生成出的本地安装目录。
+其中 `MangouArt/mangou-ai-motion-comics` 是独立轻量 skill 仓库。
+在主仓库中，本地 `npx skills add` 测试直接使用 `skill-src/mangou/` 即可。
 不要把 `skills add` 指向仓库根目录，否则安装器可能把整个仓库复制进 agent 的技能目录。
 `mangou.zip` 是标准兜底基础技能包。
 需要 Bun CLI 和工作区模板时，再额外下载 `mangou-runtime.zip`。

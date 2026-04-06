@@ -105,7 +105,7 @@ npx skills add MangouArt/mangou-ai-motion-comics -a claude-code -y
 Local development fallback:
 
 ```bash
-npx skills add ./skills/mangou-ai-motion-comics --agent claude-code
+npx skills add ./skill-src/mangou --agent claude-code
 ```
 
 Fallback:
@@ -204,11 +204,10 @@ Recommended release artifact:
 
 - `bundled-skills/mangou.zip`
 - `bundled-skills/mangou-runtime.zip`
-- `skills/mangou-ai-motion-comics/`
-- `skill-repos/mangou-ai-motion-comics/`
+- `MangouArt/mangou-ai-motion-comics`
 
-Use `skill-repos/mangou-ai-motion-comics/` as the standalone lightweight repo root for the short GitHub install path.
-Use `skills/mangou-ai-motion-comics/` only as the generated local install directory inside the main `mangou` repository.
+Use `MangouArt/mangou-ai-motion-comics` as the standalone lightweight repo for the short GitHub install path.
+In the main `mangou` repository, use `skill-src/mangou/` directly for local `npx skills add` testing.
 Do not point `skills add` at the repository root, or the installer may copy the entire repo into the agent skill directory.
 Use `mangou.zip` as the canonical fallback base skill package.
 Download `mangou-runtime.zip` separately when you need Bun CLI and workspace templates.
