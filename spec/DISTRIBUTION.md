@@ -67,7 +67,8 @@ Mangou 的编辑源只允许来自以下三类目录：
 目标：让 Mangou 被标准 skills 安装器直接安装。
 
 必须满足：
-- 仓库中存在标准 skill 目录，推荐为 `skills/managing-motion-comics/`
+- 仓库中存在标准 skill 目录，推荐为 `skills/mangou-ai-motion-comics/`
+- 同时存在独立轻量 skill 仓库目录，推荐为 `skill-repos/mangou-ai-motion-comics/`
 - 该目录安装后即可被 Agent 识别
 - skill 内的说明必须清楚区分：
   - 这是技能入口
@@ -116,9 +117,7 @@ Mangou 的编辑源只允许来自以下三类目录：
 优先路径：
 
 ```bash
-git clone https://github.com/MangouArt/mangou.git
-cd mangou
-npx skills add ./skills/managing-motion-comics --agent claude-code
+npx skills add MangouArt/mangou-ai-motion-comics -a claude-code -y
 ```
 
 结果：
@@ -126,8 +125,15 @@ npx skills add ./skills/managing-motion-comics --agent claude-code
 - Agent 可以读取 `SKILL.md`、`INSTALL.md`、`COMMANDS.md`
 - 若用户只需要技能说明，不需要额外 runtime
 
+开发态本地安装：
+
+```bash
+npx skills add ./skills/mangou-ai-motion-comics --agent claude-code
+```
+
 约束：
-- 不要把 `skills add` 指向仓库根目录；当前安装器会把整个仓库复制进 agent skill 目录。
+- 不要把 `skills add` 指向主 `mangou` 仓库根目录；当前安装器会把整个仓库复制进 agent skill 目录。
+- GitHub 分发优先使用轻量仓库 `MangouArt/mangou-ai-motion-comics`。
 
 ### 4.2 完整本地运行
 
@@ -169,7 +175,8 @@ npm install -g @mangou/dashboard
 ```text
 mangou/
 ├── skill-src/mangou/              # SSOT: 技能入口
-├── skills/managing-motion-comics/ # 给 vercel-labs/skills 使用的标准 skill 目录
+├── skills/mangou-ai-motion-comics/ # 给 vercel-labs/skills 使用的标准 skill 目录
+├── skill-repos/mangou-ai-motion-comics/ # 独立轻量 skill 仓库根目录
 ├── src/                           # Bun runtime
 ├── dist/                          # dashboard 构建产物
 ├── bundled-skills/
@@ -203,11 +210,12 @@ mangou/
 
 ## 7. 实施顺序
 
-1. 建立 `skills/managing-motion-comics/` 标准目录，并与 `skill-src/mangou/` 保持同步。
-2. 调整 `SKILL.md` / `INSTALL.md`，把安装说明改成：
+1. 建立 `skills/mangou-ai-motion-comics/` 标准目录，并与 `skill-src/mangou/` 保持同步。
+2. 生成 `skill-repos/mangou-ai-motion-comics/`，作为单独发布的轻量 skill 仓库。
+3. 调整 `SKILL.md` / `INSTALL.md`，把安装说明改成：
    - 先装 skill
    - 需要生成时再装 runtime
    - 需要可视化时再装 dashboard npm 包
-3. 新建 `@mangou/dashboard` 包，提供独立启动命令。
-4. 保持 `mangou-runtime.zip` 继续承载 Bun runtime。
-5. 文档与站点统一改成这套口径。
+4. 新建 `@mangou/dashboard` 包，提供独立启动命令。
+5. 保持 `mangou-runtime.zip` 继续承载 Bun runtime。
+6. 文档与站点统一改成这套口径。

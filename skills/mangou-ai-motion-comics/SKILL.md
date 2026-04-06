@@ -1,9 +1,9 @@
 ---
-name: mangou-ai-motion-comic
+name: mangou-ai-motion-comics
 version: 2.1.0
 author: mangou-ai-studio
 homepage: https://www.mangou.art
-license: MIT-0
+license: FSL-1.1-Apache-2.0
 description: Manages AI motion comic production projects with YAML assets and storyboards. Use when users need to initialize Mangou projects, edit storyboard or asset YAML, generate images or videos, split grid shots, stitch final videos, or debug task backfill.
 metadata:
   skill_type: local_runtime
@@ -18,9 +18,7 @@ disable-model-invocation: true
 ---
 <!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->
 
-# Mangou AI 漫剧导演 / Motion Comic Director
-
-> ClawHub edition. This published skill contains MIT-0 instruction files only. Bun runtime, dashboard, and downloadable bundles remain separate project artifacts.
+# Mangou
 
 Mangou 用 YAML 管理资产和分镜，用 CLI 执行生成与回填，适合把 AI 漫剧流程收敛成可审计、可批量执行的项目目录。
 

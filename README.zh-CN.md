@@ -52,7 +52,7 @@ Mangou 现在分成三层安装面：
 如果你使用的是支持工具调用、能够执行本地脚本的 Agent，你可以直接将以下指令复制并发送给 AI：
 
 ```text
-请先 clone MangouArt/mangou，再通过 vercel-labs/skills 从 ./skills/managing-motion-comics 安装 Mangou skill。
+请直接通过轻量 skill 仓库安装 Mangou。
 如果需要生成图片、视频或启动本地服务，再安装 mangou-runtime.zip。
 ```
 
@@ -101,9 +101,13 @@ npm run build:skill
 推荐方式：
 
 ```bash
-git clone https://github.com/MangouArt/mangou.git
-cd mangou
-npx skills add ./skills/managing-motion-comics --agent claude-code
+npx skills add MangouArt/mangou-ai-motion-comics -a claude-code -y
+```
+
+如果你在本地开发 `mangou` 主仓库，也可以改用：
+
+```bash
+npx skills add ./skills/mangou-ai-motion-comics --agent claude-code
 ```
 
 兜底方式：
@@ -204,9 +208,11 @@ bun run ci
 
 - `bundled-skills/mangou.zip`
 - `bundled-skills/mangou-runtime.zip`
-- `skills/managing-motion-comics/`
+- `skills/mangou-ai-motion-comics/`
+- `skill-repos/mangou-ai-motion-comics/`
 
-其中 `skills/managing-motion-comics/` 用于 `vercel-labs/skills` 安装。
+其中 `skill-repos/mangou-ai-motion-comics/` 用于独立轻量 skill 仓库发布。
+`skills/mangou-ai-motion-comics/` 只作为主仓库内生成出的本地安装目录。
 不要把 `skills add` 指向仓库根目录，否则安装器可能把整个仓库复制进 agent 的技能目录。
 `mangou.zip` 是标准兜底基础技能包。
 需要 Bun CLI 和工作区模板时，再额外下载 `mangou-runtime.zip`。

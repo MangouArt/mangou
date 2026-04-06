@@ -9,9 +9,9 @@ import { build } from 'esbuild';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 const DEFAULT_SKILL_NAME = 'mangou';
-const DEFAULT_STANDARD_SKILL_DIR = 'managing-motion-comics';
-const DEFAULT_CLAWHUB_SKILL_DIR = 'mangou-ai-motion-comic';
-const LEGACY_CLAWHUB_SKILL_DIR = 'managing-motion-comics';
+const DEFAULT_STANDARD_SKILL_DIR = 'mangou-ai-motion-comics';
+const DEFAULT_LIGHTWEIGHT_REPO_DIR = 'mangou-ai-motion-comics';
+const LEGACY_STANDARD_SKILL_DIR = 'managing-motion-comics';
 const execFileAsync = promisify(execFile);
 const GENERATED_NOTICE = '<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->';
 
@@ -85,33 +85,6 @@ function replaceFrontmatterValue(markdown: string, key: string, value: string) {
   return markdown.replace(pattern, `$1${value}`);
 }
 
-function buildClawHubSkillMarkdown(relativePath: string, markdown: string) {
-  let next = markdown;
-
-  if (relativePath === 'SKILL.md') {
-    next = replaceFrontmatterValue(next, 'name', 'mangou-ai-motion-comic');
-    next = replaceFrontmatterValue(next, 'license', 'MIT-0');
-    next = replaceFrontmatterValue(next, 'display-name', 'Mangou AI 漫剧导演 / Motion Comic Director');
-    next = next.replace(
-      '# Mangou\n\n',
-      '# Mangou AI 漫剧导演 / Motion Comic Director\n\n> ClawHub edition. This published skill contains MIT-0 instruction files only. Bun runtime, dashboard, and downloadable bundles remain separate project artifacts.\n\n',
-    );
-  }
-
-  if (relativePath === 'INSTALL.md') {
-    next = next.replace(
-      '## Install order\n\n优先按下面顺序安装：\n\n1. 安装 skill 入口\n2. 需要生成任务时安装 Bun runtime\n3. 需要本地只读页面时安装 dashboard\n',
-      '## Install order\n\n在 ClawHub 安装此 skill 后，按下面顺序继续：\n\n1. 保持当前 skill 入口不变\n2. 需要生成任务时安装 Bun runtime\n3. 需要本地只读页面时安装 dashboard\n',
-    );
-    next = next.replace(
-      '## 1. Install the skill\n\n推荐方式：\n\n```bash\ngit clone https://github.com/MangouArt/mangou.git\ncd mangou\nnpx skills add ./skills/managing-motion-comics --agent claude-code\n```\n\n如果当前 agent 不走 `vercel-labs/skills`，再使用基础 zip：\n\n```text\nhttps://www.mangou.art/downloads/mangou.zip\n```\n\n## 2. Install Bun runtime\n',
-      '## 1. Install the skill\n\nClawHub 已经负责安装这份 skill 入口。\n\n如果你不是通过 ClawHub 安装，再使用基础 zip：\n\n```text\nhttps://www.mangou.art/downloads/mangou.zip\n```\n\n## 2. Install Bun runtime\n',
-    );
-  }
-
-  return injectGeneratedNotice(next);
-}
-
 async function annotateGeneratedMarkdown(root: string) {
   const files = await listFilesRecursive(root);
   for (const filePath of files) {
@@ -122,18 +95,37 @@ async function annotateGeneratedMarkdown(root: string) {
   }
 }
 
-async function writeClawHubSkillVariant(sourceRoot: string, clawhubRoot: string) {
-  await emptyDir(clawhubRoot);
-  await copyDir(sourceRoot, clawhubRoot);
+function buildLightweightRepoReadme() {
+  return `# Mangou AI Motion Comics
 
-  const markdownFiles = (await listFilesRecursive(clawhubRoot))
-    .filter((filePath) => path.extname(filePath) === '.md');
+<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->
 
-  for (const destinationPath of markdownFiles) {
-    const relativePath = path.relative(clawhubRoot, destinationPath);
-    const content = await fs.readFile(destinationPath, 'utf-8');
-    await fs.writeFile(destinationPath, buildClawHubSkillMarkdown(relativePath, content));
-  }
+Standalone lightweight Mangou skill repository for \`vercel-labs/skills\`.
+
+Install from GitHub:
+
+\`\`\`bash
+npx skills add MangouArt/mangou-ai-motion-comics -a openclaw -y
+\`\`\`
+
+Install from a local clone:
+
+\`\`\`bash
+npx skills add . -a openclaw -y
+\`\`\`
+
+Separate artifacts:
+
+- Runtime bundle: \`https://www.mangou.art/downloads/mangou-runtime.zip\`
+- Dashboard: \`npx @mangou/dashboard\`
+`;
+}
+
+async function writeLightweightSkillRepo(sourceRoot: string, repoRoot: string) {
+  await emptyDir(repoRoot);
+  await copyDir(sourceRoot, repoRoot);
+  await annotateGeneratedMarkdown(repoRoot);
+  await fs.writeFile(path.join(repoRoot, 'README.md'), buildLightweightRepoReadme());
 }
 
 async function createZipArchive(bundleRoot: string, archivePath: string) {
@@ -182,7 +174,7 @@ export interface BuildOptions {
   distSource?: string;
   includeDistInSkill?: boolean;
   standardSkillDirName?: string;
-  clawhubSkillDirName?: string;
+  lightweightRepoDirName?: string;
 }
 
 export async function buildSkillBundle(options: BuildOptions = {}) {
@@ -193,7 +185,7 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
     distSource,
     includeDistInSkill = false,
     standardSkillDirName = DEFAULT_STANDARD_SKILL_DIR,
-    clawhubSkillDirName = DEFAULT_CLAWHUB_SKILL_DIR,
+    lightweightRepoDirName = DEFAULT_LIGHTWEIGHT_REPO_DIR,
   } = options;
 
   const resolvedPackageRoot = path.resolve(packageRoot);
@@ -211,16 +203,17 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
     'skills',
     standardSkillDirName,
   );
-  const resolvedClawHubSkillRoot = path.join(
+  const resolvedLightweightRepoRoot = path.join(
     resolvedPackageRoot,
-    'clawhub',
-    clawhubSkillDirName,
+    'skill-repos',
+    lightweightRepoDirName,
   );
-  const legacyClawHubSkillRoot = path.join(
+  const legacyStandardSkillRoot = path.join(
     resolvedPackageRoot,
-    'clawhub',
-    LEGACY_CLAWHUB_SKILL_DIR,
+    'skills',
+    LEGACY_STANDARD_SKILL_DIR,
   );
+  const deprecatedPublishRoot = path.join(resolvedPackageRoot, 'clawhub');
 
   console.log(`[build-skill] Building bundle for "${skillName}"...`);
   console.log(`[build-skill] Package Root: ${resolvedPackageRoot}`);
@@ -243,17 +236,20 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   await copyDir(skillMetadataRoot, resolvedOutputRoot);
 
   // 3. Sync standard skill directory for vercel-labs/skills.
+  if (legacyStandardSkillRoot !== resolvedStandardSkillRoot) {
+    await fs.rm(legacyStandardSkillRoot, { recursive: true, force: true });
+  }
   await emptyDir(resolvedStandardSkillRoot);
   await copyDir(skillMetadataRoot, resolvedStandardSkillRoot);
   await annotateGeneratedMarkdown(resolvedStandardSkillRoot);
 
-  // 4. Sync ClawHub publishing directory with MIT-0 instruction-only variant.
-  if (legacyClawHubSkillRoot !== resolvedClawHubSkillRoot) {
-    await fs.rm(legacyClawHubSkillRoot, { recursive: true, force: true });
-  }
-  await writeClawHubSkillVariant(skillMetadataRoot, resolvedClawHubSkillRoot);
+  // 4. Sync standalone lightweight repo for short owner/repo installs.
+  await writeLightweightSkillRepo(skillMetadataRoot, resolvedLightweightRepoRoot);
 
-  // 5. Create ZIP
+  // 5. Remove deprecated publish directory from earlier distribution models.
+  await fs.rm(deprecatedPublishRoot, { recursive: true, force: true });
+
+  // 6. Create ZIP
   console.log(`[build-skill] Archiving to ${resolvedArchivePath}...`);
   await createZipArchive(resolvedOutputRoot, resolvedArchivePath);
 
@@ -269,7 +265,7 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   return {
     skillRoot: resolvedOutputRoot,
     standardSkillRoot: resolvedStandardSkillRoot,
-    clawhubSkillRoot: resolvedClawHubSkillRoot,
+    lightweightRepoRoot: resolvedLightweightRepoRoot,
     archivePath: resolvedArchivePath,
     distRoot: runtimeRoot,
     distArchivePath: resolvedRuntimeArchivePath,
