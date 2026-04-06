@@ -4,11 +4,14 @@ export interface BuildSkillBundleOptions {
   skillName?: string;
   outputRoot?: string;
   distSource?: string;
+  includeDistInSkill?: boolean;
 }
 
 export interface BuildSkillBundleResult {
   skillRoot: string;
   archivePath: string;
+  distRoot?: string;
+  distArchivePath?: string;
 }
 
 export function buildSkillBundle(options?: BuildSkillBundleOptions): Promise<BuildSkillBundleResult>;

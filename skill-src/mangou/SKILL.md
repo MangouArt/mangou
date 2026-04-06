@@ -1,7 +1,16 @@
 ---
-name: Mangou AI Comic Director
-description: A comprehensive AI comic production skill for directors. Supports workspace management, asset definition, and automated AIGC production pipelines (Image/Video). | 导演视角漫剧创作全流程技能，支持工作区管理、资产定义及全自动 AIGC 生产流水线。
+name: mangou-ai-comic-director
 version: 2.1.0
+author: mangou-ai-studio
+homepage: https://www.mangou.art
+license: FSL-1.1-Apache-2.0
+description: Local-first AI motion comic directing skill. Lets agents manage YAML storyboards, automate image/video generation, and keep creators focused on story, pacing, and shots.
+metadata:
+  skill_type: local_runtime
+  external_endpoints:
+    - https://www.mangou.art/downloads/mangou.zip
+    - https://www.mangou.art/downloads/mangou-runtime.zip
+  operator_note: "mangou.art operated by Mangou AI Studio"
 tags: [aigc, comic, director, storyboard, video-generation, automation, workflow, claude-skill, mcp-plugin]
 argument-hint: <project init|project stitch|storyboard generate|storyboard split|asset generate|server start> [...args]
 disable-model-invocation: true
@@ -10,6 +19,37 @@ disable-model-invocation: true
 # Mangou Director's Skill Hub (v2.1)
 
 本技能旨在以**导演视角**组织可连续、可落地、可批量执行的漫剧项目。采用 **“三权分立”** 架构：Agent 决策创意，CLI 自动执行回填，WEB 实时镜像监控。
+
+## 安装与下载 (Installation)
+
+Mangou 现在拆分为两个下载包，均从 `mangou-site` 提供：
+
+1. **主技能包**: `https://www.mangou.art/downloads/mangou.zip`
+   - 用途：安装 Skill 入口说明与知识库。
+   - 这是 SkillHub 中应优先安装的包。
+2. **额外资源包**: `https://www.mangou.art/downloads/mangou-runtime.zip`
+   - 用途：提供 CLI 源码、工作区模板与本地只读 Dashboard 前端资源。
+   - 需要实际运行 Mangou 时再额外下载。
+
+### 推荐安装流程
+
+1. 先下载并安装 `mangou.zip`。
+2. 如果需要实际执行 Mangou，再下载 `mangou-runtime.zip`。
+3. 将 `mangou-runtime.zip` 解压后的内容合并到已安装的 Mangou 技能目录根部，与 `SKILL.md` 同级。
+4. 之后再运行 `bun run src/main.ts server start --port [port]` 启动镜像服务。
+
+目录结构应类似：
+
+```text
+<skill-root>/
+  SKILL.md
+  src/
+  knowledge/
+  workspace_template/
+  dist/
+    index.html
+    assets/
+```
 
 ## 激活触发器 (Activation Triggers)
 

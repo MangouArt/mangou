@@ -78,19 +78,12 @@ npm run build:skill
 
 构建后会得到：
 
-- 目录版 skill：`bundled-skills/mangou/`
 - 压缩包：`bundled-skills/mangou.zip`
+- 统一资源包：`bundled-skills/mangou-runtime.zip`
 
 ### 4. 安装到你的 agent skill 目录
 
-Mangou 不强绑定某个特定 agent。只要你的 agent 支持“目录形式的本地 skill”，把 `bundled-skills/mangou/` 安装到对应技能目录即可。
-
-常见做法示例：
-
-```bash
-mkdir -p /absolute/path/to/your-workspace/.claude/skills
-cp -R bundled-skills/mangou /absolute/path/to/your-workspace/.claude/skills/
-```
+Mangou 不强绑定某个特定 agent。先安装 `bundled-skills/mangou.zip` 作为基础技能包；当你需要实际运行 Mangou 时，再把 `bundled-skills/mangou-runtime.zip` 解压合并到同一个技能目录。
 
 ### 5. 快速入门 (CLI)
 
@@ -171,8 +164,10 @@ bun run ci
 当前推荐的分发物是：
 
 - `bundled-skills/mangou.zip`
+- `bundled-skills/mangou-runtime.zip`
 
-适合直接提供给支持本地技能安装的 agent 环境。
+其中 `mangou.zip` 是唯一的基础技能包。
+需要 CLI、工作区模板和本地 Dashboard 时，再额外下载 `mangou-runtime.zip`。
 
 ## 安全说明
 

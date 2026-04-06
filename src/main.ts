@@ -33,11 +33,12 @@ export async function main() {
         }
       case "build:skill":
         const { buildSkillBundle } = require("./logic/build-skill");
-        return await buildSkillBundle({ 
+        return await buildSkillBundle({
           skillName: flags.skill || "mangou",
-          root: flags.root,
-          output: flags.output,
-          dist: flags.dist
+          packageRoot: flags.root,
+          outputRoot: flags.output,
+          distSource: flags.dist,
+          includeDistInSkill: flags["include-dist"] === true,
         });
       case "help":
       case "":
