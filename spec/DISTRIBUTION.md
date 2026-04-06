@@ -116,13 +116,18 @@ Mangou 的编辑源只允许来自以下三类目录：
 优先路径：
 
 ```bash
-npx skills add MangouArt/mangou --skill managing-motion-comics
+git clone https://github.com/MangouArt/mangou.git
+cd mangou
+npx skills add ./skills/managing-motion-comics --agent claude-code
 ```
 
 结果：
 - 安装 skill 入口
 - Agent 可以读取 `SKILL.md`、`INSTALL.md`、`COMMANDS.md`
 - 若用户只需要技能说明，不需要额外 runtime
+
+约束：
+- 不要把 `skills add` 指向仓库根目录；当前安装器会把整个仓库复制进 agent skill 目录。
 
 ### 4.2 完整本地运行
 

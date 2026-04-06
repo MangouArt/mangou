@@ -52,7 +52,7 @@ This keeps the skill lightweight enough for agent installers while preserving th
 If you are using an Agent capable of running tools and shell commands, just copy & paste the following prompt to your AI:
 
 ```text
-Install the Mangou skill from MangouArt/mangou using vercel-labs/skills.
+Clone MangouArt/mangou first, then install the skill from ./skills/managing-motion-comics with vercel-labs/skills.
 If I need to generate assets or videos, install mangou-runtime.zip too.
 ```
 
@@ -99,7 +99,9 @@ Build outputs:
 Preferred:
 
 ```bash
-npx skills add MangouArt/mangou --skill managing-motion-comics
+git clone https://github.com/MangouArt/mangou.git
+cd mangou
+npx skills add ./skills/managing-motion-comics --agent claude-code
 ```
 
 Fallback:
@@ -201,6 +203,7 @@ Recommended release artifact:
 - `skills/managing-motion-comics/`
 
 Use `skills/managing-motion-comics/` for `vercel-labs/skills` installation.
+Do not point `skills add` at the repository root, or the installer may copy the entire repo into the agent skill directory.
 Use `mangou.zip` as the canonical fallback base skill package.
 Download `mangou-runtime.zip` separately when you need Bun CLI and workspace templates.
 

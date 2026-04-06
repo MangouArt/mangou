@@ -13,7 +13,9 @@
 推荐方式：
 
 ```bash
-npx skills add MangouArt/mangou --skill managing-motion-comics
+git clone https://github.com/MangouArt/mangou.git
+cd mangou
+npx skills add ./skills/managing-motion-comics --agent claude-code
 ```
 
 如果当前 agent 不走 `vercel-labs/skills`，再使用基础 zip：

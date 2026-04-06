@@ -18,6 +18,7 @@ type BuildSkillBundle = (options?: {
 }) => Promise<{
   skillRoot: string;
   standardSkillRoot?: string;
+  clawhubSkillRoot?: string;
   archivePath: string;
   distRoot?: string;
   distArchivePath?: string;
@@ -99,17 +100,32 @@ describe('skill packaging', () => {
     await expect(fs.access(path.join(buildOut, 'dist', 'index.html'))).rejects.toThrow();
     expect(path.basename(built.standardSkillRoot as string)).toBe('managing-motion-comics');
     await fs.access(path.join(built.standardSkillRoot as string, 'SKILL.md'));
+    expect(path.basename(built.clawhubSkillRoot as string)).toBe('mangou-ai-motion-comic');
+    await fs.access(path.join(built.clawhubSkillRoot as string, 'SKILL.md'));
     const sourceRoot = path.join(process.cwd(), 'skill-src', 'mangou');
     const standardRoot = built.standardSkillRoot as string;
+    const clawhubRoot = built.clawhubSkillRoot as string;
     const sourceFiles = await listFilesRecursive(sourceRoot);
     const standardFiles = await listFilesRecursive(standardRoot);
+    const clawhubFiles = await listFilesRecursive(clawhubRoot);
     expect(standardFiles).toEqual(sourceFiles);
+    expect(clawhubFiles).toEqual(sourceFiles);
     for (const relativePath of sourceFiles) {
       const sourceContent = await fs.readFile(path.join(sourceRoot, relativePath), 'utf-8');
       const standardContent = await fs.readFile(path.join(standardRoot, relativePath), 'utf-8');
       expect(standardContent).toContain(GENERATED_NOTICE);
       expect(stripGeneratedNotice(standardContent)).toBe(sourceContent);
     }
+    const clawhubSkillMd = await fs.readFile(path.join(clawhubRoot, 'SKILL.md'), 'utf-8');
+    expect(clawhubSkillMd).toContain('name: mangou-ai-motion-comic');
+    expect(clawhubSkillMd).toContain('license: MIT-0');
+    expect(clawhubSkillMd).toContain('display-name: Mangou AI 漫剧导演 / Motion Comic Director');
+    expect(clawhubSkillMd).toContain('ClawHub edition');
+    expect(clawhubSkillMd).toContain('# Mangou AI 漫剧导演 / Motion Comic Director');
+    expect(clawhubSkillMd).toContain(GENERATED_NOTICE);
+    const clawhubInstall = await fs.readFile(path.join(clawhubRoot, 'INSTALL.md'), 'utf-8');
+    expect(clawhubInstall).toContain('ClawHub 已经负责安装这份 skill 入口');
+    expect(clawhubInstall).not.toContain('npx skills add ./skills/managing-motion-comics --agent claude-code');
     expect(built.distArchivePath).toBeTruthy();
     await fs.access(built.distArchivePath as string);
     expect(path.basename(built.archivePath)).toBe('mangou.zip');

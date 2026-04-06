@@ -12,6 +12,7 @@ metadata:
     - https://www.mangou.art/downloads/mangou-runtime.zip
   operator_note: "mangou.art operated by Mangou AI Studio"
 tags: [ai-motion-comic, motion-comic, storyboard, image-generation, video-generation, grid-splitting, production-pipeline, yaml]
+display-name: Mangou AI 漫剧导演 / Motion Comic Director
 argument-hint: <project init|project stitch|storyboard generate|storyboard split|asset generate|server start> [...args]
 disable-model-invocation: true
 ---
