@@ -10,11 +10,13 @@ Mangou 的编辑源只允许来自以下三类目录：
   - 技能入口与知识文件。
 - `src/`
   - Bun CLI runtime 与生成逻辑。
-- `dist/`
-  - 只读 dashboard 前端产物。
+- `packages/dashboard/`
+  - dashboard npm 包源码与启动入口。
 
 `bundled-skills/` 只是构建产物，绝不能作为编辑源。
 `skills/` 与 `skill-repos/` 不再保留在主仓库中。
+主仓库根目录也不再保留 `SKILL.md` 软链接或兼容副本。
+仓库根 `dist/` 只是 dashboard 的构建输出，不是编辑源。
 
 ## 2. 三层产物模型
 
@@ -177,7 +179,7 @@ mangou/
 ├── skill-src/mangou/              # SSOT: 技能入口
 ├── src/                           # Bun runtime
 ├── packages/dashboard/            # dashboard npm 包源码
-├── dist/                          # dashboard 构建产物
+├── dist/                          # dashboard 构建产物 (不手改)
 ├── bundled-skills/
 │   ├── mangou.zip
 │   └── mangou-runtime.zip
@@ -188,8 +190,12 @@ mangou/
 - `build:skill`
   - 产出 `mangou.zip`
   - 产出 `mangou-runtime.zip`
-- dashboard 构建
-  - 产出可发布到 `@mangou/dashboard` 的前端产物
+- `build`
+  - 产出仓库根 `dist/` 前端构建产物
+- `build:dashboard:package`
+  - 同步 dashboard npm 包需要的 `packages/dashboard/dist`
+- `build:dashboard`
+  - 串起 dashboard 构建与 npm 包同步
 
 ## 6. 约束与非目标
 

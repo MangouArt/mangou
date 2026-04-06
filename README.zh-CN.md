@@ -47,6 +47,14 @@ Mangou 现在分成三层安装面：
 
 这样 skill 保持轻量，runtime 和前端页面继续独立演进。
 
+仓库规则：
+
+- `skill-src/mangou/` 是本仓库唯一的 skill 文档源。
+- `packages/dashboard/` 是本仓库唯一的 dashboard 包源码目录。
+- 仓库根 `dist/` 只是构建输出，不是编辑源。
+- 仓库根目录不再保留 `SKILL.md` 软链接或兼容副本。
+- 短 GitHub 安装路径由独立轻量仓库 `MangouArt/mangou-ai-motion-comics` 提供。
+
 ## 快速开始
 
 如果你使用的是支持工具调用、能够执行本地脚本的 Agent，你可以直接将以下指令复制并发送给 AI：

@@ -30,10 +30,10 @@
     "bun": ">=1.1"
   },
   "files": [
-    "bundled-skills",
     "skill-src",
     "src",
-    "dist",
+    "packages/dashboard",
+    "scripts/sync-dashboard-package.mjs",
     "workspace_template",
     "tsconfig.json",
     "index.html",
@@ -46,6 +46,7 @@
     "build": "vite build",
     "build:skill": "bun src/main.ts build:skill --skill mangou",
     "build:dashboard:package": "node scripts/sync-dashboard-package.mjs",
+    "build:dashboard": "bun run build && bun run build:dashboard:package",
     "prepack": "bun run build && bun run build:skill",
     "preview": "vite preview",
     "start": "bun run mangou -- server start",
