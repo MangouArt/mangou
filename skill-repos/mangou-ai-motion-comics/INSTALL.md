@@ -3,17 +3,27 @@
 
 ## Install order
 
-在 ClawHub 安装此 skill 后，按下面顺序继续：
+优先按下面顺序安装：
 
-1. 保持当前 skill 入口不变
+1. 安装 skill 入口
 2. 需要生成任务时安装 Bun runtime
 3. 需要本地只读页面时安装 dashboard
 
 ## 1. Install the skill
 
-ClawHub 已经负责安装这份 skill 入口。
+推荐方式：
 
-如果你不是通过 ClawHub 安装，再使用基础 zip：
+```bash
+npx skills add MangouArt/mangou-ai-motion-comics -a claude-code -y
+```
+
+如果你在本地开发 `mangou` 主仓库，也可以改用：
+
+```bash
+npx skills add ./skills/mangou-ai-motion-comics --agent claude-code
+```
+
+如果当前 agent 不走 `vercel-labs/skills`，再使用基础 zip：
 
 ```text
 https://www.mangou.art/downloads/mangou.zip

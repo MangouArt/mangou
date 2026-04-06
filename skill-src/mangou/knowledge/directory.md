@@ -10,7 +10,7 @@
 
 ```text
 <workspace_root>/
-  .claude/skills/managing-motion-comics/
+  .claude/skills/mangou-ai-motion-comics/
   config.json
   projects.json
   projects/
@@ -25,7 +25,7 @@
 
 ## 目录职责
 
-- `.claude/skills/managing-motion-comics/`: skill 入口本体
+- `.claude/skills/mangou-ai-motion-comics/`: skill 入口本体
 - `config.json`: 全局 provider 配置
 - `projects/<project_id>/storyboards/`: 分镜 YAML
 - `projects/<project_id>/asset_defs/`: 资产 YAML

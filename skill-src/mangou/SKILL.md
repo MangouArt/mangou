@@ -1,5 +1,5 @@
 ---
-name: managing-motion-comics
+name: mangou-ai-motion-comics
 version: 2.1.0
 author: mangou-ai-studio
 homepage: https://www.mangou.art
