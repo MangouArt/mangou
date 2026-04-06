@@ -76,21 +76,15 @@ npm run build:skill
 
 Build outputs:
 
-- Directory bundle: `bundled-skills/mangou/`
 - Zip bundle: `bundled-skills/mangou.zip`
+- Unified runtime bundle: `bundled-skills/mangou-runtime.zip`
 
 ### 4. Install into your agent skill directory
 
-Mangou does not depend on a single agent vendor. If your agent supports local directory-based skills, copy `bundled-skills/mangou/` into the corresponding skill directory.
+Mangou does not depend on a single agent vendor. Install `bundled-skills/mangou.zip` as the base skill first, then merge `bundled-skills/mangou-runtime.zip` into the same skill directory when you need the actual runtime.
 
-Example:
-
-```bash
-mkdir -p /absolute/path/to/your-workspace/.claude/skills
-cp -R bundled-skills/mangou /absolute/path/to/your-workspace/.claude/skills/
-```
-
-If your agent supports zip installation, you can also use `bundled-skills/mangou.zip`.
+If your agent supports zip installation, use `bundled-skills/mangou.zip`.
+After that, extract `bundled-skills/mangou-runtime.zip` into the same installed skill root.
 
 ### 2. Quick Start (CLI)
 
@@ -172,8 +166,10 @@ Responsibilities are intentionally split:
 Recommended release artifact:
 
 - `bundled-skills/mangou.zip`
+- `bundled-skills/mangou-runtime.zip`
 
-This is the bundle intended for agents that support local skill installation.
+Use `mangou.zip` as the canonical base skill package.
+Download `mangou-runtime.zip` separately when you need CLI, workspace templates, and the local dashboard frontend.
 
 ## Security
 

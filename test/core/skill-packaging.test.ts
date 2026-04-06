@@ -12,9 +12,12 @@ type BuildSkillBundle = (options?: {
   skillName?: string;
   outputRoot?: string;
   distSource?: string;
+  includeDistInSkill?: boolean;
 }) => Promise<{
   skillRoot: string;
   archivePath: string;
+  distRoot?: string;
+  distArchivePath?: string;
 }>;
 
 async function cleanup(dir: string) {
@@ -50,7 +53,7 @@ describe('skill packaging', () => {
     }
   });
 
-  it('builds a self-contained Claude skill bundle that can be copied into .claude/skills', async () => {
+  it('builds a slim skill bundle and emits a unified runtime archive', async () => {
     const buildSkill = buildSkillBundle as BuildSkillBundle;
     const fakeDist = await fs.mkdtemp(path.join(os.tmpdir(), 'mangou-dist-'));
     const buildOut = await fs.mkdtemp(path.join(os.tmpdir(), 'mangou-skill-build-'));
@@ -70,16 +73,19 @@ describe('skill packaging', () => {
 
     expect(built.skillRoot).toBe(buildOut);
     await fs.access(path.join(buildOut, 'SKILL.md'));
-    await fs.access(path.join(buildOut, 'dist', 'index.html'));
-    await fs.access(path.join(buildOut, 'workspace_template', '.env.example'));
+    await expect(fs.access(path.join(buildOut, 'dist', 'index.html'))).rejects.toThrow();
+    expect(built.distArchivePath).toBeTruthy();
+    await fs.access(built.distArchivePath as string);
+    expect(path.basename(built.archivePath)).toBe('mangou.zip');
+    expect(path.basename(built.distArchivePath as string)).toBe('mangou-runtime.zip');
 
     const skillMd = await fs.readFile(path.join(buildOut, 'SKILL.md'), 'utf-8');
-    expect(skillMd).toContain('bun');
+    expect(skillMd).toContain('mangou-runtime.zip');
 
     const installedSkillRoot = path.join(projectRoot, '.claude', 'skills', 'mangou');
     await copyDir(buildOut, installedSkillRoot);
 
     await fs.access(path.join(installedSkillRoot, 'SKILL.md'));
-    await fs.access(path.join(installedSkillRoot, 'dist', 'index.html'));
+    await expect(fs.access(path.join(installedSkillRoot, 'dist', 'index.html'))).rejects.toThrow();
   });
 });

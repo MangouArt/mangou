@@ -52,11 +52,46 @@ async function createZipArchive(bundleRoot: string, archivePath: string) {
   await execFileAsync('zip', ['-qr', archivePath, '.'], { cwd: bundleRoot });
 }
 
+async function buildRuntimeBundle(options: {
+  packageRoot: string;
+  outputRoot: string;
+  archivePath: string;
+  distSource: string;
+}) {
+  const { packageRoot, outputRoot, archivePath, distSource } = options;
+  const runtimeRoot = `${outputRoot}-runtime`;
+  await emptyDir(runtimeRoot);
+
+  const srcSource = path.join(packageRoot, 'src');
+  await copyDir(srcSource, path.join(runtimeRoot, 'src'), { skipNames: ['web'] });
+
+  const workspaceTemplateRoot = path.join(packageRoot, 'workspace_template');
+  await copyDir(workspaceTemplateRoot, path.join(runtimeRoot, 'workspace_template'), {
+    skipNames: ['.agents'],
+  });
+
+  if (await pathExists(distSource)) {
+    await copyDir(distSource, path.join(runtimeRoot, 'dist'));
+  }
+
+  const runtimeFiles = ['package.json', 'tsconfig.json'];
+  for (const file of runtimeFiles) {
+    const filePath = path.join(packageRoot, file);
+    if (await pathExists(filePath)) {
+      await fs.copyFile(filePath, path.join(runtimeRoot, file));
+    }
+  }
+
+  await createZipArchive(runtimeRoot, archivePath);
+  return runtimeRoot;
+}
+
 export interface BuildOptions {
   packageRoot?: string;
   skillName?: string;
   outputRoot?: string;
   distSource?: string;
+  includeDistInSkill?: boolean;
 }
 
 export async function buildSkillBundle(options: BuildOptions = {}) {
@@ -65,15 +100,16 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
     skillName = DEFAULT_SKILL_NAME,
     outputRoot,
     distSource,
+    includeDistInSkill = false,
   } = options;
 
   const resolvedPackageRoot = path.resolve(packageRoot);
   const skillMetadataRoot = path.join(resolvedPackageRoot, 'skill-src', skillName);
-  const workspaceTemplateRoot = path.join(resolvedPackageRoot, 'workspace_template');
   const resolvedOutputRoot = outputRoot
     ? path.resolve(outputRoot)
     : path.join(resolvedPackageRoot, 'bundled-skills', skillName);
   const resolvedArchivePath = path.join(path.dirname(resolvedOutputRoot), `${skillName}.zip`);
+  const resolvedRuntimeArchivePath = path.join(path.dirname(resolvedOutputRoot), `${skillName}-runtime.zip`);
   const resolvedDistSource = distSource
     ? path.resolve(distSource)
     : path.join(resolvedPackageRoot, 'dist');
@@ -84,6 +120,7 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   if (!(await pathExists(skillMetadataRoot))) {
     throw new Error(`Missing skill metadata: ${skillMetadataRoot}`);
   }
+  const workspaceTemplateRoot = path.join(resolvedPackageRoot, 'workspace_template');
   if (!(await pathExists(workspaceTemplateRoot))) {
     throw new Error(`Missing workspace template: ${workspaceTemplateRoot}`);
   }
@@ -94,42 +131,27 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   // 1. Prepare output
   await emptyDir(resolvedOutputRoot);
 
-  // 2. Copy source code (excluding web if it exists)
-  const srcSource = path.join(resolvedPackageRoot, 'src');
-  const srcDest = path.join(resolvedOutputRoot, 'src');
-  await copyDir(srcSource, srcDest, { skipNames: ['web'] });
-
-  // 3. Copy metadata (SKILL.md, knowledge/)
+  // 2. Copy metadata (SKILL.md, knowledge/)
   await copyDir(skillMetadataRoot, resolvedOutputRoot);
 
-  // 4. Copy workspace template
-  await copyDir(workspaceTemplateRoot, path.join(resolvedOutputRoot, 'workspace_template'), {
-    skipNames: ['.agents'],
-  });
-
-  // 5. Copy frontend build
-  if (await pathExists(resolvedDistSource)) {
-    await copyDir(resolvedDistSource, path.join(resolvedOutputRoot, 'dist'));
-  } else {
-    await ensureDir(path.join(resolvedOutputRoot, 'dist'));
-  }
-
-  // 6. Copy core configs
-  const coreFiles = ['package.json', 'tsconfig.json', 'README.md', 'README.zh-CN.md'];
-  for (const file of coreFiles) {
-    const filePath = path.join(resolvedPackageRoot, file);
-    if (await pathExists(filePath)) {
-      await fs.copyFile(filePath, path.join(resolvedOutputRoot, file));
-    }
-  }
-
-  // 7. Create ZIP
+  // 3. Create ZIP
   console.log(`[build-skill] Archiving to ${resolvedArchivePath}...`);
   await createZipArchive(resolvedOutputRoot, resolvedArchivePath);
+
+  let runtimeRoot: string | undefined;
+  console.log(`[build-skill] Archiving unified runtime bundle to ${resolvedRuntimeArchivePath}...`);
+  runtimeRoot = await buildRuntimeBundle({
+    packageRoot: resolvedPackageRoot,
+    outputRoot: resolvedOutputRoot,
+    archivePath: resolvedRuntimeArchivePath,
+    distSource: resolvedDistSource,
+  });
 
   return {
     skillRoot: resolvedOutputRoot,
     archivePath: resolvedArchivePath,
+    distRoot: runtimeRoot,
+    distArchivePath: resolvedRuntimeArchivePath,
   };
 }
 
@@ -159,6 +181,7 @@ if (isEntrypoint) {
     skillName: args.skill || DEFAULT_SKILL_NAME,
     outputRoot: args.output,
     distSource: args.dist,
+    includeDistInSkill: args['include-dist'] === true,
   })
     .then((result) => {
       console.log(JSON.stringify({ success: true, data: result }, null, 2));
