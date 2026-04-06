@@ -2,6 +2,9 @@
 
 ## Command format
 
+下面这些命令都依赖 Bun runtime。
+如果当前技能根目录里还没有 `src/main.ts`，先停止执行这些命令，优先运行 `node bootstrap-runtime.mjs`；如果还不行，再回到 [INSTALL.md](INSTALL.md) 手动安装 `mangou-runtime.zip`。
+
 所有命令都从技能根目录执行：
 
 ```bash

@@ -75,6 +75,19 @@ describe('skill packaging', () => {
 
     const skillMd = await fs.readFile(path.join(buildOut, 'SKILL.md'), 'utf-8');
     expect(skillMd).toContain('mangou-runtime.zip');
+    expect(skillMd).toContain('轻量安装态不包含 Bun runtime');
+    await fs.access(path.join(buildOut, 'bootstrap-runtime.mjs'));
+
+    const commandsMd = await fs.readFile(path.join(buildOut, 'COMMANDS.md'), 'utf-8');
+    expect(commandsMd).toContain('如果当前技能根目录里还没有 `src/main.ts`');
+    expect(commandsMd).toContain('先停止执行这些命令');
+
+    const directoryMd = await fs.readFile(
+      path.join(buildOut, 'knowledge', 'directory.md'),
+      'utf-8',
+    );
+    expect(directoryMd).toContain('<skill-root>/');
+    expect(directoryMd).not.toContain('.claude/skills/');
 
     const installedSkillRoot = path.join(projectRoot, '.claude', 'skills', 'mangou');
     await copyDir(buildOut, installedSkillRoot);
