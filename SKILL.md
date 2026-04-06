@@ -1,1 +1,0 @@
-skill-src/mangou/SKILL.md

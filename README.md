@@ -47,6 +47,14 @@ Mangou uses three separate install surfaces:
 
 This keeps the skill lightweight enough for agent installers while preserving the full local runtime.
 
+Repository rule:
+
+- `skill-src/mangou/` is the only skill-document source inside this repository.
+- `packages/dashboard/` is the only dashboard package source inside this repository.
+- The repository-root `dist/` directory is build output only.
+- The repository root no longer carries a `SKILL.md` shim or symlink.
+- The short GitHub install path lives in `MangouArt/mangou-ai-motion-comics`.
+
 ## Quick Start
 
 If you are using an Agent capable of running tools and shell commands, just copy & paste the following prompt to your AI:
