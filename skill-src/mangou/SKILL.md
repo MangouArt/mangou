@@ -4,114 +4,67 @@ version: 2.1.0
 author: mangou-ai-studio
 homepage: https://www.mangou.art
 license: FSL-1.1-Apache-2.0
-description: Local-first AI motion comic directing skill. Lets agents manage YAML storyboards, automate image/video generation, and keep creators focused on story, pacing, and shots.
+description: Manages AI motion comic production projects with YAML assets and storyboards. Use when producing AI motion comics with Mangou, including project setup, storyboard or asset editing, image or video generation, grid splitting, final stitching, and task backfill debugging.
 metadata:
   skill_type: local_runtime
   external_endpoints:
     - https://www.mangou.art/downloads/mangou.zip
     - https://www.mangou.art/downloads/mangou-runtime.zip
   operator_note: "mangou.art operated by Mangou AI Studio"
-tags: [aigc, comic, director, storyboard, video-generation, automation, workflow, claude-skill, mcp-plugin]
+tags: [ai-motion-comic, motion-comic, storyboard, image-generation, video-generation, grid-splitting, production-pipeline, yaml]
 argument-hint: <project init|project stitch|storyboard generate|storyboard split|asset generate|server start> [...args]
 disable-model-invocation: true
 ---
 
-# Mangou Director's Skill Hub (v2.1)
+# Mangou
 
-本技能旨在以**导演视角**组织可连续、可落地、可批量执行的漫剧项目。采用 **“三权分立”** 架构：Agent 决策创意，CLI 自动执行回填，WEB 实时镜像监控。
+Mangou 用 YAML 管理资产和分镜，用 CLI 执行生成与回填，适合把 AI 漫剧流程收敛成可审计、可批量执行的项目目录。
 
-## 安装与下载 (Installation)
+## Use this skill when
 
-Mangou 现在拆分为两个下载包，均从 `mangou-site` 提供：
+- 用户要初始化 Mangou 项目或整理项目目录
+- 用户要编写或修正 `asset_defs/*.yaml`、`storyboards/*.yaml`
+- 用户要生成分镜图片、视频，或切分 grid 母图
+- 用户要拼接全片、排查 `tasks.jsonl` 或 YAML 回填状态
+- 用户要安装或启动 Mangou 本地 runtime / dashboard
 
-1. **主技能包**: `https://www.mangou.art/downloads/mangou.zip`
-   - 用途：安装 Skill 入口说明与知识库。
-   - 这是 SkillHub 中应优先安装的包。
-2. **额外资源包**: `https://www.mangou.art/downloads/mangou-runtime.zip`
-   - 用途：提供 CLI 源码、工作区模板与本地只读 Dashboard 前端资源。
-   - 需要实际运行 Mangou 时再额外下载。
+## Quick start
 
-### 推荐安装流程
-
-1. 先下载并安装 `mangou.zip`。
-2. 如果需要实际执行 Mangou，再下载 `mangou-runtime.zip`。
-3. 将 `mangou-runtime.zip` 解压后的内容合并到已安装的 Mangou 技能目录根部，与 `SKILL.md` 同级。
-4. 之后再运行 `bun run src/main.ts server start --port [port]` 启动镜像服务。
-
-目录结构应类似：
+按这个顺序执行：
 
 ```text
-<skill-root>/
-  SKILL.md
-  src/
-  knowledge/
-  workspace_template/
-  dist/
-    index.html
-    assets/
+Mangou checklist
+- [ ] 确认技能已安装
+- [ ] 需要 CLI 或 dashboard 时，先合并 runtime 包
+- [ ] 先读项目目录规范，再改 YAML
+- [ ] 生成后只信任 tasks.jsonl 和 YAML latest 回填
+- [ ] 失败时先读 error，再修正参数或 prompt
 ```
 
-## 激活触发器 (Activation Triggers)
+1. 安装和 runtime 合并：见 [INSTALL.md](INSTALL.md)
+2. 项目目录和路径约束：见 [knowledge/directory.md](knowledge/directory.md)
+3. 资产 YAML：见 [knowledge/assets.md](knowledge/assets.md)
+4. 分镜 YAML：见 [knowledge/storyboards.md](knowledge/storyboards.md)
+5. 常用命令：见 [COMMANDS.md](COMMANDS.md)
 
-当用户提出以下需求时，应主动激活此技能：
-- “初始化 Mangou 项目”
-- “定义/生成角色、场景或道具资产”
-- “编写分镜并生成图片或视频”
-- “执行宫格 (Grid) 渲染与自动化切分”
-- “合成全片视频并预览”
+## Operating rules
 
-## 导演执行逻辑电路 (Logic Circuit)
+1. 先改 YAML，再运行命令；不要跳过配置直接猜测参数。
+2. 所有资源路径都用相对项目根目录的显式路径。
+3. 任务状态以 `tasks.jsonl` 为唯一真相源，YAML `latest` 是投影缓存。
+4. `storyboard split` 只依赖 `meta.grid` / `--grid`，不要靠 prompt 文本推断宫格。
+5. 生成失败时先检查 `error`、`latest`、`tasks.jsonl` 末尾记录，再决定是否重试。
 
-```mermaid
-graph TD
-    Start[🎬 开始项目] --> Init[🏗️ 1. 项目初始化 project init]
-    Init --> Assets[💎 2. 定义资产 Assets]
-    Assets --> Storyboard[🖼️ 3. 编写分镜 Storyboards]
-    Storyboard --> Grid{🎨 4. 是否宫格渲染?}
-    Grid -- 涉及 Grid --> GridGen[⚡ 宫格图片生成]
-    GridGen --> Split[✂️ 宫格物理切分 storyboard split]
-    Split --> Video[🎞️ 5. 视频渲染 storyboard generate]
-    Grid -- 常规单图 --> Gen[📸 单图生成 storyboard generate]
-    Gen --> Video
-    Video --> Stitch[🎞️ 6. 合成全片 project stitch]
-    Stitch --> End[🚀 交付成品]
-```
+## Reference map
 
-## 核心指令集 (Core Commands)
-
-所有指令统一通过 `bun run src/main.ts <resource> <action>` 调用。
-
-### 1. 项目管理 (Project)
-- **初始化项目**: `bun run src/main.ts project init --name [id]`。
-- **全片视频合成**: `bun run src/main.ts project stitch --id [id]`。
-
-### 2. 资产管理 (Asset)
-- **执行资产生成**: `bun run src/main.ts asset generate --path asset_defs/[type]/[name].yaml`。
-
-### 3. 分镜管线 (Storyboard)
-- **执行内容生成**: `bun run src/main.ts storyboard generate --path storyboards/[name].yaml --type [image|video]`。
-  - **路径语法糖**: 支持在 `params.images` 中直接引用资产 YAML 路径。
-- **宫格物理切分**: `bun run src/main.ts storyboard split --path storyboards/[parent].yaml`。
-
-### 4. 实时监控 (Server)
-- **启动镜像服务**: `bun run src/main.ts server start --port [port]`。通过 SSE 实现 UI 无感刷新。
-
-## 导演知识库索引 (Knowledge Base)
-
-- **[分镜层级规范](knowledge/storyboards.md)**: 详细说明 `meta.grid` 与 `meta.parent` 的层级逻辑。
-- **[供应商参数 (BLTAI)](knowledge/provider-bltai.md)**: 获取 `nano-banana` 等模型参数。
-- **[供应商参数 (KIE AI)](knowledge/provider-kie.md)**: 视频生成参数规范。
-- **[任务日志规范](knowledge/tasks.md)**: `tasks.jsonl` 的回填与审计机制。
-
-## 执行规范与策略 (Strict Policies)
-
-1. **执行序列**: Agent 修改 YAML 文件 -> 启动 CLI 任务 -> CLI 自动将 `status` 与 `output` 回填至 YAML。
-2. **路径确定性**: 所有 YAML 引用（如引用的角色资产）必须使用相对于**项目根目录**的显式路径。
-3. **分镜连续性 (Sequence Stewardship)**: `sequence` 必须严格遵循剧本时间线，严禁跳跃占位。
-4. **导演级 I2V 控制**: 生成视频提示词时，必须使用物理调度指令压低模型自由度，禁止 `fade/morph` 等非物理转场。
-5. **宫格母图模板化**: 生成 3x3 宫格时，Prompt 必须包含 `Seamless Storyboard Grid` 约束，并锁定主要资产的视觉锚点。
-6. **参数直传原则**: `tasks.params` 字段应直接对应 Provider 的原生 API。Agent 负责根据知识库填写正确的参数名。
-7. **错误感知**: 生成失败时，Agent 必须读取 YAML 中回填的 `error` 字段进行修复，严禁盲目重试。
-
----
-*注：本技能基于 Bun 运行时，要求环境中已安装 `bun`, `ffmpeg` 和 `ffprobe`。*
+- 安装与下载：[INSTALL.md](INSTALL.md)
+- 命令与调用格式：[COMMANDS.md](COMMANDS.md)
+- 项目目录：[knowledge/directory.md](knowledge/directory.md)
+- 资产定义：[knowledge/assets.md](knowledge/assets.md)
+- 分镜规范：[knowledge/storyboards.md](knowledge/storyboards.md)
+- 连续性与一致性：[knowledge/consistency.md](knowledge/consistency.md)
+- 导演式分镜原则：[knowledge/director.md](knowledge/director.md)
+- Prompt 策略：[knowledge/prompts.md](knowledge/prompts.md)
+- BLTAI 参数：[knowledge/provider-bltai.md](knowledge/provider-bltai.md)
+- KIE 参数：[knowledge/provider-kie.md](knowledge/provider-kie.md)
+- 任务真相源与回填：[knowledge/tasks.md](knowledge/tasks.md)
