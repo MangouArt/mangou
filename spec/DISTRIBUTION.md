@@ -14,6 +14,7 @@ Mangou 的编辑源只允许来自以下三类目录：
   - 只读 dashboard 前端产物。
 
 `bundled-skills/` 只是构建产物，绝不能作为编辑源。
+`skills/` 与 `skill-repos/` 不再保留在主仓库中。
 
 ## 2. 三层产物模型
 
@@ -67,8 +68,7 @@ Mangou 的编辑源只允许来自以下三类目录：
 目标：让 Mangou 被标准 skills 安装器直接安装。
 
 必须满足：
-- 仓库中存在标准 skill 目录，推荐为 `skills/mangou-ai-motion-comics/`
-- 同时存在独立轻量 skill 仓库目录，推荐为 `skill-repos/mangou-ai-motion-comics/`
+- 独立轻量 skill 仓库 `MangouArt/mangou-ai-motion-comics` 的仓库根就是 skill 根目录
 - 该目录安装后即可被 Agent 识别
 - skill 内的说明必须清楚区分：
   - 这是技能入口
@@ -128,12 +128,12 @@ npx skills add MangouArt/mangou-ai-motion-comics -a claude-code -y
 开发态本地安装：
 
 ```bash
-npx skills add ./skills/mangou-ai-motion-comics --agent claude-code
+npx skills add ./skill-src/mangou --agent claude-code
 ```
 
 约束：
 - 不要把 `skills add` 指向主 `mangou` 仓库根目录；当前安装器会把整个仓库复制进 agent skill 目录。
-- GitHub 分发优先使用轻量仓库 `MangouArt/mangou-ai-motion-comics`。
+- GitHub 分发只使用轻量仓库 `MangouArt/mangou-ai-motion-comics`。
 
 ### 4.2 完整本地运行
 
@@ -175,9 +175,8 @@ npm install -g @mangou/dashboard
 ```text
 mangou/
 ├── skill-src/mangou/              # SSOT: 技能入口
-├── skills/mangou-ai-motion-comics/ # 给 vercel-labs/skills 使用的标准 skill 目录
-├── skill-repos/mangou-ai-motion-comics/ # 独立轻量 skill 仓库根目录
 ├── src/                           # Bun runtime
+├── packages/dashboard/            # dashboard npm 包源码
 ├── dist/                          # dashboard 构建产物
 ├── bundled-skills/
 │   ├── mangou.zip
@@ -189,7 +188,6 @@ mangou/
 - `build:skill`
   - 产出 `mangou.zip`
   - 产出 `mangou-runtime.zip`
-  - 同步标准 skill 目录内容
 - dashboard 构建
   - 产出可发布到 `@mangou/dashboard` 的前端产物
 
@@ -210,8 +208,8 @@ mangou/
 
 ## 7. 实施顺序
 
-1. 建立 `skills/mangou-ai-motion-comics/` 标准目录，并与 `skill-src/mangou/` 保持同步。
-2. 生成 `skill-repos/mangou-ai-motion-comics/`，作为单独发布的轻量 skill 仓库。
+1. 维护 `skill-src/mangou/` 作为唯一 skill 文档源。
+2. 独立维护 `MangouArt/mangou-ai-motion-comics` 轻量 skill 仓库。
 3. 调整 `SKILL.md` / `INSTALL.md`，把安装说明改成：
    - 先装 skill
    - 需要生成时再装 runtime

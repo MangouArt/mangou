@@ -4,16 +4,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { build } from 'esbuild';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 const DEFAULT_SKILL_NAME = 'mangou';
-const DEFAULT_STANDARD_SKILL_DIR = 'mangou-ai-motion-comics';
-const DEFAULT_LIGHTWEIGHT_REPO_DIR = 'mangou-ai-motion-comics';
-const LEGACY_STANDARD_SKILL_DIR = 'managing-motion-comics';
 const execFileAsync = promisify(execFile);
-const GENERATED_NOTICE = '<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->';
 
 async function pathExists(targetPath: string) {
   try {
@@ -49,83 +44,6 @@ async function copyDir(src: string, dest: string, options: any = {}) {
       await fs.copyFile(srcPath, destPath);
     }
   }
-}
-
-async function listFilesRecursive(root: string): Promise<string[]> {
-  const results: string[] = [];
-  const entries = await fs.readdir(root, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(root, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...await listFilesRecursive(fullPath));
-      continue;
-    }
-    if (entry.isFile()) {
-      results.push(fullPath);
-    }
-  }
-  return results.sort();
-}
-
-function injectGeneratedNotice(markdown: string) {
-  const lines = markdown.split('\n');
-  if (lines[0] === '---') {
-    const closingIndex = lines.findIndex((line, index) => index > 0 && line === '---');
-    if (closingIndex > 0) {
-      const body = lines.slice(closingIndex + 1);
-      return `${lines.slice(0, closingIndex + 1).join('\n')}\n${GENERATED_NOTICE}\n${body.join('\n')}`;
-    }
-  }
-  return `${GENERATED_NOTICE}\n${markdown}`;
-}
-
-function replaceFrontmatterValue(markdown: string, key: string, value: string) {
-  const pattern = new RegExp(`(^${key}:\\s*)(.+)$`, 'm');
-  if (!pattern.test(markdown)) return markdown;
-  return markdown.replace(pattern, `$1${value}`);
-}
-
-async function annotateGeneratedMarkdown(root: string) {
-  const files = await listFilesRecursive(root);
-  for (const filePath of files) {
-    if (path.extname(filePath) !== '.md') continue;
-    const content = await fs.readFile(filePath, 'utf-8');
-    const nextContent = injectGeneratedNotice(content);
-    await fs.writeFile(filePath, nextContent);
-  }
-}
-
-function buildLightweightRepoReadme() {
-  return `# Mangou AI Motion Comics
-
-<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->
-
-Standalone lightweight Mangou skill repository for \`vercel-labs/skills\`.
-
-Install from GitHub:
-
-\`\`\`bash
-npx skills add MangouArt/mangou-ai-motion-comics -a openclaw -y
-\`\`\`
-
-Install from a local clone:
-
-\`\`\`bash
-npx skills add . -a openclaw -y
-\`\`\`
-
-Separate artifacts:
-
-- Runtime bundle: \`https://www.mangou.art/downloads/mangou-runtime.zip\`
-- Dashboard: \`npx @mangou/dashboard\`
-`;
-}
-
-async function writeLightweightSkillRepo(sourceRoot: string, repoRoot: string) {
-  await emptyDir(repoRoot);
-  await copyDir(sourceRoot, repoRoot);
-  await annotateGeneratedMarkdown(repoRoot);
-  await fs.writeFile(path.join(repoRoot, 'README.md'), buildLightweightRepoReadme());
 }
 
 async function createZipArchive(bundleRoot: string, archivePath: string) {
@@ -173,8 +91,6 @@ export interface BuildOptions {
   outputRoot?: string;
   distSource?: string;
   includeDistInSkill?: boolean;
-  standardSkillDirName?: string;
-  lightweightRepoDirName?: string;
 }
 
 export async function buildSkillBundle(options: BuildOptions = {}) {
@@ -184,8 +100,6 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
     outputRoot,
     distSource,
     includeDistInSkill = false,
-    standardSkillDirName = DEFAULT_STANDARD_SKILL_DIR,
-    lightweightRepoDirName = DEFAULT_LIGHTWEIGHT_REPO_DIR,
   } = options;
 
   const resolvedPackageRoot = path.resolve(packageRoot);
@@ -198,22 +112,6 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   const resolvedDistSource = distSource
     ? path.resolve(distSource)
     : path.join(resolvedPackageRoot, 'dist');
-  const resolvedStandardSkillRoot = path.join(
-    resolvedPackageRoot,
-    'skills',
-    standardSkillDirName,
-  );
-  const resolvedLightweightRepoRoot = path.join(
-    resolvedPackageRoot,
-    'skill-repos',
-    lightweightRepoDirName,
-  );
-  const legacyStandardSkillRoot = path.join(
-    resolvedPackageRoot,
-    'skills',
-    LEGACY_STANDARD_SKILL_DIR,
-  );
-  const deprecatedPublishRoot = path.join(resolvedPackageRoot, 'clawhub');
 
   console.log(`[build-skill] Building bundle for "${skillName}"...`);
   console.log(`[build-skill] Package Root: ${resolvedPackageRoot}`);
@@ -235,21 +133,7 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   // 2. Copy metadata (SKILL.md, knowledge/)
   await copyDir(skillMetadataRoot, resolvedOutputRoot);
 
-  // 3. Sync standard skill directory for vercel-labs/skills.
-  if (legacyStandardSkillRoot !== resolvedStandardSkillRoot) {
-    await fs.rm(legacyStandardSkillRoot, { recursive: true, force: true });
-  }
-  await emptyDir(resolvedStandardSkillRoot);
-  await copyDir(skillMetadataRoot, resolvedStandardSkillRoot);
-  await annotateGeneratedMarkdown(resolvedStandardSkillRoot);
-
-  // 4. Sync standalone lightweight repo for short owner/repo installs.
-  await writeLightweightSkillRepo(skillMetadataRoot, resolvedLightweightRepoRoot);
-
-  // 5. Remove deprecated publish directory from earlier distribution models.
-  await fs.rm(deprecatedPublishRoot, { recursive: true, force: true });
-
-  // 6. Create ZIP
+  // 3. Create ZIP
   console.log(`[build-skill] Archiving to ${resolvedArchivePath}...`);
   await createZipArchive(resolvedOutputRoot, resolvedArchivePath);
 
@@ -264,8 +148,6 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
 
   return {
     skillRoot: resolvedOutputRoot,
-    standardSkillRoot: resolvedStandardSkillRoot,
-    lightweightRepoRoot: resolvedLightweightRepoRoot,
     archivePath: resolvedArchivePath,
     distRoot: runtimeRoot,
     distArchivePath: resolvedRuntimeArchivePath,
