@@ -15,6 +15,7 @@ tags: [ai-motion-comic, motion-comic, storyboard, image-generation, video-genera
 argument-hint: <project init|project stitch|storyboard generate|storyboard split|asset generate|server start> [...args]
 disable-model-invocation: true
 ---
+<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->
 
 # Mangou
 

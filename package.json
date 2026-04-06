@@ -31,6 +31,7 @@
   },
   "files": [
     "bundled-skills",
+    "skills",
     "skill-src",
     "src",
     "public",
@@ -47,6 +48,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:skill": "bun src/main.ts build:skill --skill mangou",
+    "build:dashboard:package": "node scripts/sync-dashboard-package.mjs",
     "prepack": "bun run build && bun run build:skill",
     "preview": "vite preview",
     "start": "bun run mangou -- server start",

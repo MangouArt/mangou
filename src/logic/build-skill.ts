@@ -9,7 +9,9 @@ import { build } from 'esbuild';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 const DEFAULT_SKILL_NAME = 'mangou';
+const DEFAULT_STANDARD_SKILL_DIR = 'managing-motion-comics';
 const execFileAsync = promisify(execFile);
+const GENERATED_NOTICE = '<!-- GENERATED FROM skill-src/mangou. DO NOT EDIT HERE. EDIT skill-src/mangou INSTEAD. -->';
 
 async function pathExists(targetPath: string) {
   try {
@@ -44,6 +46,44 @@ async function copyDir(src: string, dest: string, options: any = {}) {
     if (entry.isFile()) {
       await fs.copyFile(srcPath, destPath);
     }
+  }
+}
+
+async function listFilesRecursive(root: string): Promise<string[]> {
+  const results: string[] = [];
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...await listFilesRecursive(fullPath));
+      continue;
+    }
+    if (entry.isFile()) {
+      results.push(fullPath);
+    }
+  }
+  return results.sort();
+}
+
+function injectGeneratedNotice(markdown: string) {
+  const lines = markdown.split('\n');
+  if (lines[0] === '---') {
+    const closingIndex = lines.findIndex((line, index) => index > 0 && line === '---');
+    if (closingIndex > 0) {
+      const body = lines.slice(closingIndex + 1);
+      return `${lines.slice(0, closingIndex + 1).join('\n')}\n${GENERATED_NOTICE}\n${body.join('\n')}`;
+    }
+  }
+  return `${GENERATED_NOTICE}\n${markdown}`;
+}
+
+async function annotateGeneratedMarkdown(root: string) {
+  const files = await listFilesRecursive(root);
+  for (const filePath of files) {
+    if (path.extname(filePath) !== '.md') continue;
+    const content = await fs.readFile(filePath, 'utf-8');
+    const nextContent = injectGeneratedNotice(content);
+    await fs.writeFile(filePath, nextContent);
   }
 }
 
@@ -92,6 +132,7 @@ export interface BuildOptions {
   outputRoot?: string;
   distSource?: string;
   includeDistInSkill?: boolean;
+  standardSkillDirName?: string;
 }
 
 export async function buildSkillBundle(options: BuildOptions = {}) {
@@ -101,6 +142,7 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
     outputRoot,
     distSource,
     includeDistInSkill = false,
+    standardSkillDirName = DEFAULT_STANDARD_SKILL_DIR,
   } = options;
 
   const resolvedPackageRoot = path.resolve(packageRoot);
@@ -113,6 +155,11 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   const resolvedDistSource = distSource
     ? path.resolve(distSource)
     : path.join(resolvedPackageRoot, 'dist');
+  const resolvedStandardSkillRoot = path.join(
+    resolvedPackageRoot,
+    'skills',
+    standardSkillDirName,
+  );
 
   console.log(`[build-skill] Building bundle for "${skillName}"...`);
   console.log(`[build-skill] Package Root: ${resolvedPackageRoot}`);
@@ -134,7 +181,12 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
   // 2. Copy metadata (SKILL.md, knowledge/)
   await copyDir(skillMetadataRoot, resolvedOutputRoot);
 
-  // 3. Create ZIP
+  // 3. Sync standard skill directory for vercel-labs/skills.
+  await emptyDir(resolvedStandardSkillRoot);
+  await copyDir(skillMetadataRoot, resolvedStandardSkillRoot);
+  await annotateGeneratedMarkdown(resolvedStandardSkillRoot);
+
+  // 4. Create ZIP
   console.log(`[build-skill] Archiving to ${resolvedArchivePath}...`);
   await createZipArchive(resolvedOutputRoot, resolvedArchivePath);
 
@@ -149,6 +201,7 @@ export async function buildSkillBundle(options: BuildOptions = {}) {
 
   return {
     skillRoot: resolvedOutputRoot,
+    standardSkillRoot: resolvedStandardSkillRoot,
     archivePath: resolvedArchivePath,
     distRoot: runtimeRoot,
     distArchivePath: resolvedRuntimeArchivePath,

@@ -2,6 +2,8 @@
 
 Mangou 采用 **“以文件系统为总线，以 YAML 为契约”** 的架构。系统由三个互不依赖、各司其职的独立角色组成。
 
+分发与安装模型另见 [DISTRIBUTION.md](./DISTRIBUTION.md)。该文档定义了 skill、runtime、dashboard 三层产物及其安装边界。
+
 ## 1. 角色职责与边界
 
 ### Agent (Creative Architect - 创意架构师)

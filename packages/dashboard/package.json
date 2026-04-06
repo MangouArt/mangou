@@ -1,0 +1,42 @@
+{
+  "name": "@mangou/dashboard",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Read-only local dashboard for Mangou runtime projects",
+  "license": "FSL-1.1-Apache-2.0",
+  "homepage": "https://www.mangou.art",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MangouArt/mangou.git",
+    "directory": "packages/dashboard"
+  },
+  "bin": {
+    "mangou-dashboard": "./bin/mangou-dashboard.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "prepare:dist": "node ../../scripts/sync-dashboard-package.mjs",
+    "prepack": "npm run prepare:dist",
+    "start": "node ./bin/mangou-dashboard.mjs",
+    "pack:check": "npm pack --dry-run"
+  },
+  "keywords": [
+    "mangou",
+    "dashboard",
+    "motion-comic",
+    "storyboard",
+    "agent",
+    "local-first"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
