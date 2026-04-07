@@ -88,8 +88,9 @@ cp .env.example .env.local
 ```
 
 按需填写你的模型服务配置。默认示例文件不会包含真实密钥。
-请在 `.env.local` 中设置 `KIE_API_KEY` 或 `BLTAI_API_KEY`。详细注册和取 token 流程请参考：
-- **KIE AI (推荐)**: [`knowledge/provider-kie.md`](./skill-src/mangou/knowledge/provider-kie.md)
+请在 `.env.local` 中设置 `JIEKOU_API_KEY`, `KIE_API_KEY` 或 `BLTAI_API_KEY`。详细注册和取 token 流程请参考：
+- **JieKou AI (推荐)**: [`knowledge/provider-jiekou.md`](./skill-src/mangou/knowledge/provider-jiekou.md)
+- **KIE AI**: [`knowledge/provider-kie.md`](./skill-src/mangou/knowledge/provider-kie.md)
 - **BLTAI**: [`knowledge/provider-bltai.md`](./skill-src/mangou/knowledge/provider-bltai.md)
 
 ### 3. 构建技能包
