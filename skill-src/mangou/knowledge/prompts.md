@@ -39,11 +39,28 @@
 
 ## 3x3 母图后缀
 
-`meta.grid: 3x3` 且目标是后续物理切分时，追加这段固定约束：
+`meta.grid: 3x3` 且目标是后续物理切分时，追加以下固定约束：
 
 ```text
-A professional 3x3 SEAMLESS storyboard grid. NO WHITE BORDERS, NO MARGINS, NO GAPS, NO CAPTIONS, NO TEXT. The 9 panels are tightly tiled together. Industrial sci-fi cinematic style, photorealistic textures.
+A professional 3x3 SEAMLESS storyboard grid. NO WHITE BORDERS, NO MARGINS, NO GAPS, NO CAPTIONS, NO TEXT. The 9 panels are tightly tiled together.
 ```
+
+## 视觉 DNA 约束
+
+- **核心锚点定义**：Prompt 必须显式声明基准色温（K）、曝光模式（Key）及主导光源性质，以锁定视觉 DNA 基调。
+- **工业纪实规范**：采用高度物理准确的材质细节描述（如磨砂、拉丝、氧化层），强调结构的功能性与真实感。
+- **材质化语义**：使用具象物理材质代替虚泛形容词。重点描述光线在特定材质表面的交互效果。
+- **负向净化**：系统排除低保真、非线性光影、过度风格化等干扰元素。
+
+## 高保真复刻 (Cinematic Reproduction)
+针对电影/高精密影视片段的复刻，必须覆盖以下硬约束：
+
+1. **反 AI 审美（Anti-AI Aesthetic）**：
+   - 使用 `Gritty Analog 35mm film scan`, `Rough industrial textures`, `Hard single-source lighting (High contrast)`。
+   - 强制追加 `Heavy film grain`, `Unpolished metallic surfaces` 以对抗 AI 原生的过于平滑的质感。
+2. **机械 DNA 锁定（Mechanical DNA Enforcement）**：
+   - 严禁使用宽泛的机械描述（如 "complex gears"）。
+   - 必须定义具体的拟真工业组件名称并全局复用（例：`Quad-Roller Hydraulic Assembly`），以锁定跨镜头的机械设计语义。
 
 ## I2V 视频 prompt
 
@@ -58,9 +75,3 @@ I2V prompt 重点不是“好看”，而是把物理约束写死：
    - `no dissolve`
    - `no spatial re-layout`
 4. 必要时用分段时间轴覆盖完整动作。
-
-示例：
-
-```text
-Camera rotates 90 degrees to the right. The crowd exists in off-screen space at the start. NO FADE, NO MORPH, NO FLASH. Background remains rigid. Movement is driven only by physical camera rotation and perspective change.
-```
