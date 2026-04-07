@@ -88,7 +88,10 @@ cp .env.example .env.local
 ```
 
 Fill in your provider settings as needed. The example file does not include real keys.
-If you use BLTAI, set `BLTAI_API_KEY` in `.env.local`. The detailed signup and token flow is documented in [`knowledge/provider-bltai.md`](./skill-src/mangou/knowledge/provider-bltai.md).
+If you use BLTAI, set `BLTAI_API_KEY` in `.env.local`. Detailed signup and token flows are documented in:
+- **JieKou AI (Recommended)**: [`knowledge/provider-jiekou.md`](./skill-src/mangou/knowledge/provider-jiekou.md)
+- **KIE AI**: [`knowledge/provider-kie.md`](./skill-src/mangou/knowledge/provider-kie.md)
+- **BLTAI**: [`knowledge/provider-bltai.md`](./skill-src/mangou/knowledge/provider-bltai.md)
 
 ### 3. Build the skill bundle
 
