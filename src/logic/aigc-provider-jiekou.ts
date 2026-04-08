@@ -27,41 +27,12 @@ async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
   throw lastError;
 }
 
-/**
- * Handle file upload for JieKou AI (using the same endpoint as KIE for now)
- */
-async function uploadToJiekou(apiKey: string, dataUrl: string, fetchImpl = fetchWithRetry) {
-  const uploadBaseUrl = 'https://kieai.redpandaai.co';
-  const endpoint = joinUrl(uploadBaseUrl, 'api/file-stream-upload');
-
-  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+function dataUrlToBase64(dataUrl: string) {
+  const matches = dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
   if (!matches) {
     throw new Error('Invalid Data URL: expected data:<mime>;base64,<data>');
   }
-
-  const mimeType = matches[1];
-  const base64Data = matches[2];
-  const buffer = Buffer.from(base64Data, 'base64');
-  const blob = new Blob([buffer], { type: mimeType });
-
-  const formData = new FormData();
-  formData.append('file', blob, 'upload.png');
-  formData.append('uploadPath', 'mangou-uploads');
-
-  const response = await fetchImpl(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-
-  const result = await response.json();
-  if (!response.ok || !result.success) {
-    throw new Error(`Jiekou stream upload failed: ${response.status} ${JSON.stringify(result)}`);
-  }
-
-  return result.data.downloadUrl;
+  return matches[2];
 }
 
 export const JIEKOU_PROVIDER = {
@@ -120,46 +91,39 @@ export const JIEKOU_PROVIDER = {
     };
   },
   async submit({ baseUrl, apiKey, scope, payload, fetchImpl = fetchWithRetry }: any) {
-    // 1. Handle file uploads (Deep clone to avoid proxy/readonly issues)
+    // 1. Prepare media inputs (Deep clone to avoid proxy/readonly issues)
     const finalPayload = JSON.parse(JSON.stringify(payload));
-    
-    const uploadTasks: Promise<void>[] = [];
-    
-    // Upload reference images
+    const model = String(finalPayload.model || '');
+
+    // JieKou Seedance 2.0 accepts base64-encoded media content directly.
     if (Array.isArray(finalPayload.reference_images)) {
       for (let i = 0; i < finalPayload.reference_images.length; i++) {
         const url = finalPayload.reference_images[i];
         if (url && url.startsWith('data:')) {
-          uploadTasks.push((async () => {
-             finalPayload.reference_images[i] = await uploadToJiekou(apiKey, url, fetchImpl);
-          })());
+          finalPayload.reference_images[i] = dataUrlToBase64(url);
         }
       }
     }
-    
-    // Upload single image/last_image
+
     for (const key of ['image', 'last_image']) {
       const url = finalPayload[key];
       if (url && url.startsWith('data:')) {
-        uploadTasks.push((async () => {
-          finalPayload[key] = await uploadToJiekou(apiKey, url, fetchImpl);
-        })());
+        finalPayload[key] = dataUrlToBase64(url);
       }
     }
-
-    await Promise.all(uploadTasks);
 
     // 2. Determine endpoint
     // User requested: https://api.jiekou.ai/v3/async/seedance-2.0
     let endpoint = joinUrl(baseUrl, 'api/v1/jobs/createTask');
-    if (finalPayload.model.includes('seedance-2.0')) {
+    if (model.includes('seedance-2.0')) {
       // If the provided baseUrl already contains v3/async, use it as is
       if (baseUrl.includes('v3/async')) {
         endpoint = baseUrl;
       } else {
         endpoint = joinUrl(baseUrl, 'v3/async/seedance-2.0');
       }
-      // Documentation shows fields are top-level for this model
+      // Seedance 2.0 uses a model-specific endpoint; `model` is routing metadata, not request body.
+      delete finalPayload.model;
     }
 
     console.error(`[jiekou] Submitting to ${endpoint}...`);
@@ -194,7 +158,10 @@ export const JIEKOU_PROVIDER = {
 
     for (;;) {
       const response = await fetchImpl(endpoint, {
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
       });
 
       if (!response.ok) {

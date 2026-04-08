@@ -40,3 +40,12 @@
 - 索引
   - 原始链接: https://docs.kie.ai/llms.txt
   - 本地文本: [kie-llms.txt](./kie-llms.txt)
+
+## JieKou
+
+- `Seedance 2.0 视频生成`
+  - 原始链接: https://docs.jiekou.ai/docs/models/reference-seedance-2.0
+  - Markdown: [jiekou-seedance-2.0.md](./jiekou-seedance-2.0.md)
+- `GET 查询任务结果`
+  - 原始链接: https://docs.jiekou.ai/docs/models/reference-get-async-task-result
+  - Markdown: [reference-get-async-task-result.md](./reference-get-async-task-result.md)
