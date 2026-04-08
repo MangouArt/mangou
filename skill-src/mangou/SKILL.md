@@ -76,6 +76,7 @@ Mangou checklist
 - 导演式分镜原则：[knowledge/director.md](knowledge/director.md)
 - Prompt 策略：[knowledge/prompts.md](knowledge/prompts.md)
 - BLTAI 参数：[knowledge/provider-bltai.md](knowledge/provider-bltai.md)
+- JieKou 参数：[knowledge/provider-jiekou.md](knowledge/provider-jiekou.md)
 - KIE 参数：[knowledge/provider-kie.md](knowledge/provider-kie.md)
 - 任务真相源与回填：[knowledge/tasks.md](knowledge/tasks.md)
 - **记忆模块规范**：[memories/README.md](memories/README.md)
