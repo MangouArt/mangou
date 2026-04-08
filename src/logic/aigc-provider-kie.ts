@@ -138,6 +138,35 @@ export const KIE_PROVIDER = {
         };
       }
 
+      if (model === 'wan/2-7-r2v') {
+        rejectAlias(params, 'images', 'reference_image / first_frame');
+        rejectAlias(params, 'image', 'reference_image / first_frame');
+        const reference_image = requireArrayField(params, 'reference_image');
+        const reference_video = requireArrayField(params, 'reference_video');
+        const first_frame = requireStringField(params, 'first_frame');
+        const reference_voice = requireStringField(params, 'reference_voice');
+
+        return {
+          model,
+          ...(params.callBackUrl ? { callBackUrl: params.callBackUrl } : {}),
+          input: {
+            prompt,
+            ...(requireStringField(params, 'negative_prompt') ? { negative_prompt: requireStringField(params, 'negative_prompt') } : {}),
+            ...(reference_image.length > 0 ? { reference_image } : {}),
+            ...(reference_video.length > 0 ? { reference_video } : {}),
+            ...(first_frame ? { first_frame } : {}),
+            ...(reference_voice ? { reference_voice } : {}),
+            resolution: params.resolution || '1080p',
+            aspect_ratio: params.aspect_ratio || '16:9',
+            duration: Number(params.duration || 5),
+            prompt_extend: params.prompt_extend !== undefined ? params.prompt_extend : true,
+            watermark: params.watermark !== undefined ? params.watermark : false,
+            ...(params.seed !== undefined ? { seed: Number(params.seed) } : {}),
+            nsfw_checker: params.nsfw_checker !== undefined ? params.nsfw_checker : false,
+          },
+        };
+      }
+
       rejectAlias(params, 'images', 'image_url');
       rejectAlias(params, 'image', 'image_url');
       const imageUrl = requireStringField(params, 'image_url');
@@ -244,6 +273,19 @@ export const KIE_PROVIDER = {
               finalPayload.input.reference_image_urls[i] = await uploadToKie(apiKey, finalPayload.input.reference_image_urls[i], fetchImpl);
             }
           }
+        }
+      } else if (model === 'wan/2-7-r2v') {
+        if (Array.isArray(finalPayload.input?.reference_image)) {
+          for (let i = 0; i < finalPayload.input.reference_image.length; i++) {
+            if (finalPayload.input.reference_image[i]?.startsWith('data:')) {
+              console.error(`[kie] Uploading reference image ${i + 1} to KIE...`);
+              finalPayload.input.reference_image[i] = await uploadToKie(apiKey, finalPayload.input.reference_image[i], fetchImpl);
+            }
+          }
+        }
+        if (finalPayload.input?.first_frame?.startsWith('data:')) {
+          console.error(`[kie] Uploading first frame to KIE...`);
+          finalPayload.input.first_frame = await uploadToKie(apiKey, finalPayload.input.first_frame, fetchImpl);
         }
       } else {
         const imageUrl = finalPayload.input?.image_url;
