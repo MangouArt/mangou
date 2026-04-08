@@ -1,0 +1,20 @@
+meta:
+  id: shot-jiekou-seedance-minimal
+  type: storyboard
+content:
+  title: "JieKou Seedance 2.0 最小样例"
+  story: "用于验证九宫格母图、多音频生成、尾帧回传的最小闭环。"
+tasks:
+  video:
+    provider: jiekou
+    params:
+      model: seedance-2.0
+      prompt: "镜头缓慢推进，人物抬头看向远方，保留原始角色特征与服装，环境里有自然风声。"
+      duration: 5
+      ratio: "16:9"
+      resolution: 720p
+      reference_images:
+        - assets/images/grid-mother.png
+      first_frame_url: assets/images/first-frame.png
+      generate_audio: true
+      return_last_frame: true

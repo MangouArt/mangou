@@ -23,7 +23,7 @@ CLI 仅关注 `tasks.[type].params` 模块。
 - YAML 中的字段名必须与供应商 API 文档一致。不要使用 CLI 自造别名。
 - 文档索引见 [docs/vendor-api/README.md](../docs/vendor-api/README.md)。
 - 当前允许 CLI 自动解析本地路径的字段只有：
-  - 数组字段：`image`、`images`、`image_input`、`image_urls`、`reference_image_urls`
+  - 数组字段：`image`、`images`、`image_input`、`image_urls`、`reference_images`、`reference_image_urls`
   - 单值字段：`image_url`、`first_frame_url`、`last_frame_url`
 - 自动解析只发生在“同字段内”：
   - 本地图片路径 -> `data:` URL
@@ -138,3 +138,26 @@ tasks:
       first_frame_url: assets/images/first-frame.png
       last_frame_url: assets/images/last-frame.png
 ```
+
+### F. JieKou `seedance-2.0`
+```yaml
+tasks:
+  video:
+    provider: jiekou
+    params:
+      model: seedance-2.0
+      prompt: "镜头缓慢推进，人物抬头，空气里有轻微风声。"
+      duration: 5
+      ratio: "16:9"
+      resolution: 720p
+      reference_images:
+        - assets/images/grid-mother.png
+      first_frame_url: assets/images/first-frame.png
+      generate_audio: true
+      return_last_frame: true
+```
+
+说明：
+- `reference_images` 是 JieKou Seedance 2.0 的多图参考字段；九宫格母图优先放这里。
+- `first_frame_url` 适合控制起始关键帧，不应替代九宫格母图主输入。
+- `return_last_frame` 虽然供应商默认值为 `false`，但连续分段生成时建议显式设为 `true`。
