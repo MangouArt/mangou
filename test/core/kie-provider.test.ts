@@ -62,6 +62,45 @@ describe('KIE AI Provider', () => {
     });
   });
 
+  it('buildPayload should correctly format wan/2-7-r2v request', () => {
+    const params = {
+      model: 'wan/2-7-r2v',
+      prompt: '图1在前景走动，视频1在后景闪烁',
+      negative_prompt: '低质量',
+      reference_image: ['https://example.com/ref1.png'],
+      reference_video: ['https://example.com/ref1.mp4'],
+      first_frame: 'https://example.com/first.png',
+      reference_voice: 'https://example.com/voice.mp3',
+      resolution: '1080p',
+      aspect_ratio: '9:16',
+      duration: 6,
+      prompt_extend: false,
+      watermark: true,
+      seed: 42,
+      nsfw_checker: true,
+    };
+    const payload = KIE_PROVIDER.buildPayload('videos', params);
+
+    expect(payload).toEqual({
+      model: 'wan/2-7-r2v',
+      input: {
+        prompt: '图1在前景走动，视频1在后景闪烁',
+        negative_prompt: '低质量',
+        reference_image: ['https://example.com/ref1.png'],
+        reference_video: ['https://example.com/ref1.mp4'],
+        first_frame: 'https://example.com/first.png',
+        reference_voice: 'https://example.com/voice.mp3',
+        resolution: '1080p',
+        aspect_ratio: '9:16',
+        duration: 6,
+        prompt_extend: false,
+        watermark: true,
+        seed: 42,
+        nsfw_checker: true,
+      }
+    });
+  });
+
   it('buildPayload should correctly format nano-banana-2 request', () => {
     const params = {
       model: 'nano-banana-2',
@@ -337,6 +376,56 @@ describe('KIE AI Provider', () => {
           Authorization: 'Bearer test-key'
         }),
         body: expect.any(Object) // FormData
+      })
+    );
+  });
+
+  it('submit should upload wan/2-7-r2v reference images and first frame via stream to KIE', async () => {
+    const mockUploadResponse = {
+      success: true,
+      data: { downloadUrl: 'https://cdn.kie.ai/uploaded.png' }
+    };
+    const mockSubmitResponse = {
+      code: 200,
+      data: { taskId: 'task-after-wan-upload' }
+    };
+
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUploadResponse
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUploadResponse
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSubmitResponse
+      });
+
+    const taskId = await KIE_PROVIDER.submit({
+      baseUrl: 'https://api.kie.ai',
+      apiKey: 'test-key',
+      scope: 'videos',
+      payload: {
+        model: 'wan/2-7-r2v',
+        input: {
+          prompt: 'test',
+          reference_image: ['data:image/png;base64,yyyy'],
+          first_frame: 'data:image/png;base64,zzzz'
+        }
+      },
+      fetchImpl
+    });
+
+    expect(taskId).toBe('task-after-wan-upload');
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(fetchImpl).toHaveBeenLastCalledWith(
+      'https://api.kie.ai/api/v1/jobs/createTask',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('https://cdn.kie.ai/uploaded.png')
       })
     );
   });

@@ -37,6 +37,9 @@
 - `nano-banana-2`
   - 原始链接: https://docs.kie.ai/cn/market/google/nanobanana2
   - Markdown: [kie-nano-banana-2.md](./kie-nano-banana-2.md)
+- `wan/2-7-r2v`
+  - 原始链接: https://docs.kie.ai/cn/market/wan/2-7-r2v.md
+  - Markdown: [kie-wan-2-7-r2v.md](./kie-wan-2-7-r2v.md)
 - 索引
   - 原始链接: https://docs.kie.ai/llms.txt
   - 本地文本: [kie-llms.txt](./kie-llms.txt)
@@ -49,3 +52,9 @@
 - `GET 查询任务结果`
   - 原始链接: https://docs.jiekou.ai/docs/models/reference-get-async-task-result
   - Markdown: [reference-get-async-task-result.md](./reference-get-async-task-result.md)
+- `Veo 3.1 Fast 参考图像生成视频`
+  - 原始链接: https://docs.jiekou.ai/docs/models/reference-veo-3.1-fast-generate-reference.md
+  - Markdown: [veo-3.1-fast-generate-reference.md](./veo-3.1-fast-generate-reference.md)
+- `VIDU Q2 Pro Fast 参考生视频`
+  - 原始链接: https://docs.jiekou.ai/docs/models/reference-viduq2-pro-fast.md
+  - Markdown: [viduq2-pro-fast.md](./viduq2-pro-fast.md)

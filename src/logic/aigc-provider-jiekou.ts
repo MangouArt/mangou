@@ -35,6 +35,21 @@ function dataUrlToBase64(dataUrl: string) {
   return matches[2];
 }
 
+function encodeNestedSubjectImages(subjects: any[]) {
+  for (const subject of subjects) {
+    if (!subject || !Array.isArray(subject.images)) {
+      continue;
+    }
+
+    for (let i = 0; i < subject.images.length; i++) {
+      const image = subject.images[i];
+      if (typeof image === 'string' && image.startsWith('data:')) {
+        subject.images[i] = dataUrlToBase64(image);
+      }
+    }
+  }
+}
+
 export const JIEKOU_PROVIDER = {
   ...AIGC_PROVIDER_TEMPLATE,
   id: 'jiekou',
@@ -81,6 +96,22 @@ export const JIEKOU_PROVIDER = {
       };
     }
 
+    if (model.includes('viduq2-pro-fast')) {
+      return {
+        model,
+        prompt,
+        bgm: params.bgm !== undefined ? params.bgm : false,
+        seed: params.seed,
+        audio: params.audio !== undefined ? params.audio : false,
+        duration: params.duration !== undefined ? Number(params.duration) : 5,
+        subjects: params.subjects || [],
+        watermark: params.watermark !== undefined ? params.watermark : false,
+        resolution: params.resolution || '720p',
+        aspect_ratio: params.aspect_ratio,
+        movement_amplitude: params.movement_amplitude,
+      };
+    }
+
     // Fallback for other models (unified format)
     return {
       model,
@@ -112,6 +143,10 @@ export const JIEKOU_PROVIDER = {
       }
     }
 
+    if (Array.isArray(finalPayload.subjects)) {
+      encodeNestedSubjectImages(finalPayload.subjects);
+    }
+
     // 2. Determine endpoint
     // User requested: https://api.jiekou.ai/v3/async/seedance-2.0
     let endpoint = joinUrl(baseUrl, 'api/v1/jobs/createTask');
@@ -123,6 +158,11 @@ export const JIEKOU_PROVIDER = {
         endpoint = joinUrl(baseUrl, 'v3/async/seedance-2.0');
       }
       // Seedance 2.0 uses a model-specific endpoint; `model` is routing metadata, not request body.
+      delete finalPayload.model;
+    } else if (model.includes('viduq2-pro-fast')) {
+      endpoint = baseUrl.includes('v3/async')
+        ? baseUrl
+        : joinUrl(baseUrl, 'v3/async/viduq2-pro-fast');
       delete finalPayload.model;
     }
 
@@ -138,6 +178,8 @@ export const JIEKOU_PROVIDER = {
     });
 
     const data = await response.json();
+    console.error(`[jiekou] Submit response status: ${response.status}`);
+    console.error(`[jiekou] Submit response body: ${JSON.stringify(data)}`);
     if (!response.ok) {
       throw new Error(`Submit failed: ${response.status} ${JSON.stringify(data)}`);
     }
