@@ -106,7 +106,7 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
  */
 
 async function resolveImageParams(projectRoot: string, params: Record<string, any>) {
-  for (const key of ["images", "image", "image_input", "image_urls", "reference_image_urls"]) {
+  for (const key of ["images", "image", "image_input", "image_urls", "reference_images", "reference_image_urls"]) {
     if (params[key] === undefined) continue;
     if (!Array.isArray(params[key])) {
       continue;
