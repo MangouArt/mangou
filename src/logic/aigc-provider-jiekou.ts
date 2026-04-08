@@ -35,7 +35,17 @@ function dataUrlToBase64(dataUrl: string) {
   return matches[2];
 }
 
-function encodeNestedSubjectImages(subjects: any[]) {
+function validateViduResolution(resolution: any) {
+  if (resolution === undefined || resolution === null || resolution === '') {
+    return '720p';
+  }
+  if (resolution === '720p' || resolution === '1080p') {
+    return resolution;
+  }
+  throw new Error("[jiekou] viduq2-pro-fast 只接受 '720p' 或 '1080p' 分辨率");
+}
+
+function assertViduSubjectImagesAreRemoteUrls(subjects: any[]) {
   for (const subject of subjects) {
     if (!subject || !Array.isArray(subject.images)) {
       continue;
@@ -43,8 +53,11 @@ function encodeNestedSubjectImages(subjects: any[]) {
 
     for (let i = 0; i < subject.images.length; i++) {
       const image = subject.images[i];
-      if (typeof image === 'string' && image.startsWith('data:')) {
-        subject.images[i] = dataUrlToBase64(image);
+      if (typeof image !== 'string' || image.length === 0) {
+        continue;
+      }
+      if (image.startsWith('data:')) {
+        throw new Error('[jiekou] viduq2-pro-fast 的 subjects[].images 只接受远程 URL；本地图片请先上传后再提交 URL');
       }
     }
   }
@@ -106,7 +119,7 @@ export const JIEKOU_PROVIDER = {
         duration: params.duration !== undefined ? Number(params.duration) : 5,
         subjects: params.subjects || [],
         watermark: params.watermark !== undefined ? params.watermark : false,
-        resolution: params.resolution || '720p',
+        resolution: validateViduResolution(params.resolution),
         aspect_ratio: params.aspect_ratio,
         movement_amplitude: params.movement_amplitude,
       };
@@ -143,10 +156,6 @@ export const JIEKOU_PROVIDER = {
       }
     }
 
-    if (Array.isArray(finalPayload.subjects)) {
-      encodeNestedSubjectImages(finalPayload.subjects);
-    }
-
     // 2. Determine endpoint
     // User requested: https://api.jiekou.ai/v3/async/seedance-2.0
     let endpoint = joinUrl(baseUrl, 'api/v1/jobs/createTask');
@@ -160,6 +169,9 @@ export const JIEKOU_PROVIDER = {
       // Seedance 2.0 uses a model-specific endpoint; `model` is routing metadata, not request body.
       delete finalPayload.model;
     } else if (model.includes('viduq2-pro-fast')) {
+      if (Array.isArray(finalPayload.subjects)) {
+        assertViduSubjectImagesAreRemoteUrls(finalPayload.subjects);
+      }
       endpoint = baseUrl.includes('v3/async')
         ? baseUrl
         : joinUrl(baseUrl, 'v3/async/viduq2-pro-fast');

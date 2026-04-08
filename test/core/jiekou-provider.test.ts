@@ -148,6 +148,22 @@ describe("JieKou AI Provider", () => {
     });
   });
 
+  it("buildPayload rejects unsupported viduq2-pro-fast resolution values", () => {
+    expect(() =>
+      JIEKOU_PROVIDER.buildPayload("videos", {
+        model: "viduq2-pro-fast",
+        prompt: "让 @hero 从门口走向镜头",
+        resolution: "480p",
+        subjects: [
+          {
+            name: "hero",
+            images: ["https://example.com/hero.png"],
+          },
+        ],
+      }),
+    ).toThrow(/viduq2-pro-fast.*720p.*1080p/);
+  });
+
   it("submit routes viduq2-pro-fast to the model endpoint and strips model from the body", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
@@ -164,7 +180,7 @@ describe("JieKou AI Provider", () => {
         subjects: [
           {
             name: "hero",
-            images: ["data:image/png;base64,aGVybw=="],
+            images: ["https://example.com/hero.png"],
           },
         ],
       },
@@ -184,11 +200,36 @@ describe("JieKou AI Provider", () => {
           subjects: [
             {
               name: "hero",
-              images: ["aGVybw=="],
+              images: ["https://example.com/hero.png"],
             },
           ],
         }),
       }),
     );
+  });
+
+  it("submit rejects data URLs for viduq2-pro-fast subjects images and requires remote URLs", async () => {
+    const fetchImpl = vi.fn();
+
+    await expect(
+      JIEKOU_PROVIDER.submit({
+        baseUrl: "https://api.jiekou.ai",
+        apiKey: "test-key",
+        scope: "videos",
+        payload: {
+          model: "viduq2-pro-fast",
+          prompt: "让 @hero 从门口走向镜头",
+          subjects: [
+            {
+              name: "hero",
+              images: ["data:image/png;base64,aGVybw=="],
+            },
+          ],
+        },
+        fetchImpl,
+      }),
+    ).rejects.toThrow(/viduq2-pro-fast.*subjects\[\]\.images.*URL/);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
