@@ -40,9 +40,11 @@ Mangou checklist
 - [ ] 轻量安装态不包含 Bun runtime，不要直接假设 `src/main.ts` 已存在
 - [ ] 需要 CLI 时，优先运行 `node bootstrap-runtime.mjs`
 - [ ] 需要本地只读页面时，再安装独立 dashboard 包
+- [ ] 检索工作区记忆：开始任务前检查 `workspace/.mangou/memories/`
 - [ ] 先读项目目录规范，再改 YAML
 - [ ] 生成后只信任 tasks.jsonl 和 YAML latest 回填
 - [ ] 失败时先读 error，再修正参数或 prompt
+- [ ] 沉淀经验：任务完成后，询问用户是否总结记忆库
 ```
 
 1. 安装和 runtime 合并：见 [INSTALL.md](INSTALL.md) 和 `node bootstrap-runtime.mjs`
@@ -60,6 +62,8 @@ Mangou checklist
 5. `storyboard split` 只依赖 `meta.grid` / `--grid`，不要靠 prompt 文本推断宫格。
 6. 生成失败时先检查 `error`、`latest`、`tasks.jsonl` 末尾记录，再决定是否重试。
 7. skill 入口、Bun runtime、dashboard 是三层产物；不要把它们当成同一个安装物。
+8. **记忆优先原则**：所有 AIGC 相关操作必须前置检索用户工作区记忆 (`workspace/.mangou/memories/`)，如有冲突以时间较近的记录为准。
+9. **闭环总结**：调优成功后必须主动引导用户将心得总结到工作区记忆库。
 
 ## Reference map
 
@@ -74,3 +78,4 @@ Mangou checklist
 - BLTAI 参数：[knowledge/provider-bltai.md](knowledge/provider-bltai.md)
 - KIE 参数：[knowledge/provider-kie.md](knowledge/provider-kie.md)
 - 任务真相源与回填：[knowledge/tasks.md](knowledge/tasks.md)
+- **记忆模块规范**：[memories/README.md](memories/README.md)

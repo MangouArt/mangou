@@ -45,10 +45,23 @@
 A professional 3x3 SEAMLESS storyboard grid. NO WHITE BORDERS, NO MARGINS, NO GAPS, NO CAPTIONS, NO TEXT. The 9 panels are tightly tiled together.
 ```
 
+## 3x3 宫格比例锁定 (Rigid 3x3 Enforcement)
+
+在 `meta.grid: 3x3` 场景下，若模型出现布局混乱（如生成漫画分镜而非均匀宫格），需强化以下指令：
+
+1. **几何对称（Geometric Symmetry）**:
+   - 使用 `A MATHEMATICALLY UNIFORM 3x3 STORYBOARD GRID`。
+   - 增加 `9 IDENTICAL RECTANGULAR PANELS` 或 `9 EQUAL SIZED RECTANGLES IN A 3x3 ARRAY`。
+2. **边框净化（Border Protocol）**:
+   - **避免**使用 `THICK BLACK LINES`（可能导致模型过度夸张边框厚度或触发漫画排版逻辑）。
+   - **优先**使用 `CLEAN BLACK HORIZONTAL AND VERTICAL LINES` 或 `THIN BLACK DIVIDER LINES`。
+3. **结构隔离**:
+   - `STRUCTURE: 9 identical cells separated by CLEAN lines. NO BLEEDING between cells.`
+
 ## 视觉 DNA 约束
 
 - **核心锚点定义**：Prompt 必须显式声明基准色温（K）、曝光模式（Key）及主导光源性质，以锁定视觉 DNA 基调。
-- **工业纪实规范**：采用高度物理准确的材质细节描述（如磨砂、拉丝、氧化层），强调结构的功能性与真实感。
+- **工业纪实策略**：若采用写实风格，建议使用具象物理材质描述（如磨砂、拉丝、氧化层），强调结构的功能性。
 - **材质化语义**：使用具象物理材质代替虚泛形容词。重点描述光线在特定材质表面的交互效果。
 - **负向净化**：系统排除低保真、非线性光影、过度风格化等干扰元素。
 
@@ -56,11 +69,15 @@ A professional 3x3 SEAMLESS storyboard grid. NO WHITE BORDERS, NO MARGINS, NO GA
 针对电影/高精密影视片段的复刻，必须覆盖以下硬约束：
 
 1. **反 AI 审美（Anti-AI Aesthetic）**：
-   - 使用 `Gritty Analog 35mm film scan`, `Rough industrial textures`, `Hard single-source lighting (High contrast)`。
-   - 强制追加 `Heavy film grain`, `Unpolished metallic surfaces` 以对抗 AI 原生的过于平滑的质感。
-2. **机械 DNA 锁定（Mechanical DNA Enforcement）**：
+    - 使用 `Gritty Analog 35mm film scan`, `Rough industrial textures`, `Hard single-source lighting (High contrast)`。
+    - 强制追加 `Heavy film grain`, `Unpolished metallic surfaces` 以对抗 AI 原生的过于平滑的质感。
+3. **画风纠偏（Stylistic Drift Control）**:
+    - **硬约束（Negative Style Guards）**: 显式添加 `NOT ANIME, NOT COMIC BOOK, NOT SKETCH, NO LINE ART`。
+    - **真人化指令**: 增加 `PHOTOREALISTIC, LIVE ACTION, CINEMATIC FILM SCAN`。
+    - **物理化转译**: 避免使用可能触发动漫特效的词汇（如 `magnetic light`, `energy glow`），改用物理材质反射（如 `metallic surface reflection`, `diffuse metal sheen`）。
+4. **机械 DNA 锁定（Mechanical DNA Enforcement）**:
    - 严禁使用宽泛的机械描述（如 "complex gears"）。
-   - 必须定义具体的拟真工业组件名称并全局复用（例：`Quad-Roller Hydraulic Assembly`），以锁定跨镜头的机械设计语义。
+   - 建议定义具体的、在该项目中具有唯一性的工业组件名称并全局复用（例：`特定型号的压力泵组件`），以锁定跨镜头的机械设计语义。
 
 ## I2V 视频 prompt
 
