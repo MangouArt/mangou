@@ -52,14 +52,28 @@ async function fetchWithRetry(url: string, options?: RequestInit, maxRetries = 3
 }
 
 export async function downloadFile(url: string, targetPath: string): Promise<void> {
-  log(`Downloading asset: ${url}`);
-  const response = await fetchWithRetry(url);
-  if (!response.ok) {
+  const maxDownloadAttempts = 5;
+
+  for (let attempt = 1; attempt <= maxDownloadAttempts; attempt += 1) {
+    log(`Downloading asset: ${url} (attempt ${attempt}/${maxDownloadAttempts})`);
+    const response = await fetchWithRetry(url);
+    if (response.ok) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.writeFile(targetPath, buffer);
+      return;
+    }
+
+    const shouldRetryNotReady = response.status === 404 && attempt < maxDownloadAttempts;
+    if (shouldRetryNotReady) {
+      const delayMs = 5000 * attempt;
+      log(`Remote asset not ready yet: ${url} (${response.status}). Retrying in ${delayMs}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      continue;
+    }
+
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
-  const buffer = Buffer.from(await response.arrayBuffer());
-  await fs.mkdir(path.dirname(targetPath), { recursive: true });
-  await fs.writeFile(targetPath, buffer);
 }
 
 /**

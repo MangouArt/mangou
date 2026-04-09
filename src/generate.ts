@@ -75,13 +75,68 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
 
   // 5. Materialize outputs and Backfill
   const outputs = provider.extractOutputs(scope, result);
-  const localOutputs = await materializeOutputs(projectRoot, relYamlPath, type, taskId, outputs);
-  await assertMaterializedOutputsExist(projectRoot, relYamlPath, localOutputs);
+  await updateYaml(absoluteYamlPath, {
+    [`tasks.${type}.latest`]: {
+      status: "running",
+      remote_status: "completed",
+      backfill_status: "pending",
+      remote_outputs: outputs,
+      task_id: taskId,
+      updated_at: new Date().toISOString()
+    }
+  });
+
+  await appendTaskEvent(projectRoot, {
+    id: taskId,
+    type: `${type}_generate`,
+    status: "completed",
+    provider: providerId,
+    target: relYamlPath,
+    output: outputs,
+    event: "remote_completed",
+    timestamp: Date.now()
+  });
+
+  let localOutputs: string[];
+  try {
+    localOutputs = await materializeOutputs(projectRoot, relYamlPath, type, taskId, outputs);
+    await assertMaterializedOutputsExist(projectRoot, relYamlPath, localOutputs);
+  } catch (error: any) {
+    await updateYaml(absoluteYamlPath, {
+      [`tasks.${type}.latest`]: {
+        status: "running",
+        remote_status: "completed",
+        backfill_status: "failed",
+        remote_outputs: outputs,
+        task_id: taskId,
+        error: error?.message || String(error),
+        updated_at: new Date().toISOString()
+      }
+    });
+
+    await appendTaskEvent(projectRoot, {
+      id: `${taskId}:materialize`,
+      type: `${type}_materialize`,
+      status: "failed",
+      provider: providerId,
+      target: relYamlPath,
+      output: outputs,
+      error: error?.message || String(error),
+      event: "backfill_failed",
+      timestamp: Date.now()
+    });
+    throw error;
+  }
+
   const primaryOutput = localOutputs[0] || "";
 
   await updateYaml(absoluteYamlPath, {
     [`tasks.${type}.latest`]: {
       status: "completed",
+      remote_status: "completed",
+      backfill_status: "completed",
+      remote_outputs: outputs,
+      outputs: localOutputs,
       output: primaryOutput,
       task_id: taskId,
       updated_at: new Date().toISOString()
@@ -93,6 +148,7 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
     id: taskId,
     type: `${type}_generate`,
     status: "success",
+    provider: providerId,
     target: relYamlPath,
     output: primaryOutput,
     timestamp: Date.now()

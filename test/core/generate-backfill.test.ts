@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "js-yaml";
@@ -19,6 +19,10 @@ describe("AIGC Generate & Backfill", () => {
       ok: true,
       arrayBuffer: () => Promise.resolve(Buffer.from("fake-image-content")),
     }), { preconnect: vi.fn() }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("runAIGC: reads params from YAML, calls provider, and backfills result to YAML", async () => {
@@ -55,7 +59,63 @@ describe("AIGC Generate & Backfill", () => {
     const updatedDoc = yaml.load(updatedRaw) as any;
 
     expect(updatedDoc.tasks.image.latest.status).toBe("completed");
+    expect(updatedDoc.tasks.image.latest.remote_status).toBe("completed");
+    expect(updatedDoc.tasks.image.latest.backfill_status).toBe("completed");
     expect(updatedDoc.tasks.image.latest.output).toContain("shot1-task-123");
+  });
+
+  it("runAIGC: retries transient 404 downloads before backfilling outputs", async () => {
+    const sourceDoc = {
+      meta: { id: "shot1" },
+      tasks: {
+        video: {
+          provider: "mock-provider",
+          params: { prompt: "A robotic cat", model: "seedance-2.0-fast-reference-to-video" }
+        }
+      }
+    };
+    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
+
+    let attempts = 0;
+    global.fetch = Object.assign(vi.fn().mockImplementation(async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        return {
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+        };
+      }
+
+      return {
+        ok: true,
+        arrayBuffer: () => Promise.resolve(Buffer.from("fake-video-content")),
+      };
+    }), { preconnect: vi.fn() }) as typeof fetch;
+    vi.spyOn(global, "setTimeout").mockImplementation(((fn: any) => {
+      fn();
+      return 0 as any;
+    }) as typeof setTimeout);
+
+    const mockProvider = {
+      id: "mock-provider",
+      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
+      scopes: { video: "videos" },
+      buildPayload: (_s: any, p: any) => p,
+      submit: vi.fn().mockResolvedValue("task-777"),
+      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.mp4" } }),
+      extractOutputs: () => ["https://example.com/cat.mp4"],
+    };
+    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
+    process.env.MOCK_KEY = "dummy";
+
+    await runAIGC({ yamlPath, type: "video" });
+
+    expect(attempts).toBe(3);
+    const updatedRaw = await fs.readFile(yamlPath, "utf-8");
+    const updatedDoc = yaml.load(updatedRaw) as any;
+    expect(updatedDoc.tasks.video.latest.status).toBe("completed");
+    expect(updatedDoc.tasks.video.latest.backfill_status).toBe("completed");
   });
 
   it("runAIGC: resolves local image references from params.image", async () => {
@@ -309,6 +369,86 @@ describe("AIGC Generate & Backfill", () => {
     process.env.MOCK_KEY = "dummy";
 
     await expect(runAIGC({ yamlPath, type: "image" })).rejects.toThrow(/Materialized output not found/);
-    await expect(fs.access(path.join(projectRoot, "tasks.jsonl"))).rejects.toBeDefined();
+    const tasksRaw = await fs.readFile(path.join(projectRoot, "tasks.jsonl"), "utf-8");
+    const events = tasksRaw.trim().split("\n").map((line) => JSON.parse(line));
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "task-404",
+          type: "image_generate",
+          status: "completed",
+          event: "remote_completed",
+        }),
+        expect.objectContaining({
+          id: "task-404:materialize",
+          type: "image_materialize",
+          status: "failed",
+          event: "backfill_failed",
+        }),
+      ]),
+    );
+  });
+
+  it("runAIGC: records remote completion even when local download backfill fails", async () => {
+    const sourceDoc = {
+      meta: { id: "shot1" },
+      tasks: {
+        video: {
+          provider: "mock-provider",
+          params: { prompt: "Broken download", model: "seedance-2.0-fast-reference-to-video" }
+        }
+      }
+    };
+    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
+
+    global.fetch = Object.assign(vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+    }), { preconnect: vi.fn() }) as typeof fetch;
+    vi.spyOn(global, "setTimeout").mockImplementation(((fn: any) => {
+      fn();
+      return 0 as any;
+    }) as typeof setTimeout);
+
+    const mockProvider = {
+      id: "mock-provider",
+      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
+      scopes: { video: "videos" },
+      buildPayload: (_s: any, p: any) => p,
+      submit: vi.fn().mockResolvedValue("task-888"),
+      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/broken.mp4" } }),
+      extractOutputs: () => ["https://example.com/broken.mp4"],
+    };
+    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
+    process.env.MOCK_KEY = "dummy";
+
+    await expect(runAIGC({ yamlPath, type: "video" })).rejects.toThrow(/Failed to download/);
+
+    const updatedRaw = await fs.readFile(yamlPath, "utf-8");
+    const updatedDoc = yaml.load(updatedRaw) as any;
+    expect(updatedDoc.tasks.video.latest.status).toBe("running");
+    expect(updatedDoc.tasks.video.latest.remote_status).toBe("completed");
+    expect(updatedDoc.tasks.video.latest.backfill_status).toBe("failed");
+    expect(updatedDoc.tasks.video.latest.remote_outputs).toEqual(["https://example.com/broken.mp4"]);
+
+    const tasksRaw = await fs.readFile(path.join(projectRoot, "tasks.jsonl"), "utf-8");
+    const events = tasksRaw.trim().split("\n").map((line) => JSON.parse(line));
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "task-888",
+          type: "video_generate",
+          status: "completed",
+          event: "remote_completed",
+        }),
+        expect.objectContaining({
+          id: "task-888:materialize",
+          type: "video_materialize",
+          status: "failed",
+          event: "backfill_failed",
+        }),
+      ]),
+    );
   });
 });
