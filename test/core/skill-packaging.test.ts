@@ -95,4 +95,45 @@ describe('skill packaging', () => {
     await fs.access(path.join(installedSkillRoot, 'SKILL.md'));
     await expect(fs.access(path.join(installedSkillRoot, 'dist', 'index.html'))).rejects.toThrow();
   });
+
+  it('does not sync into sibling lightweight skill repos', async () => {
+    const buildSkill = buildSkillBundle as BuildSkillBundle;
+    const fakeDist = await fs.mkdtemp(path.join(os.tmpdir(), 'mangou-dist-'));
+    const packageRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'mangou-package-'));
+    const buildOut = path.join(packageRoot, 'bundled-skills', 'mangou');
+    const skillSrcRoot = path.join(packageRoot, 'skill-src', 'mangou');
+    const workspaceTemplateRoot = path.join(packageRoot, 'workspace_template');
+    const runtimeSrcRoot = path.join(packageRoot, 'src');
+    const skillRepoRoot = path.join(path.dirname(packageRoot), 'mangou-ai-motion-comics');
+    tempDirs.push(fakeDist, packageRoot, skillRepoRoot);
+
+    await fs.mkdir(path.join(fakeDist, 'assets'), { recursive: true });
+    await fs.writeFile(path.join(fakeDist, 'index.html'), '<!doctype html><div id="root"></div>');
+    await fs.writeFile(path.join(fakeDist, 'assets', 'app.js'), 'console.log("ok")');
+
+    await fs.mkdir(path.join(skillSrcRoot, 'knowledge'), { recursive: true });
+    await fs.mkdir(path.join(workspaceTemplateRoot, '.agents'), { recursive: true });
+    await fs.mkdir(runtimeSrcRoot, { recursive: true });
+    await fs.writeFile(path.join(skillSrcRoot, 'SKILL.md'), '# synced skill');
+    await fs.writeFile(path.join(skillSrcRoot, 'COMMANDS.md'), 'commands');
+    await fs.writeFile(path.join(skillSrcRoot, 'INSTALL.md'), 'install');
+    await fs.writeFile(path.join(skillSrcRoot, 'knowledge', 'storyboards.md'), 'storyboards');
+    await fs.writeFile(path.join(runtimeSrcRoot, 'main.ts'), 'console.log("runtime");');
+    await fs.writeFile(path.join(workspaceTemplateRoot, 'placeholder.txt'), 'template');
+    await fs.writeFile(path.join(packageRoot, 'package.json'), '{"name":"test"}');
+    await fs.writeFile(path.join(packageRoot, 'tsconfig.json'), '{"compilerOptions":{}}');
+    await fs.mkdir(path.join(skillRepoRoot, '.git'), { recursive: true });
+    await fs.writeFile(path.join(skillRepoRoot, 'SKILL.md'), '# old skill');
+    await fs.writeFile(path.join(skillRepoRoot, 'obsolete.md'), 'stale');
+
+    await buildSkill({
+      packageRoot,
+      outputRoot: buildOut,
+      distSource: fakeDist,
+    });
+
+    expect(await fs.readFile(path.join(skillRepoRoot, 'SKILL.md'), 'utf-8')).toBe('# old skill');
+    await fs.access(path.join(skillRepoRoot, 'obsolete.md'));
+    await expect(fs.access(path.join(skillRepoRoot, 'knowledge', 'storyboards.md'))).rejects.toThrow();
+  });
 });

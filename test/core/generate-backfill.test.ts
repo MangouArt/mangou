@@ -178,10 +178,9 @@ describe("AIGC Generate & Backfill", () => {
     );
   });
 
-  it("runAIGC: resolves local image references from exact KIE image and video fields", async () => {
+  it("runAIGC: resolves local image references from supported image_urls fields", async () => {
     await fs.mkdir(path.join(projectRoot, "assets/images"), { recursive: true });
     await fs.writeFile(path.join(projectRoot, "assets/images/reference.png"), "ref-image");
-    await fs.writeFile(path.join(projectRoot, "assets/images/first.png"), "first-image");
 
     const sourceDoc = {
       meta: { id: "shot1" },
@@ -189,11 +188,8 @@ describe("AIGC Generate & Backfill", () => {
         image: {
           provider: "mock-provider",
           params: {
-            prompt: "Use KIE exact fields",
-            image_input: ["assets/images/reference.png"],
+            prompt: "Use supported image_urls field",
             image_urls: ["assets/images/reference.png"],
-            reference_image_urls: ["assets/images/reference.png"],
-            first_frame_url: "assets/images/first.png",
           }
         }
       }
@@ -217,152 +213,7 @@ describe("AIGC Generate & Backfill", () => {
     expect(mockProvider.buildPayload).toHaveBeenCalledWith(
       "images",
       expect.objectContaining({
-        image_input: [expect.stringMatching(/^data:image\/png;base64,/)],
         image_urls: [expect.stringMatching(/^data:image\/png;base64,/)],
-        reference_image_urls: [expect.stringMatching(/^data:image\/png;base64,/)],
-        first_frame_url: expect.stringMatching(/^data:image\/png;base64,/),
-      }),
-    );
-  });
-
-  it("runAIGC: resolves local image references from jiekou reference_images", async () => {
-    await fs.mkdir(path.join(projectRoot, "assets/images"), { recursive: true });
-    await fs.writeFile(path.join(projectRoot, "assets/images/grid-mother.png"), "grid-image");
-    await fs.writeFile(path.join(projectRoot, "assets/images/first.png"), "first-image");
-
-    const sourceDoc = {
-      meta: { id: "shot1" },
-      tasks: {
-        video: {
-          provider: "mock-provider",
-          params: {
-            prompt: "Use jiekou exact fields",
-            model: "seedance-2.0",
-            reference_images: ["assets/images/grid-mother.png"],
-            first_frame_url: "assets/images/first.png",
-          }
-        }
-      }
-    };
-    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
-
-    const mockProvider = {
-      id: "mock-provider",
-      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
-      scopes: { video: "videos" },
-      buildPayload: vi.fn((_s: any, p: any) => p),
-      submit: vi.fn().mockResolvedValue("task-236"),
-      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.mp4" } }),
-      extractOutputs: () => ["https://example.com/cat.mp4"],
-    };
-    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
-    process.env.MOCK_KEY = "dummy";
-
-    await runAIGC({ yamlPath, type: "video" });
-
-    expect(mockProvider.buildPayload).toHaveBeenCalledWith(
-      "videos",
-      expect.objectContaining({
-        reference_images: [expect.stringMatching(/^data:image\/png;base64,/)],
-        first_frame_url: expect.stringMatching(/^data:image\/png;base64,/),
-      }),
-    );
-  });
-
-  it("runAIGC: resolves local image references from jiekou subjects images", async () => {
-    await fs.mkdir(path.join(projectRoot, "assets/images"), { recursive: true });
-    await fs.writeFile(path.join(projectRoot, "assets/images/hero.png"), "hero-image");
-    await fs.writeFile(path.join(projectRoot, "assets/images/hero-2.png"), "hero-image-2");
-
-    const sourceDoc = {
-      meta: { id: "shot1" },
-      tasks: {
-        video: {
-          provider: "mock-provider",
-          params: {
-            prompt: "Use vidu subjects",
-            model: "viduq2-pro-fast",
-            subjects: [
-              {
-                name: "hero",
-                images: ["assets/images/hero.png", "assets/images/hero-2.png"],
-              },
-            ],
-          }
-        }
-      }
-    };
-    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
-
-    const mockProvider = {
-      id: "mock-provider",
-      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
-      scopes: { video: "videos" },
-      buildPayload: vi.fn((_s: any, p: any) => p),
-      submit: vi.fn().mockResolvedValue("task-237"),
-      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.mp4" } }),
-      extractOutputs: () => ["https://example.com/cat.mp4"],
-    };
-    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
-    process.env.MOCK_KEY = "dummy";
-
-    await runAIGC({ yamlPath, type: "video" });
-
-    expect(mockProvider.buildPayload).toHaveBeenCalledWith(
-      "videos",
-      expect.objectContaining({
-        subjects: [
-          expect.objectContaining({
-            images: [
-              expect.stringMatching(/^data:image\/png;base64,/),
-              expect.stringMatching(/^data:image\/png;base64,/),
-            ],
-          }),
-        ],
-      }),
-    );
-  });
-
-  it("runAIGC: resolves local image references from wan reference_image and first_frame", async () => {
-    await fs.mkdir(path.join(projectRoot, "assets/images"), { recursive: true });
-    await fs.writeFile(path.join(projectRoot, "assets/images/ref.png"), "ref-image");
-    await fs.writeFile(path.join(projectRoot, "assets/images/first.png"), "first-image");
-
-    const sourceDoc = {
-      meta: { id: "shot1" },
-      tasks: {
-        video: {
-          provider: "mock-provider",
-          params: {
-            prompt: "Use wan exact fields",
-            model: "wan/2-7-r2v",
-            reference_image: ["assets/images/ref.png"],
-            first_frame: "assets/images/first.png",
-          }
-        }
-      }
-    };
-    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
-
-    const mockProvider = {
-      id: "mock-provider",
-      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
-      scopes: { video: "videos" },
-      buildPayload: vi.fn((_s: any, p: any) => p),
-      submit: vi.fn().mockResolvedValue("task-238"),
-      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.mp4" } }),
-      extractOutputs: () => ["https://example.com/cat.mp4"],
-    };
-    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
-    process.env.MOCK_KEY = "dummy";
-
-    await runAIGC({ yamlPath, type: "video" });
-
-    expect(mockProvider.buildPayload).toHaveBeenCalledWith(
-      "videos",
-      expect.objectContaining({
-        reference_image: [expect.stringMatching(/^data:image\/png;base64,/)],
-        first_frame: expect.stringMatching(/^data:image\/png;base64,/),
       }),
     );
   });

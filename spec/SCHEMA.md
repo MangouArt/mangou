@@ -27,8 +27,8 @@ CLI 仅关注 `tasks.[type].params` 模块。
 - YAML 中的字段名必须与供应商 API 文档一致。不要使用 CLI 自造别名。
 - 文档索引见 [docs/vendor-api/README.md](../docs/vendor-api/README.md)。
 - 当前允许 CLI 自动解析本地路径的字段只有：
-  - 数组字段：`image`、`images`、`image_input`、`image_urls`、`reference_images`、`reference_image_urls`
-  - 单值字段：`image_url`、`first_frame_url`、`last_frame_url`
+  - 数组字段：`image`、`images`、`image_urls`
+  - 单值字段：`image_url`
 - 自动解析只发生在“同字段内”：
   - 本地图片路径 -> `data:` URL
   - `asset_defs/*.yaml` -> 该 YAML 的 `tasks.image.latest.output`
@@ -86,88 +86,7 @@ tasks:
 
 说明：上面两个 `image` 项如果最终被 CLI 解析成本地图片内容，BLTAI provider 会先上传文件，再把上传后返回的 URL 传给 `/v1/images/generations`。Agent 不需要在 YAML 里手写上传接口或中间字段。
 
-### B. KIE `google/nano-banana`
-```yaml
-tasks:
-  image:
-    provider: kie
-    params:
-      model: google/nano-banana
-      prompt: "A surreal banana spaceship."
-      image_size: "1:1"
-      output_format: png
-```
-
-### C. KIE `nano-banana-2`
-```yaml
-tasks:
-  image:
-    provider: kie
-    params:
-      model: nano-banana-2
-      prompt: "A cinematic banana spaceship."
-      aspect_ratio: "16:9"
-      resolution: 2K
-      output_format: jpg
-      image_input:
-        - assets/images/reference.png
-```
-
-### D. KIE `google/nano-banana-edit`
-```yaml
-tasks:
-  image:
-    provider: kie
-    params:
-      model: google/nano-banana-edit
-      prompt: "Turn this into a toy figure."
-      image_size: "1:1"
-      output_format: png
-      image_urls:
-        - assets/images/source.png
-```
-
-### E. KIE `bytedance/seedance-2-fast`
-```yaml
-tasks:
-  video:
-    provider: kie
-    params:
-      model: bytedance/seedance-2-fast
-      prompt: "The camera pushes in slowly."
-      aspect_ratio: "16:9"
-      resolution: 480p
-      duration: 10
-      reference_image_urls:
-        - assets/images/reference-1.png
-      first_frame_url: assets/images/first-frame.png
-      last_frame_url: assets/images/last-frame.png
-```
-
-### F. JieKou `seedance-2.0`
-```yaml
-tasks:
-  video:
-    provider: jiekou
-    params:
-      model: seedance-2.0
-      prompt: "镜头缓慢推进，人物抬头，空气里有轻微风声。"
-      duration: 5
-      ratio: "16:9"
-      resolution: 720p
-      reference_images:
-        - assets/images/grid-mother.png
-      first_frame_url: assets/images/first-frame.png
-      generate_audio: true
-      return_last_frame: true
-```
-
-说明：
-- `reference_images` 是 JieKou Seedance 2.0 的多图参考字段；九宫格母图优先放这里。
-- `first_frame_url` 适合控制起始关键帧，不应替代九宫格母图主输入。
-- `return_last_frame` 虽然供应商默认值为 `false`，但连续分段生成时建议显式设为 `true`。
-
-### G. EvoLink `seedance-2.0-*`
+### B. EvoLink `seedance-2.0-*`
 ```yaml
 tasks:
   video:

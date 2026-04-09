@@ -1,14 +1,10 @@
 #!/usr/bin/env bun
 import { BLTAI_PROVIDER } from '@logic/aigc-provider-bltai';
 import { EVOLINK_PROVIDER } from '@logic/aigc-provider-evolink';
-import { KIE_PROVIDER } from '@logic/aigc-provider-kie';
-import { JIEKOU_PROVIDER } from '@logic/aigc-provider-jiekou';
 
 const PROVIDERS = new Map([
   [BLTAI_PROVIDER.id, BLTAI_PROVIDER],
   [EVOLINK_PROVIDER.id, EVOLINK_PROVIDER],
-  [KIE_PROVIDER.id, KIE_PROVIDER],
-  [JIEKOU_PROVIDER.id, JIEKOU_PROVIDER],
 ]);
 
 export function registerAIGCProvider(provider: any) {

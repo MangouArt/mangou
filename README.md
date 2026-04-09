@@ -104,6 +104,12 @@ Build outputs:
 
 - Zip bundle: `bundled-skills/mangou.zip`
 - Unified runtime bundle: `bundled-skills/mangou-runtime.zip`
+- Expanded skill bundle: `bundled-skills/mangou/`
+
+Cross-repo note:
+
+- `mangou` only builds local artifacts.
+- Syncing to `../mangou-ai-motion-comics` is orchestrated by the parent `Mango` repo, not by `mangou` itself.
 
 ### 4. Install into your agent skill directory
 
