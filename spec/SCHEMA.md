@@ -13,6 +13,10 @@ YAML 文件是系统的唯一“真理源”。它由四个核心模块组成，
 ## 2. 引用与解析逻辑 (CLI Runtime)
 CLI 仅关注 `tasks.[type].params` 模块。
 
+默认约定：
+- `tasks.image.provider` 与 `tasks.video.provider` 都必须显式写出；脚本不会自动推断或补默认值。
+- skill 侧仅给出推荐：图片优先 `bltai`，视频优先 `evolink`。
+
 ### A. 路径引用的解析
 - **YAML 引用**：仅限在图像字段中引用 `asset_defs/` 下的 YAML（如 `asset_defs/chars/hero.yaml`）。CLI 自动提取该资产的 `tasks.image.latest.output`。
 - **图片引用**：引用 `assets/images/` 下的物理图片。CLI 仅在当前字段内将其处理为 API 所需格式。

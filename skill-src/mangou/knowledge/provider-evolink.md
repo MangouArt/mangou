@@ -8,6 +8,8 @@
 
 ## 视频
 
+`EvoLink` 是当前 skill 推荐的视频 provider。编写 `tasks.video` 时，如果没有特殊要求，优先显式写 `provider: evolink`，并按本页字段和约束组织 YAML。
+
 当前已接入模型：
 
 - `seedance-2.0-text-to-video`

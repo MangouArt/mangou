@@ -37,7 +37,7 @@
 
 ### `tasks.<type>`
 
-- `provider`: 可选
+- `provider`: 必填。脚本不会自动推断；图片任务推荐 `bltai`，视频任务推荐 `evolink`
 - `params.model`
 - `params.prompt`
 - `params.images`
@@ -52,6 +52,7 @@
 5. `storyboard split` 不从 prompt 猜 grid 尺寸，只认 `meta.grid` 或 `--grid`。
 6. `storyboard split` 成功后也会写 `tasks.jsonl`，不要把它当例外。
 7. `stitch` 优先用视频；没视频时会按 `content.duration` 用静图补预览段。
+8. `tasks.image.provider` 和 `tasks.video.provider` 都必须显式写出；skill 仅提供推荐，不做脚本默认。
 
 ## 示例
 
