@@ -1,0 +1,21 @@
+meta:
+  id: shot-evolink-seedance-fast
+  type: storyboard
+content:
+  title: EvoLink Seedance Fast Reference to Video
+tasks:
+  video:
+    provider: evolink
+    params:
+      model: seedance-2.0-fast-reference-to-video
+      prompt: Use image 1 as the identity reference, use video 1 for camera movement, and use audio 1 as the background music throughout.
+      image_urls:
+        - https://example.com/character-reference.png
+      video_urls:
+        - https://example.com/camera-motion-reference.mp4
+      audio_urls:
+        - https://example.com/background-music.mp3
+      duration: 8
+      quality: 720p
+      aspect_ratio: "16:9"
+      generate_audio: true

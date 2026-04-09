@@ -69,7 +69,9 @@ describe("JieKou AI Provider", () => {
           last_image: "bGFzdA==",
           reference_images: ["Z3JpZA==", "https://example.com/remote.png"],
         }),
+        timeoutMs: 15 * 60 * 1000,
       }),
+      1,
     );
   });
 
@@ -96,12 +98,13 @@ describe("JieKou AI Provider", () => {
 
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://api.jiekou.ai/v3/async/task-result?task_id=task-123",
-      {
+      expect.objectContaining({
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer test-key",
         },
-      },
+        timeoutMs: 2 * 60 * 1000,
+      }),
     );
     expect(result.videos[0].video_url).toBe("https://example.com/video.mp4");
     expect(result.images[0].image_url).toBe("https://example.com/last-frame.png");
@@ -204,7 +207,9 @@ describe("JieKou AI Provider", () => {
             },
           ],
         }),
+        timeoutMs: 2 * 60 * 1000,
       }),
+      1,
     );
   });
 

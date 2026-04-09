@@ -12,6 +12,15 @@ describe('AIGC provider registry', () => {
     });
   });
 
+  it('returns evolink provider with env metadata', () => {
+    const provider = getAIGCProvider('evolink');
+    expect(provider.id).toBe('evolink');
+    expect(provider.env).toMatchObject({
+      apiKey: 'EVOLINK_API_KEY',
+      baseUrl: 'EVOLINK_BASE_URL',
+    });
+  });
+
   it('resolves provider env using provider metadata', () => {
     const provider = getAIGCProvider('bltai');
     const resolved = resolveProviderEnv(provider, {
