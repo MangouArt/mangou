@@ -64,6 +64,37 @@ async function uploadToEvolink(apiKey: string, dataUrl: string, fetchImpl = fetc
   return fileUrl;
 }
 
+const TEXT_TO_VIDEO_MODELS = new Set([
+  'seedance-2.0-text-to-video',
+  'seedance-2.0-fast-text-to-video',
+]);
+
+const IMAGE_TO_VIDEO_MODELS = new Set([
+  'seedance-2.0-image-to-video',
+  'seedance-2.0-fast-image-to-video',
+]);
+
+const REFERENCE_TO_VIDEO_MODELS = new Set([
+  'seedance-2.0-reference-to-video',
+  'seedance-2.0-fast-reference-to-video',
+]);
+
+const SUPPORTED_MODELS = new Set([
+  ...TEXT_TO_VIDEO_MODELS,
+  ...IMAGE_TO_VIDEO_MODELS,
+  ...REFERENCE_TO_VIDEO_MODELS,
+]);
+
+const ALLOWED_ASPECT_RATIOS = new Set([
+  '16:9',
+  '9:16',
+  '1:1',
+  '4:3',
+  '3:4',
+  '21:9',
+  'adaptive',
+]);
+
 function requireMediaUrlArray(params: any, field: string, maxLength?: number, allowDataUrl = false) {
   if (params[field] === undefined || params[field] === null) {
     return [];
@@ -105,12 +136,56 @@ function validateSeedanceQuality(quality: any) {
   throw new Error("[evolink] seedance-2.0-fast-reference-to-video 的 quality 只接受 '480p' 或 '720p'");
 }
 
+function validateAspectRatio(aspectRatio: any) {
+  if (aspectRatio === undefined || aspectRatio === null || aspectRatio === '') {
+    return '16:9';
+  }
+
+  if (!ALLOWED_ASPECT_RATIOS.has(aspectRatio)) {
+    throw new Error("[evolink] aspect_ratio 只接受 '16:9'、'9:16'、'1:1'、'4:3'、'3:4'、'21:9' 或 'adaptive'");
+  }
+
+  return aspectRatio;
+}
+
 function validateDuration(duration: any) {
   const value = duration === undefined || duration === null || duration === '' ? 8 : Number(duration);
-  if (!Number.isFinite(value) || value < 5 || value > 12) {
-    throw new Error('[evolink] duration 必须在 5 到 12 秒之间');
+  if (!Number.isFinite(value) || value < 4 || value > 15) {
+    throw new Error('[evolink] duration 必须在 4 到 15 秒之间');
   }
   return value;
+}
+
+function validateCallbackUrl(callbackUrl: any) {
+  if (callbackUrl === undefined || callbackUrl === null || callbackUrl === '') {
+    return undefined;
+  }
+
+  if (typeof callbackUrl !== 'string' || !/^https:\/\//.test(callbackUrl)) {
+    throw new Error('[evolink] callback_url 只接受 HTTPS URL');
+  }
+
+  return callbackUrl;
+}
+
+function validateModelParams(model: string, modelParams: any) {
+  if (modelParams === undefined || modelParams === null) {
+    return undefined;
+  }
+
+  if (!TEXT_TO_VIDEO_MODELS.has(model)) {
+    throw new Error('[evolink] model_params 目前只适用于 Seedance 2.0 text-to-video 模型');
+  }
+
+  if (typeof modelParams !== 'object' || Array.isArray(modelParams)) {
+    throw new Error('[evolink] model_params 必须是对象');
+  }
+
+  const normalized: Record<string, any> = {};
+  if (modelParams.web_search !== undefined) {
+    normalized.web_search = Boolean(modelParams.web_search);
+  }
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
 function pickVideoOutputs(result: any) {
@@ -155,7 +230,7 @@ export const EVOLINK_PROVIDER = {
     if (!model) {
       throw new Error("[evolink] Missing required parameter: 'model'");
     }
-    if (model !== 'seedance-2.0-fast-reference-to-video') {
+    if (!SUPPORTED_MODELS.has(model)) {
       throw new Error(`[evolink] Unsupported model: ${model}`);
     }
 
@@ -168,9 +243,27 @@ export const EVOLINK_PROVIDER = {
     const video_urls = requireMediaUrlArray(params, 'video_urls', 3, false);
     const audio_urls = requireMediaUrlArray(params, 'audio_urls', 3, false);
 
-    if (image_urls.length === 0 && video_urls.length === 0) {
-      throw new Error('[evolink] 至少提供 1 个 image_urls 或 1 个 video_urls');
+    if (TEXT_TO_VIDEO_MODELS.has(model)) {
+      if (image_urls.length > 0 || video_urls.length > 0 || audio_urls.length > 0) {
+        throw new Error('[evolink] Seedance 2.0 text-to-video 不接受 image_urls、video_urls 或 audio_urls');
+      }
     }
+
+    if (IMAGE_TO_VIDEO_MODELS.has(model)) {
+      if (image_urls.length < 1 || image_urls.length > 2) {
+        throw new Error('[evolink] Seedance 2.0 image-to-video 必须提供 1 到 2 张 image_urls');
+      }
+      if (video_urls.length > 0 || audio_urls.length > 0) {
+        throw new Error('[evolink] Seedance 2.0 image-to-video 不接受 video_urls 或 audio_urls');
+      }
+    }
+
+    if (REFERENCE_TO_VIDEO_MODELS.has(model) && image_urls.length === 0 && video_urls.length === 0) {
+      throw new Error('[evolink] Seedance 2.0 reference-to-video 至少提供 1 个 image_urls 或 1 个 video_urls');
+    }
+
+    const model_params = validateModelParams(model, params.model_params);
+    const callback_url = validateCallbackUrl(params.callback_url);
 
     return {
       model,
@@ -180,8 +273,10 @@ export const EVOLINK_PROVIDER = {
       ...(audio_urls.length > 0 ? { audio_urls } : {}),
       duration: validateDuration(params.duration),
       quality: validateSeedanceQuality(params.quality || params.resolution),
-      aspect_ratio: params.aspect_ratio || '16:9',
+      aspect_ratio: validateAspectRatio(params.aspect_ratio),
       generate_audio: params.generate_audio !== undefined ? params.generate_audio : true,
+      ...(model_params ? { model_params } : {}),
+      ...(callback_url ? { callback_url } : {}),
     };
   },
   async submit({ baseUrl, apiKey, payload, fetchImpl = fetchWithRetry }: any) {

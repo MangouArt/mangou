@@ -2,6 +2,78 @@ import { describe, expect, it, vi } from "vitest";
 import { EVOLINK_PROVIDER } from "../../src/logic/aigc-provider-evolink";
 
 describe("EvoLink AI Provider", () => {
+  it("buildPayload supports text-to-video models with official model_params", () => {
+    const payload = EVOLINK_PROVIDER.buildPayload("videos", {
+      model: "seedance-2.0-fast-text-to-video",
+      prompt: "城市日落延时摄影，金色光线洒满天际线",
+      duration: 5,
+      quality: "720p",
+      aspect_ratio: "21:9",
+      generate_audio: true,
+      model_params: {
+        web_search: true,
+      },
+      callback_url: "https://example.com/webhooks/evolink",
+    });
+
+    expect(payload).toEqual({
+      model: "seedance-2.0-fast-text-to-video",
+      prompt: "城市日落延时摄影，金色光线洒满天际线",
+      duration: 5,
+      quality: "720p",
+      aspect_ratio: "21:9",
+      generate_audio: true,
+      model_params: {
+        web_search: true,
+      },
+      callback_url: "https://example.com/webhooks/evolink",
+    });
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("videos", {
+        model: "seedance-2.0-text-to-video",
+        prompt: "invalid",
+        image_urls: ["https://example.com/ref.png"],
+      }),
+    ).toThrow(/text-to-video 不接受 image_urls、video_urls 或 audio_urls/);
+  });
+
+  it("buildPayload supports image-to-video models and enforces 1-2 images", () => {
+    const payload = EVOLINK_PROVIDER.buildPayload("videos", {
+      model: "seedance-2.0-image-to-video",
+      prompt: "镜头缓缓推进，花瓣随风飘落",
+      image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+      duration: 5,
+      aspect_ratio: "adaptive",
+    });
+
+    expect(payload.image_urls).toEqual([
+      "https://example.com/first.png",
+      "https://example.com/last.png",
+    ]);
+    expect(payload.aspect_ratio).toBe("adaptive");
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("videos", {
+        model: "seedance-2.0-fast-image-to-video",
+        prompt: "missing image",
+        image_urls: [],
+      }),
+    ).toThrow(/image-to-video 必须提供 1 到 2 张 image_urls/);
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("videos", {
+        model: "seedance-2.0-fast-image-to-video",
+        prompt: "too many images",
+        image_urls: [
+          "https://example.com/1.png",
+          "https://example.com/2.png",
+          "https://example.com/3.png",
+        ],
+      }),
+    ).toThrow(/image-to-video 必须提供 1 到 2 张 image_urls/);
+  });
+
   it("buildPayload maps seedance-2.0-fast-reference-to-video fields to the official request body", () => {
     const payload = EVOLINK_PROVIDER.buildPayload("videos", {
       model: "seedance-2.0-fast-reference-to-video",
@@ -45,6 +117,26 @@ describe("EvoLink AI Provider", () => {
     ).toThrow(/video_urls.*http\/https URL/);
   });
 
+  it("buildPayload rejects model_params for non-text models and invalid callback urls", () => {
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("videos", {
+        model: "seedance-2.0-reference-to-video",
+        prompt: "invalid model params",
+        image_urls: ["https://example.com/ref.png"],
+        model_params: { web_search: true },
+      }),
+    ).toThrow(/model_params 目前只适用于 Seedance 2.0 text-to-video 模型/);
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("videos", {
+        model: "seedance-2.0-reference-to-video",
+        prompt: "invalid callback",
+        image_urls: ["https://example.com/ref.png"],
+        callback_url: "http://localhost/callback",
+      }),
+    ).toThrow(/callback_url 只接受 HTTPS URL/);
+  });
+
   it("buildPayload rejects unsupported quality values", () => {
     expect(() =>
       EVOLINK_PROVIDER.buildPayload("videos", {
@@ -54,6 +146,35 @@ describe("EvoLink AI Provider", () => {
         quality: "1080p",
       }),
     ).toThrow(/quality.*480p.*720p/);
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("videos", {
+        model: "seedance-2.0-fast-reference-to-video",
+        prompt: "Test aspect ratio",
+        image_urls: ["https://example.com/ref.png"],
+        aspect_ratio: "2:1",
+      }),
+    ).toThrow(/aspect_ratio/);
+  });
+
+  it("buildPayload accepts official duration range up to 15 seconds", () => {
+    const payload = EVOLINK_PROVIDER.buildPayload("videos", {
+      model: "seedance-2.0-fast-reference-to-video",
+      prompt: "Test full-length duration",
+      image_urls: ["https://example.com/ref.png"],
+      duration: 15,
+      quality: "480p",
+    });
+
+    expect(payload.duration).toBe(15);
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("videos", {
+        model: "seedance-2.0-fast-reference-to-video",
+        prompt: "Too long",
+        image_urls: ["https://example.com/ref.png"],
+        duration: 16,
+      }),
+    ).toThrow(/duration.*4 到 15/);
   });
 
   it("submit posts to the official videos generations endpoint and reads task id from id", async () => {

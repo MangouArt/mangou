@@ -22,8 +22,8 @@
 
 ## EvoLink
 
-- `Seedance 2.0 Fast Reference-to-Video`
-  - 原始链接: https://evolink.ai/api-reference/seedance-2.0/seedance-2.0-fast-reference-to-video.md
+- `Seedance 2.0 Overview`
+  - 原始链接: https://docs.evolink.ai/cn/api-manual/video-series/seedance2.0/seedance-2.0-overview
   - Markdown: [evolink-seedance-2.0-fast-reference-to-video.md](./evolink-seedance-2.0-fast-reference-to-video.md)
 - 文件流上传
   - 原始链接: https://docs.evolink.ai/cn/api-manual/file-series/upload-stream

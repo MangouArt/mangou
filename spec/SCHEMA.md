@@ -163,7 +163,7 @@ tasks:
 - `first_frame_url` 适合控制起始关键帧，不应替代九宫格母图主输入。
 - `return_last_frame` 虽然供应商默认值为 `false`，但连续分段生成时建议显式设为 `true`。
 
-### G. EvoLink `seedance-2.0-fast-reference-to-video`
+### G. EvoLink `seedance-2.0-*`
 ```yaml
 tasks:
   video:
@@ -184,6 +184,11 @@ tasks:
 ```
 
 说明：
+- `seedance-2.0-text-to-video` / `seedance-2.0-fast-text-to-video` 不接受 `image_urls` / `video_urls` / `audio_urls`，只接受 `prompt`，并可选 `model_params.web_search`。
+- `seedance-2.0-image-to-video` / `seedance-2.0-fast-image-to-video` 必须提供 `1-2` 张 `image_urls`，不接受 `video_urls` / `audio_urls`。
+- `seedance-2.0-reference-to-video` / `seedance-2.0-fast-reference-to-video` 接受 `image_urls` / `video_urls` / `audio_urls`，但至少要有一个 `image_urls` 或 `video_urls`。
 - `image_urls` 支持本地图片路径，provider 会先调用 EvoLink 官方上传接口换成临时 URL。
 - `video_urls` / `audio_urls` 仍然必须是远程 URL。
+- `duration` 当前按官方统一接口收敛为 `4-15` 秒。
 - `quality` 当前按官方文档只收敛为 `480p` 或 `720p`。
+- `aspect_ratio` 只接受 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive`。
