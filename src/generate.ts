@@ -33,7 +33,11 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
   }
 
   const taskConfig = doc.tasks[type];
-  const providerId = taskConfig.provider || process.env.MANGOU_AIGC_PROVIDER;
+  const providerId =
+    taskConfig.provider ||
+    (type === "video"
+      ? process.env.MANGOU_VIDEO_PROVIDER || "evolink"
+      : process.env.MANGOU_IMAGE_PROVIDER || process.env.MANGOU_AIGC_PROVIDER);
   if (!providerId) {
     throw new Error(`Provider not specified for ${type} task in ${relYamlPath}`);
   }

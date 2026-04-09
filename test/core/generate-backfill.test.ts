@@ -64,6 +64,39 @@ describe("AIGC Generate & Backfill", () => {
     expect(updatedDoc.tasks.image.latest.output).toContain("shot1-task-123");
   });
 
+  it("runAIGC: defaults video provider to evolink when task provider is omitted", async () => {
+    const sourceDoc = {
+      meta: { id: "shot1" },
+      tasks: {
+        video: {
+          params: {
+            model: "seedance-2.0-fast-reference-to-video",
+            prompt: "A robotic cat",
+          }
+        }
+      }
+    };
+    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
+
+    const mockProvider = {
+      id: "evolink",
+      env: { apiKey: "EVOLINK_API_KEY", baseUrl: "EVOLINK_BASE_URL", defaultBaseUrl: "https://api.evolink.ai" },
+      scopes: { video: "videos" },
+      buildPayload: (_s: any, p: any) => p,
+      submit: vi.fn().mockResolvedValue("task-evolink-default"),
+      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.mp4" } }),
+      extractOutputs: () => ["https://example.com/cat.mp4"],
+    };
+    const getProviderSpy = vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
+    process.env.EVOLINK_API_KEY = "dummy";
+    delete process.env.MANGOU_VIDEO_PROVIDER;
+    delete process.env.MANGOU_AIGC_PROVIDER;
+
+    await runAIGC({ yamlPath, type: "video" });
+
+    expect(getProviderSpy).toHaveBeenCalledWith("evolink");
+  });
+
   it("runAIGC: retries transient 404 downloads before backfilling outputs", async () => {
     const sourceDoc = {
       meta: { id: "shot1" },

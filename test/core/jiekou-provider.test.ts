@@ -69,9 +69,7 @@ describe("JieKou AI Provider", () => {
           last_image: "bGFzdA==",
           reference_images: ["Z3JpZA==", "https://example.com/remote.png"],
         }),
-        timeoutMs: 15 * 60 * 1000,
       }),
-      1,
     );
   });
 
@@ -103,7 +101,6 @@ describe("JieKou AI Provider", () => {
           "Content-Type": "application/json",
           Authorization: "Bearer test-key",
         },
-        timeoutMs: 2 * 60 * 1000,
       }),
     );
     expect(result.videos[0].video_url).toBe("https://example.com/video.mp4");
@@ -207,9 +204,7 @@ describe("JieKou AI Provider", () => {
             },
           ],
         }),
-        timeoutMs: 2 * 60 * 1000,
       }),
-      1,
     );
   });
 
