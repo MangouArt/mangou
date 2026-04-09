@@ -58,12 +58,13 @@ Mangou checklist
 1. 先改 YAML，再运行命令；不要跳过配置直接猜测参数。
 2. 轻量 skill 初始安装只有文档和 `knowledge/`；如果技能根目录还没有 `src/main.ts`，先安装 runtime，再执行 Bun 命令。
 3. 所有资源路径都用相对项目根目录的显式路径。
-4. 任务状态以 `tasks.jsonl` 为唯一真相源，YAML `latest` 是投影缓存。
-5. `storyboard split` 只依赖 `meta.grid` / `--grid`，不要靠 prompt 文本推断宫格。
-6. 生成失败时先检查 `error`、`latest`、`tasks.jsonl` 末尾记录，再决定是否重试。
-7. skill 入口、Bun runtime、dashboard 是三层产物；不要把它们当成同一个安装物。
-8. **记忆优先原则**：所有 AIGC 相关操作必须前置检索用户工作区记忆 (`workspace/.mangou/memories/`)，如有冲突以时间较近的记录为准。
-9. **闭环总结**：调优成功后必须主动引导用户将心得总结到工作区记忆库。
+4. 脚本不会为任何任务自动补 `provider`；`tasks.image.provider` 和 `tasks.video.provider` 都必须在 YAML 里显式写出。
+5. 任务状态以 `tasks.jsonl` 为唯一真相源，YAML `latest` 是投影缓存。
+6. `storyboard split` 只依赖 `meta.grid` / `--grid`，不要靠 prompt 文本推断宫格。
+7. 生成失败时先检查 `error`、`latest`、`tasks.jsonl` 末尾记录，再决定是否重试。
+8. skill 入口、Bun runtime、dashboard 是三层产物；不要把它们当成同一个安装物。
+9. **记忆优先原则**：所有 AIGC 相关操作必须前置检索用户工作区记忆 (`workspace/.mangou/memories/`)，如有冲突以时间较近的记录为准。
+10. **闭环总结**：调优成功后必须主动引导用户将心得总结到工作区记忆库。
 
 ## Reference map
 
@@ -81,3 +82,7 @@ Mangou checklist
 - KIE 参数：[knowledge/provider-kie.md](knowledge/provider-kie.md)
 - 任务真相源与回填：[knowledge/tasks.md](knowledge/tasks.md)
 - **记忆模块规范**：[memories/README.md](memories/README.md)
+
+默认推荐：
+- 图片生成优先推荐 `bltai`
+- 视频生成优先推荐 `evolink`
