@@ -20,6 +20,19 @@
   - 原始链接: https://gpt-best.apifox.cn/llms.txt
   - 本地文本: [bltai-llms.txt](./bltai-llms.txt)
 
+## EvoLink
+
+- `Seedance 2.0 Fast Reference-to-Video`
+  - 原始链接: https://evolink.ai/api-reference/seedance-2.0/seedance-2.0-fast-reference-to-video.md
+  - Markdown: [evolink-seedance-2.0-fast-reference-to-video.md](./evolink-seedance-2.0-fast-reference-to-video.md)
+- 文件流上传
+  - 原始链接: https://docs.evolink.ai/cn/api-manual/file-series/upload-stream
+  - Markdown: [evolink-upload-stream.md](./evolink-upload-stream.md)
+- 任务详情
+  - 原始链接: https://docs.evolink.ai/cn/api-manual/task-management/get-task-detail
+- 索引
+  - 原始链接: https://docs.evolink.ai/llms.txt
+
 ## KIE
 
 - `bytedance/seedance-2-fast`
@@ -58,3 +71,6 @@
 - `VIDU Q2 Pro Fast 参考生视频`
   - 原始链接: https://docs.jiekou.ai/docs/models/reference-viduq2-pro-fast.md
   - Markdown: [viduq2-pro-fast.md](./viduq2-pro-fast.md)
+- `Vidu Q3 Turbo 图生视频`
+  - 原始链接: https://docs.jiekou.ai/docs/models/reference-vidu-q3-turbo-i2v.md
+  - Markdown: [vidu-q3-turbo-i2v.md](./vidu-q3-turbo-i2v.md)

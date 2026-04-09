@@ -28,6 +28,7 @@ CLI 仅关注 `tasks.[type].params` 模块。
 - 自动解析只发生在“同字段内”：
   - 本地图片路径 -> `data:` URL
   - `asset_defs/*.yaml` -> 该 YAML 的 `tasks.image.latest.output`
+- 注意：字段“会被 runtime 解析”不等于“对应 provider 一定直接接受 `data:` URL”。例如 `EvoLink seedance-2.0-fast-reference-to-video` 的 `image_urls` 虽然可以先写本地图片，但 provider 会先上传成远程 URL 再提交；`video_urls` / `audio_urls` 则仍然不会自动上传。
 - CLI 不再做以下隐式重写：
   - `images` -> `image`
   - `images` -> `image_input`
@@ -161,3 +162,28 @@ tasks:
 - `reference_images` 是 JieKou Seedance 2.0 的多图参考字段；九宫格母图优先放这里。
 - `first_frame_url` 适合控制起始关键帧，不应替代九宫格母图主输入。
 - `return_last_frame` 虽然供应商默认值为 `false`，但连续分段生成时建议显式设为 `true`。
+
+### G. EvoLink `seedance-2.0-fast-reference-to-video`
+```yaml
+tasks:
+  video:
+    provider: evolink
+    params:
+      model: seedance-2.0-fast-reference-to-video
+      prompt: "Use image 1 as identity reference, use video 1 for handheld camera motion, and use audio 1 as background music."
+      image_urls:
+        - https://example.com/character.png
+      video_urls:
+        - https://example.com/motion.mp4
+      audio_urls:
+        - https://example.com/bgm.mp3
+      duration: 8
+      quality: 720p
+      aspect_ratio: "16:9"
+      generate_audio: true
+```
+
+说明：
+- `image_urls` 支持本地图片路径，provider 会先调用 EvoLink 官方上传接口换成临时 URL。
+- `video_urls` / `audio_urls` 仍然必须是远程 URL。
+- `quality` 当前按官方文档只收敛为 `480p` 或 `720p`。
