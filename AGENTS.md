@@ -71,6 +71,8 @@ Agent 在执行任务时，会管理如下结构的目录：
 - 轻量 skill 的 GitHub 分发仓库单独维护在 `MangouArt/mangou-ai-motion-comics`。
 - dashboard 的源码入口是 `packages/dashboard/`；仓库根 `dist/` 只是构建输出。
 - `bundled-skills/` 与 `dist/` 都是构建输出，不是编辑源。
+- `mangou` 里的脚本只负责单仓内逻辑；不要在这里编排 `Mango` 母仓或其他 submodule。
+- 跨仓同步、submodule 初始化、发布顺序统一放在 `Mango` 母仓脚本里处理。
 
 ### 1. 任务循环 (Task Loop)
 Agent 与 Mangou 的交互遵循 **"编辑-执行-回填"** 循环：
@@ -139,6 +141,7 @@ bun run mangou server start --port 3000
 - 确保 `src/cli` 下的 entrypoints 具有良好的错误处理，并返回标准化的 JSON 结果。
 - 维护 `spec/` 的同步更新。
 - 保持 `build:skill` 和 dashboard 发布脚本稳定，但不要把构建输出当成源码修改。
+- `build:skill` 只负责在 `mangou` 仓内生成 `bundled-skills/` 产物；不要把 `mangou-ai-motion-comics` 的同步逻辑写回这里。
 - 不要在主仓库里维护 `skills/`、`skill-repos/` 或仓库根 `SKILL.md` 的副本；轻量 skill 仓库单独维护在 `MangouArt/mangou-ai-motion-comics`。
 
 如果你是负责 **项目制作 (Storyboard Agent)** 的 Agent：

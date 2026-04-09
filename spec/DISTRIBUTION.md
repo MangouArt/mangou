@@ -190,12 +190,16 @@ mangou/
 - `build:skill`
   - 产出 `mangou.zip`
   - 产出 `mangou-runtime.zip`
+  - 只负责 `mangou` 单仓内构建，不负责跨仓同步
 - `build`
   - 产出仓库根 `dist/` 前端构建产物
 - `build:dashboard:package`
   - 同步 dashboard npm 包需要的 `packages/dashboard/dist`
 - `build:dashboard`
   - 串起 dashboard 构建与 npm 包同步
+ - `Mango` 母仓脚本 `npm run mangou:sync-skill`
+  - 负责调用 `mangou` 的 `build:skill`
+  - 负责把构建后的 skill 内容镜像同步到 `../mangou-ai-motion-comics`
 
 ## 6. 约束与非目标
 

@@ -162,7 +162,7 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
  */
 
 async function resolveImageParams(projectRoot: string, params: Record<string, any>) {
-  for (const key of ["images", "image", "image_input", "image_urls", "reference_images", "reference_image_urls", "reference_image"]) {
+  for (const key of ["images", "image", "image_urls"]) {
     if (params[key] === undefined) continue;
     if (!Array.isArray(params[key])) {
       continue;
@@ -170,26 +170,9 @@ async function resolveImageParams(projectRoot: string, params: Record<string, an
     params[key] = await Promise.all(params[key].map((input: any) => resolveImageInput(projectRoot, input)));
   }
 
-  for (const key of ["image_url", "first_frame_url", "last_frame_url", "first_frame"]) {
+  for (const key of ["image_url"]) {
     if (params[key] === undefined) continue;
     params[key] = await resolveImageInput(projectRoot, params[key]);
-  }
-
-  if (Array.isArray(params.subjects)) {
-    params.subjects = await Promise.all(
-      params.subjects.map(async (subject: any) => {
-        if (!subject || !Array.isArray(subject.images)) {
-          return subject;
-        }
-
-        return {
-          ...subject,
-          images: await Promise.all(
-            subject.images.map((input: any) => resolveImageInput(projectRoot, input)),
-          ),
-        };
-      }),
-    );
   }
 }
 

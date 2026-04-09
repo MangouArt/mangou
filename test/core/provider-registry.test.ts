@@ -21,6 +21,10 @@ describe('AIGC provider registry', () => {
     });
   });
 
+  it('only exposes the supported built-in providers', () => {
+    expect(listAIGCProviders().map((item) => item.id).sort()).toEqual(['bltai', 'evolink']);
+  });
+
   it('resolves provider env using provider metadata', () => {
     const provider = getAIGCProvider('bltai');
     const resolved = resolveProviderEnv(provider, {
