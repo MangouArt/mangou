@@ -53,6 +53,58 @@ function extractUploadedFileUrl(result: any) {
   return url;
 }
 
+async function parseJsonResponse(response: Response, context: string) {
+  if (typeof (response as any).text !== 'function') {
+    if (typeof (response as any).json === 'function') {
+      return await (response as any).json();
+    }
+    throw new Error(`[bltai] Failed to parse JSON from ${context}: response has neither text() nor json()`);
+  }
+
+  const raw = await response.text();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('{')) {
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      for (let i = 0; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (inString) {
+          if (escaped) {
+            escaped = false;
+          } else if (ch === '\\') {
+            escaped = true;
+          } else if (ch === '"') {
+            inString = false;
+          }
+          continue;
+        }
+        if (ch === '"') {
+          inString = true;
+          continue;
+        }
+        if (ch === '{') depth++;
+        if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            const firstObject = trimmed.slice(0, i + 1);
+            try {
+              return JSON.parse(firstObject);
+            } catch {
+              break;
+            }
+          }
+        }
+      }
+    }
+    const preview = raw.slice(0, 400);
+    throw new Error(`[bltai] Failed to parse JSON from ${context}: ${response.status} ${preview}`);
+  }
+}
+
 async function uploadToBLTAI(baseUrl: string, apiKey: string, dataUrl: string, fetchImpl = fetchWithRetry) {
   const matches = dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
   if (!matches) {
@@ -75,7 +127,7 @@ async function uploadToBLTAI(baseUrl: string, apiKey: string, dataUrl: string, f
     body: formData,
   });
 
-  const result = await response.json();
+  const result = await parseJsonResponse(response, 'file upload');
   if (!response.ok) {
     throw new Error(`[bltai] File upload failed: ${response.status} ${JSON.stringify(result)}`);
   }
@@ -208,7 +260,7 @@ export const BLTAI_PROVIDER = {
       body: JSON.stringify(finalPayload),
     });
 
-    const data = await response.json();
+    const data = await parseJsonResponse(response, `${scope} submit`);
     console.error(`[bltai] Submit response for ${scope}:`, JSON.stringify(data, null, 2));
 
     if (!response.ok) {
@@ -254,7 +306,7 @@ export const BLTAI_PROVIDER = {
         throw new Error(`Poll failed: ${response.status} ${text}`);
       }
 
-      const data = await response.json();
+      const data = await parseJsonResponse(response, `${scope} poll ${taskId}`);
       console.error(`[bltai] Poll response for ${taskId}:`, JSON.stringify(data, null, 2));
 
       const rawStatus = data.status || data.state || data.task_status || data.data?.status || data.task?.status || '';

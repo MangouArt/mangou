@@ -29,7 +29,7 @@ async function fetchWithRetry(url: any, options: any, maxRetries = 3) {
 
 async function uploadToEvolink(apiKey: string, dataUrl: string, fetchImpl = fetchWithRetry) {
   const endpoint = 'https://files-api.evolink.ai/api/v1/files/upload/stream';
-  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  const matches = dataUrl.match(/^data:([A-Za-z0-9.+-\/]+);base64,(.+)$/);
   if (!matches) {
     throw new Error('Invalid Data URL: expected data:<mime>;base64,<data>');
   }
@@ -240,8 +240,8 @@ export const EVOLINK_PROVIDER = {
     }
 
     const image_urls = requireMediaUrlArray(params, 'image_urls', 9, true);
-    const video_urls = requireMediaUrlArray(params, 'video_urls', 3, false);
-    const audio_urls = requireMediaUrlArray(params, 'audio_urls', 3, false);
+    const video_urls = requireMediaUrlArray(params, 'video_urls', 3, true);
+    const audio_urls = requireMediaUrlArray(params, 'audio_urls', 3, true);
 
     if (TEXT_TO_VIDEO_MODELS.has(model)) {
       if (image_urls.length > 0 || video_urls.length > 0 || audio_urls.length > 0) {
@@ -287,6 +287,24 @@ export const EVOLINK_PROVIDER = {
         const value = finalPayload.image_urls[i];
         if (typeof value === 'string' && value.startsWith('data:')) {
           finalPayload.image_urls[i] = await uploadToEvolink(apiKey, value, fetchImpl);
+        }
+      }
+    }
+
+    if (Array.isArray(finalPayload.video_urls)) {
+      for (let i = 0; i < finalPayload.video_urls.length; i++) {
+        const value = finalPayload.video_urls[i];
+        if (typeof value === 'string' && value.startsWith('data:')) {
+          finalPayload.video_urls[i] = await uploadToEvolink(apiKey, value, fetchImpl);
+        }
+      }
+    }
+
+    if (Array.isArray(finalPayload.audio_urls)) {
+      for (let i = 0; i < finalPayload.audio_urls.length; i++) {
+        const value = finalPayload.audio_urls[i];
+        if (typeof value === 'string' && value.startsWith('data:')) {
+          finalPayload.audio_urls[i] = await uploadToEvolink(apiKey, value, fetchImpl);
         }
       }
     }

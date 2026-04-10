@@ -218,6 +218,51 @@ describe("AIGC Generate & Backfill", () => {
     );
   });
 
+  it("runAIGC: resolves local video and audio references into data urls with media mime types", async () => {
+    await fs.mkdir(path.join(projectRoot, "assets/videos"), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, "assets/audio"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "assets/videos/reference.mp4"), "fake-video");
+    await fs.writeFile(path.join(projectRoot, "assets/audio/reference.mp3"), "fake-audio");
+
+    const sourceDoc = {
+      meta: { id: "shot1" },
+      tasks: {
+        video: {
+          provider: "mock-provider",
+          params: {
+            prompt: "Use continuity clip and bgm",
+            model: "seedance-2.0-fast-reference-to-video",
+            video_urls: ["assets/videos/reference.mp4"],
+            audio_urls: ["assets/audio/reference.mp3"],
+          }
+        }
+      }
+    };
+    await fs.writeFile(yamlPath, yaml.dump(sourceDoc));
+
+    const mockProvider = {
+      id: "mock-provider",
+      env: { apiKey: "MOCK_KEY", baseUrl: "MOCK_BASE", defaultBaseUrl: "https://api.mock.ai" },
+      scopes: { video: "videos" },
+      buildPayload: vi.fn((_s: any, p: any) => p),
+      submit: vi.fn().mockResolvedValue("task-236"),
+      poll: vi.fn().mockResolvedValue({ status: "SUCCESS", data: { url: "https://example.com/cat.mp4" } }),
+      extractOutputs: () => ["https://example.com/cat.mp4"],
+    };
+    vi.spyOn(registry, "getAIGCProvider").mockReturnValue(mockProvider as any);
+    process.env.MOCK_KEY = "dummy";
+
+    await runAIGC({ yamlPath, type: "video" });
+
+    expect(mockProvider.buildPayload).toHaveBeenCalledWith(
+      "videos",
+      expect.objectContaining({
+        video_urls: [expect.stringMatching(/^data:video\/mp4;base64,/)],
+        audio_urls: [expect.stringMatching(/^data:audio\/mpeg;base64,/)],
+      }),
+    );
+  });
+
   it("runAIGC: rejects missing localized outputs before writing audit logs", async () => {
     const sourceDoc = {
       meta: { id: "shot1" },

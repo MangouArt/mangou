@@ -32,7 +32,7 @@ CLI 仅关注 `tasks.[type].params` 模块。
 - 自动解析只发生在“同字段内”：
   - 本地图片路径 -> `data:` URL
   - `asset_defs/*.yaml` -> 该 YAML 的 `tasks.image.latest.output`
-- 注意：字段“会被 runtime 解析”不等于“对应 provider 一定直接接受 `data:` URL”。例如 `EvoLink seedance-2.0-fast-reference-to-video` 的 `image_urls` 虽然可以先写本地图片，但 provider 会先上传成远程 URL 再提交；`video_urls` / `audio_urls` 则仍然不会自动上传。
+- 注意：字段“会被 runtime 解析”不等于“对应 provider 一定直接接受 `data:` URL”。例如 `EvoLink seedance-2.0-fast-reference-to-video` 的 `image_urls` / `video_urls` / `audio_urls` 虽然可以先写本地媒体路径，但 provider 会先上传成远程 URL 再提交。
 - CLI 不再做以下隐式重写：
   - `images` -> `image`
   - `images` -> `image_input`
@@ -111,7 +111,7 @@ tasks:
 - `seedance-2.0-image-to-video` / `seedance-2.0-fast-image-to-video` 必须提供 `1-2` 张 `image_urls`，不接受 `video_urls` / `audio_urls`。
 - `seedance-2.0-reference-to-video` / `seedance-2.0-fast-reference-to-video` 接受 `image_urls` / `video_urls` / `audio_urls`，但至少要有一个 `image_urls` 或 `video_urls`。
 - `image_urls` 支持本地图片路径，provider 会先调用 EvoLink 官方上传接口换成临时 URL。
-- `video_urls` / `audio_urls` 仍然必须是远程 URL。
+- `video_urls` / `audio_urls` 也支持本地媒体路径，provider 会先调用 EvoLink 官方上传接口换成临时 URL。
 - `duration` 当前按官方统一接口收敛为 `4-15` 秒。
 - `quality` 当前按官方文档只收敛为 `480p` 或 `720p`。
 - `aspect_ratio` 只接受 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive`。
