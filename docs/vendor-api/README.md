@@ -22,6 +22,8 @@
 
 ## EvoLink
 
+- `Nano Banana 2 / gemini-3.1-flash-image-preview`
+  - 原始链接: https://docs.evolink.ai/cn/api-manual/image-series/nanobanana/nanobanana-2-image-generate
 - `Seedance 2.0 Overview`
   - 原始链接: https://docs.evolink.ai/cn/api-manual/video-series/seedance2.0/seedance-2.0-overview
   - Markdown: [evolink-seedance-2.0-fast-reference-to-video.md](./evolink-seedance-2.0-fast-reference-to-video.md)

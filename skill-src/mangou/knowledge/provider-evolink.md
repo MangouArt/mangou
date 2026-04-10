@@ -85,6 +85,55 @@ tasks:
       generate_audio: true
 ```
 
+## 图片
+
+`EvoLink` 现已接入官方图像模型 `gemini-3.1-flash-image-preview`。编写 `tasks.image` 时，可以显式写 `provider: evolink`。
+
+当前已接入图片模型：
+
+- `gemini-3.1-flash-image-preview`
+
+常用参数：
+
+- `model`
+- `prompt`
+- `size`
+- `quality`
+- `image_urls`
+- `model_params.web_search`
+- `model_params.thinking_level`
+- `callback_url`
+
+图片规则：
+
+1. 当前图片能力只接 `gemini-3.1-flash-image-preview`。
+2. `prompt` 必填，长度按官方页收敛为不超过 `2000` 字符。
+3. `size` 只接受官方枚举：`auto`、`1:1`、`1:4`、`4:1`、`1:8`、`8:1`、`2:3`、`3:2`、`3:4`、`4:3`、`4:5`、`5:4`、`9:16`、`16:9`、`21:9`。
+4. `quality` 只接受官方枚举：`0.5K`、`1K`、`2K`、`4K`。
+5. `image_urls` 最多 `14` 张，支持本地图片路径；本地图最终会先上传到 `files-api.evolink.ai`，得到临时 `file_url` 再提交。
+6. `model_params` 当前只透传 `web_search` 和 `thinking_level`。
+7. `thinking_level` 只接受 `auto`、`min`、`high`。
+8. `callback_url` 只接受 HTTPS URL。
+
+最小示例：
+
+```yaml
+tasks:
+  image:
+    provider: evolink
+    params:
+      model: gemini-3.1-flash-image-preview
+      prompt: "一只猫在草地上玩耍"
+      size: "16:9"
+      quality: 2K
+      image_urls:
+        - assets/images/reference.png
+      model_params:
+        web_search: true
+        thinking_level: auto
+      callback_url: "https://example.com/webhooks/image-task-completed"
+```
+
 ```yaml
 tasks:
   video:
