@@ -2,8 +2,78 @@ import { describe, expect, it, vi } from "vitest";
 import { EVOLINK_PROVIDER } from "../../src/logic/aigc-provider-evolink";
 
 describe("EvoLink AI Provider", () => {
+  it("buildPayload supports gemini-3.1-flash-image-preview image generation", () => {
+    const payload = EVOLINK_PROVIDER.buildPayload("images", {
+      model: "gemini-3.1-flash-image-preview",
+      prompt: "一只猫在草地上玩耍",
+      size: "16:9",
+      quality: "2K",
+      image_urls: ["https://example.com/image1.png"],
+      model_params: {
+        web_search: true,
+        thinking_level: "high",
+      },
+      callback_url: "https://example.com/webhooks/image-task-completed",
+    });
+
+    expect(payload).toEqual({
+      model: "gemini-3.1-flash-image-preview",
+      prompt: "一只猫在草地上玩耍",
+      size: "16:9",
+      quality: "2K",
+      image_urls: ["https://example.com/image1.png"],
+      model_params: {
+        web_search: true,
+        thinking_level: "high",
+      },
+      callback_url: "https://example.com/webhooks/image-task-completed",
+    });
+  });
+
+  it("buildPayload rejects invalid evolink image parameters", () => {
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("images", {
+        model: "seedance-2.0-fast-reference-to-video",
+        prompt: "invalid image model",
+      }),
+    ).toThrow(/图片模型只支持/);
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("images", {
+        model: "gemini-3.1-flash-image-preview",
+        prompt: "x".repeat(2001),
+      }),
+    ).toThrow(/prompt.*2000/);
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("images", {
+        model: "gemini-3.1-flash-image-preview",
+        prompt: "invalid size",
+        size: "2:1",
+      }),
+    ).toThrow(/size/);
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("images", {
+        model: "gemini-3.1-flash-image-preview",
+        prompt: "invalid quality",
+        quality: "8K",
+      }),
+    ).toThrow(/quality/);
+
+    expect(() =>
+      EVOLINK_PROVIDER.buildPayload("images", {
+        model: "gemini-3.1-flash-image-preview",
+        prompt: "invalid thinking",
+        model_params: {
+          thinking_level: "max",
+        },
+      }),
+    ).toThrow(/thinking_level/);
+  });
+
   it("buildPayload supports text-to-video models with official model_params", () => {
-    const payload = EVOLINK_PROVIDER.buildPayload("videos", {
+    const payload: any = EVOLINK_PROVIDER.buildPayload("videos", {
       model: "seedance-2.0-fast-text-to-video",
       prompt: "城市日落延时摄影，金色光线洒满天际线",
       duration: 5,
@@ -39,7 +109,7 @@ describe("EvoLink AI Provider", () => {
   });
 
   it("buildPayload supports image-to-video models and enforces 1-2 images", () => {
-    const payload = EVOLINK_PROVIDER.buildPayload("videos", {
+    const payload: any = EVOLINK_PROVIDER.buildPayload("videos", {
       model: "seedance-2.0-image-to-video",
       prompt: "镜头缓缓推进，花瓣随风飘落",
       image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
@@ -101,7 +171,7 @@ describe("EvoLink AI Provider", () => {
   });
 
   it("buildPayload allows data URLs for local image, video, and audio references", () => {
-    const payload = EVOLINK_PROVIDER.buildPayload("videos", {
+    const payload: any = EVOLINK_PROVIDER.buildPayload("videos", {
       model: "seedance-2.0-fast-reference-to-video",
       prompt: "Test local image upload path",
       image_urls: ["data:image/png;base64,ZmFrZQ=="],
@@ -155,7 +225,7 @@ describe("EvoLink AI Provider", () => {
   });
 
   it("buildPayload accepts official duration range up to 15 seconds", () => {
-    const payload = EVOLINK_PROVIDER.buildPayload("videos", {
+    const payload: any = EVOLINK_PROVIDER.buildPayload("videos", {
       model: "seedance-2.0-fast-reference-to-video",
       prompt: "Test full-length duration",
       image_urls: ["https://example.com/ref.png"],
@@ -234,6 +304,68 @@ describe("EvoLink AI Provider", () => {
           quality: "720p",
           aspect_ratio: "16:9",
           generate_audio: true,
+        }),
+      },
+    );
+  });
+
+  it("submit posts image generations to the official endpoint and uploads local image urls first", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            file_url: "https://files.evolink.ai/mangou-uploads/reference.png",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "task-image-123" }),
+      });
+
+    const taskId = await EVOLINK_PROVIDER.submit({
+      baseUrl: "https://api.evolink.ai",
+      apiKey: "test-key",
+      scope: "images",
+      payload: {
+        model: "gemini-3.1-flash-image-preview",
+        prompt: "一只猫在草地上玩耍",
+        size: "16:9",
+        quality: "2K",
+        image_urls: ["data:image/png;base64,ZmFrZQ=="],
+        model_params: {
+          web_search: true,
+          thinking_level: "auto",
+        },
+      },
+      fetchImpl,
+    });
+
+    expect(taskId).toBe("task-image-123");
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.evolink.ai/v1/images/generations",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-key",
+        },
+        body: JSON.stringify({
+          model: "gemini-3.1-flash-image-preview",
+          prompt: "一只猫在草地上玩耍",
+          size: "16:9",
+          quality: "2K",
+          image_urls: ["https://files.evolink.ai/mangou-uploads/reference.png"],
+          model_params: {
+            web_search: true,
+            thinking_level: "auto",
+          },
         }),
       },
     );
@@ -346,5 +478,20 @@ describe("EvoLink AI Provider", () => {
       },
     );
     expect(EVOLINK_PROVIDER.extractOutputs("videos", result)).toEqual(["https://example.com/video.mp4"]);
+  });
+
+  it("extractOutputs reads image urls from unified image task results", () => {
+    const result = {
+      status: "completed",
+      results: [
+        { url: "https://example.com/image-1.png" },
+        { image_url: "https://example.com/image-2.png" },
+      ],
+    };
+
+    expect(EVOLINK_PROVIDER.extractOutputs("images", result)).toEqual([
+      "https://example.com/image-1.png",
+      "https://example.com/image-2.png",
+    ]);
   });
 });

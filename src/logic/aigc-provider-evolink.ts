@@ -69,6 +69,10 @@ const TEXT_TO_VIDEO_MODELS = new Set([
   'seedance-2.0-fast-text-to-video',
 ]);
 
+const IMAGE_GENERATION_MODELS = new Set([
+  'gemini-3.1-flash-image-preview',
+]);
+
 const IMAGE_TO_VIDEO_MODELS = new Set([
   'seedance-2.0-image-to-video',
   'seedance-2.0-fast-image-to-video',
@@ -80,9 +84,35 @@ const REFERENCE_TO_VIDEO_MODELS = new Set([
 ]);
 
 const SUPPORTED_MODELS = new Set([
+  ...IMAGE_GENERATION_MODELS,
   ...TEXT_TO_VIDEO_MODELS,
   ...IMAGE_TO_VIDEO_MODELS,
   ...REFERENCE_TO_VIDEO_MODELS,
+]);
+
+const ALLOWED_IMAGE_SIZES = new Set([
+  'auto',
+  '1:1',
+  '1:4',
+  '4:1',
+  '1:8',
+  '8:1',
+  '2:3',
+  '3:2',
+  '3:4',
+  '4:3',
+  '4:5',
+  '5:4',
+  '9:16',
+  '16:9',
+  '21:9',
+]);
+
+const ALLOWED_IMAGE_QUALITIES = new Set([
+  '0.5K',
+  '1K',
+  '2K',
+  '4K',
 ]);
 
 const ALLOWED_ASPECT_RATIOS = new Set([
@@ -168,13 +198,40 @@ function validateCallbackUrl(callbackUrl: any) {
   return callbackUrl;
 }
 
+function validateImagePrompt(prompt: any) {
+  const value = String(prompt || '').trim();
+  if (!value) {
+    throw new Error("[evolink] Missing required parameter: 'prompt'");
+  }
+  if (value.length > 2000) {
+    throw new Error('[evolink] prompt 长度不能超过 2000 字符');
+  }
+  return value;
+}
+
+function validateImageSize(size: any) {
+  if (size === undefined || size === null || size === '') {
+    return 'auto';
+  }
+  if (!ALLOWED_IMAGE_SIZES.has(size)) {
+    throw new Error("[evolink] size 只接受 'auto'、'1:1'、'1:4'、'4:1'、'1:8'、'8:1'、'2:3'、'3:2'、'3:4'、'4:3'、'4:5'、'5:4'、'9:16'、'16:9'、'21:9'");
+  }
+  return size;
+}
+
+function validateImageQuality(quality: any) {
+  if (quality === undefined || quality === null || quality === '') {
+    return '2K';
+  }
+  if (!ALLOWED_IMAGE_QUALITIES.has(quality)) {
+    throw new Error("[evolink] 图片 quality 只接受 '0.5K'、'1K'、'2K' 或 '4K'");
+  }
+  return quality;
+}
+
 function validateModelParams(model: string, modelParams: any) {
   if (modelParams === undefined || modelParams === null) {
     return undefined;
-  }
-
-  if (!TEXT_TO_VIDEO_MODELS.has(model)) {
-    throw new Error('[evolink] model_params 目前只适用于 Seedance 2.0 text-to-video 模型');
   }
 
   if (typeof modelParams !== 'object' || Array.isArray(modelParams)) {
@@ -182,10 +239,49 @@ function validateModelParams(model: string, modelParams: any) {
   }
 
   const normalized: Record<string, any> = {};
+
+  if (IMAGE_GENERATION_MODELS.has(model)) {
+    if (modelParams.web_search !== undefined) {
+      normalized.web_search = Boolean(modelParams.web_search);
+    }
+    if (modelParams.thinking_level !== undefined) {
+      const thinkingLevel = modelParams.thinking_level;
+      if (!['auto', 'min', 'high'].includes(thinkingLevel)) {
+        throw new Error("[evolink] thinking_level 只接受 'auto'、'min' 或 'high'");
+      }
+      normalized.thinking_level = thinkingLevel;
+    }
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+  }
+
+  if (!TEXT_TO_VIDEO_MODELS.has(model)) {
+    throw new Error('[evolink] model_params 目前只适用于 Seedance 2.0 text-to-video 模型和 gemini-3.1-flash-image-preview');
+  }
+
   if (modelParams.web_search !== undefined) {
     normalized.web_search = Boolean(modelParams.web_search);
   }
   return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function pickImageOutputs(result: any) {
+  const candidates = [
+    ...(Array.isArray(result?.results) ? result.results : []),
+    ...(Array.isArray(result?.data) ? result.data : []),
+    ...(Array.isArray(result?.output) ? result.output : []),
+    ...(Array.isArray(result?.outputs) ? result.outputs : []),
+    ...(Array.isArray(result?.image_urls) ? result.image_urls : []),
+    ...(Array.isArray(result?.result?.images) ? result.result.images : []),
+  ];
+
+  return candidates
+    .map((item: any) => {
+      if (typeof item === 'string') {
+        return item;
+      }
+      return item?.url || item?.image_url || item?.download_url || item?.output_url;
+    })
+    .filter(Boolean);
 }
 
 function pickVideoOutputs(result: any) {
@@ -222,10 +318,6 @@ export const EVOLINK_PROVIDER = {
     video: 'videos',
   },
   buildPayload(scope: any, params: any) {
-    if (scope !== 'videos') {
-      throw new Error('[evolink] 当前只接入视频能力');
-    }
-
     const model = params.model;
     if (!model) {
       throw new Error("[evolink] Missing required parameter: 'model'");
@@ -234,11 +326,34 @@ export const EVOLINK_PROVIDER = {
       throw new Error(`[evolink] Unsupported model: ${model}`);
     }
 
+    if (scope === 'images') {
+      if (!IMAGE_GENERATION_MODELS.has(model)) {
+        throw new Error("[evolink] 图片模型只支持 'gemini-3.1-flash-image-preview'");
+      }
+
+      const model_params = validateModelParams(model, params.model_params);
+      const callback_url = validateCallbackUrl(params.callback_url);
+      const image_urls = requireMediaUrlArray(params, 'image_urls', 14, true);
+
+      return {
+        model,
+        prompt: validateImagePrompt(params.prompt),
+        size: validateImageSize(params.size),
+        quality: validateImageQuality(params.quality),
+        ...(image_urls.length > 0 ? { image_urls } : {}),
+        ...(model_params ? { model_params } : {}),
+        ...(callback_url ? { callback_url } : {}),
+      };
+    }
+
+    if (scope !== 'videos') {
+      throw new Error(`[evolink] Unsupported scope: ${scope}`);
+    }
+
     const prompt = String(params.prompt || '').trim();
     if (!prompt) {
       throw new Error("[evolink] Missing required parameter: 'prompt'");
     }
-
     const image_urls = requireMediaUrlArray(params, 'image_urls', 9, true);
     const video_urls = requireMediaUrlArray(params, 'video_urls', 3, true);
     const audio_urls = requireMediaUrlArray(params, 'audio_urls', 3, true);
@@ -309,7 +424,9 @@ export const EVOLINK_PROVIDER = {
       }
     }
 
-    const endpoint = joinUrl(baseUrl, 'v1/videos/generations');
+    const endpoint = finalPayload.model && IMAGE_GENERATION_MODELS.has(finalPayload.model)
+      ? joinUrl(baseUrl, 'v1/images/generations')
+      : joinUrl(baseUrl, 'v1/videos/generations');
     const response = await fetchImpl(endpoint, {
       method: 'POST',
       headers: {
@@ -370,6 +487,9 @@ export const EVOLINK_PROVIDER = {
     }
   },
   extractOutputs(scope: any, result: any) {
+    if (scope === 'images') {
+      return pickImageOutputs(result);
+    }
     if (scope !== 'videos') {
       return [];
     }

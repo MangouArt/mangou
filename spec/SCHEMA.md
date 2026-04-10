@@ -115,3 +115,31 @@ tasks:
 - `duration` 当前按官方统一接口收敛为 `4-15` 秒。
 - `quality` 当前按官方文档只收敛为 `480p` 或 `720p`。
 - `aspect_ratio` 只接受 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive`。
+
+### C. EvoLink `gemini-3.1-flash-image-preview`
+```yaml
+tasks:
+  image:
+    provider: evolink
+    params:
+      model: gemini-3.1-flash-image-preview
+      prompt: "一只猫在草地上玩耍"
+      size: "16:9"
+      quality: 2K
+      image_urls:
+        - assets/images/reference.png
+      model_params:
+        web_search: true
+        thinking_level: auto
+      callback_url: "https://example.com/webhooks/image-task-completed"
+```
+
+说明：
+- 当前 `EvoLink` 图片能力只接入 `gemini-3.1-flash-image-preview`。
+- `prompt` 必填，最大按官方页约束为 `2000` 字符。
+- `size` 只接受官方枚举：`auto`、`1:1`、`1:4`、`4:1`、`1:8`、`8:1`、`2:3`、`3:2`、`3:4`、`4:3`、`4:5`、`5:4`、`9:16`、`16:9`、`21:9`。
+- `quality` 只接受官方枚举：`0.5K`、`1K`、`2K`、`4K`。
+- `image_urls` 最多 `14` 张，支持本地图片路径；provider 会先调用 EvoLink 官方上传接口换成临时 URL。
+- `model_params` 当前只透传官方页已有字段：`web_search`、`thinking_level`。
+- `thinking_level` 只接受 `auto`、`min`、`high`。
+- `callback_url` 只接受 HTTPS URL。
