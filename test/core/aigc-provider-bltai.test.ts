@@ -138,6 +138,48 @@ describe('BLTAI Provider Script', () => {
     );
   });
 
+  it('submit should tolerate dirty JSON responses from the upload endpoint', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => '{"data":{"url":"https://cdn.bltcy.ai/uploads/ref-1.png"}}\n{"error":"trailing noise"}',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => '{"id":"task-after-dirty-upload"}',
+      });
+
+    const taskId = await BLTAI_PROVIDER.submit({
+      baseUrl: 'https://api.bltcy.ai',
+      apiKey: 'test-key',
+      scope: 'images',
+      payload: {
+        model: 'gemini-3.1-flash-image-preview',
+        prompt: 'A comic style hero',
+        response_format: 'url',
+        image: ['data:image/png;base64,aaaa'],
+      },
+      fetchImpl,
+    });
+
+    expect(taskId).toBe('task-after-dirty-upload');
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      'https://api.bltcy.ai/v1/images/generations?async=true',
+      expect.objectContaining({
+        body: JSON.stringify({
+          model: 'gemini-3.1-flash-image-preview',
+          prompt: 'A comic style hero',
+          response_format: 'url',
+          image: ['https://cdn.bltcy.ai/uploads/ref-1.png'],
+        }),
+      }),
+    );
+  });
+
   it('submit should keep remote image urls untouched for generations', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,

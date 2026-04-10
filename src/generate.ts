@@ -46,7 +46,7 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
 
   // 3. Resolve dynamic parameters (References & Local Paths)
   const params = JSON.parse(JSON.stringify(taskConfig.params)); // Deep clone
-  await resolveImageParams(projectRoot, params);
+  await resolveMediaParams(projectRoot, params);
 
   // 4. Submit and Poll
   const scope = provider.scopes?.[type] || (type === "image" ? "images" : "videos");
@@ -161,7 +161,7 @@ export async function runAIGC({ yamlPath, type }: { yamlPath: string; type: "ima
  * Helpers
  */
 
-async function resolveImageParams(projectRoot: string, params: Record<string, any>) {
+async function resolveMediaParams(projectRoot: string, params: Record<string, any>) {
   for (const key of ["images", "image", "image_urls"]) {
     if (params[key] === undefined) continue;
     if (!Array.isArray(params[key])) {
@@ -173,6 +173,14 @@ async function resolveImageParams(projectRoot: string, params: Record<string, an
   for (const key of ["image_url"]) {
     if (params[key] === undefined) continue;
     params[key] = await resolveImageInput(projectRoot, params[key]);
+  }
+
+  for (const key of ["video_urls", "audio_urls"]) {
+    if (params[key] === undefined) continue;
+    if (!Array.isArray(params[key])) {
+      continue;
+    }
+    params[key] = await Promise.all(params[key].map((input: any) => resolveBinaryInput(projectRoot, input)));
   }
 }
 
@@ -190,6 +198,23 @@ async function resolveImageInput(projectRoot: string, input: any): Promise<any> 
   }
 
   return input;
+}
+
+async function resolveBinaryInput(projectRoot: string, input: any): Promise<any> {
+  if (typeof input !== "string") {
+    return input;
+  }
+
+  if (input.startsWith("http") || input.startsWith("data:")) {
+    return input;
+  }
+
+  const absPath = path.resolve(projectRoot, input);
+  if (!(await fileExists(absPath))) {
+    return input;
+  }
+
+  return await encodeLocalBinary(absPath);
 }
 
 async function assertMaterializedOutputsExist(projectRoot: string, relYamlPath: string, outputs: string[]) {
@@ -223,10 +248,33 @@ async function isLocalImage(projectRoot: string, imgPath: string): Promise<boole
 
 async function encodeLocalImage(projectRoot: string, imgPath: string): Promise<string | null> {
   const absPath = path.resolve(projectRoot, imgPath);
-  const data = await fs.readFile(absPath);
-  const ext = path.extname(absPath).slice(1) || "png";
-  return `data:image/${ext};base64,${data.toString("base64")}`;
+  return await encodeLocalBinary(absPath, "image");
 }
+
+async function encodeLocalBinary(absPath: string, fallbackType?: "image"): Promise<string> {
+  const data = await fs.readFile(absPath);
+  const ext = path.extname(absPath).slice(1).toLowerCase();
+  const mime =
+    MIME_BY_EXTENSION[ext] ||
+    (fallbackType === "image" ? `image/${ext || "png"}` : "application/octet-stream");
+  return `data:${mime};base64,${data.toString("base64")}`;
+}
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+  ogg: "audio/ogg",
+};
 
 async function updateYaml(yamlPath: string, updates: Record<string, any>) {
   const raw = await fs.readFile(yamlPath, "utf-8");

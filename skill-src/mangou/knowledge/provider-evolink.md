@@ -36,7 +36,7 @@
 媒体输入说明：
 
 - `image_urls` 可写本地图片路径，runtime 会先转成 `data:`，provider 再通过 EvoLink 官方上传接口换成远程 URL
-- `video_urls` / `audio_urls` 仍然只接受远程 URL
+- `video_urls` / `audio_urls` 也可写本地媒体路径，runtime 会先转成 `data:`，provider 再通过 EvoLink 官方上传接口换成远程 URL
 - 九宫格母图如果要给 `reference-to-video` 当连续镜头计划，必须在 `prompt` 明确说明它是 hidden shot plan，不是单张海报
 
 常用参数：
@@ -55,7 +55,7 @@
 ## 规则
 
 1. `provider` 写在 task 层，不写进 `params`。
-2. `image_urls` 支持本地图片路径，但本地图片最终会先上传到 `files-api.evolink.ai`，得到临时 `file_url` 再提交。
+2. `image_urls` / `video_urls` / `audio_urls` 都支持本地媒体路径，但本地媒体最终会先上传到 `files-api.evolink.ai`，得到临时 `file_url` 再提交。
 3. `text-to-video` 不接受任何 `image_urls` / `video_urls` / `audio_urls`。
 4. `image-to-video` 必须有 `1-2` 张 `image_urls`，其中 2 张图会按首尾帧心智提交。
 5. `reference-to-video` 至少要有一个 `image_urls` 或 `video_urls`，不能只传 `audio_urls`。

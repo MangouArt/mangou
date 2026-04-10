@@ -100,21 +100,18 @@ describe("EvoLink AI Provider", () => {
     });
   });
 
-  it("buildPayload allows data URLs for image_urls but still rejects non-http media references", () => {
+  it("buildPayload allows data URLs for local image, video, and audio references", () => {
     const payload = EVOLINK_PROVIDER.buildPayload("videos", {
       model: "seedance-2.0-fast-reference-to-video",
       prompt: "Test local image upload path",
       image_urls: ["data:image/png;base64,ZmFrZQ=="],
+      video_urls: ["data:video/mp4;base64,ZmFrZQ=="],
+      audio_urls: ["data:audio/mpeg;base64,ZmFrZQ=="],
     });
 
     expect(payload.image_urls).toEqual(["data:image/png;base64,ZmFrZQ=="]);
-    expect(() =>
-      EVOLINK_PROVIDER.buildPayload("videos", {
-        model: "seedance-2.0-fast-reference-to-video",
-        prompt: "Test relative video",
-        video_urls: ["assets/videos/ref.mp4"],
-      }),
-    ).toThrow(/video_urls.*http\/https URL/);
+    expect(payload.video_urls).toEqual(["data:video/mp4;base64,ZmFrZQ=="]);
+    expect(payload.audio_urls).toEqual(["data:audio/mpeg;base64,ZmFrZQ=="]);
   });
 
   it("buildPayload rejects model_params for non-text models and invalid callback urls", () => {
@@ -233,6 +230,87 @@ describe("EvoLink AI Provider", () => {
           model: "seedance-2.0-fast-reference-to-video",
           prompt: "camera push in",
           image_urls: ["https://files.evolink.ai/mangou-uploads/upload.png"],
+          duration: 8,
+          quality: "720p",
+          aspect_ratio: "16:9",
+          generate_audio: true,
+        }),
+      },
+    );
+  });
+
+  it("submit uploads data url video_urls and audio_urls before generation", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            file_url: "https://files.evolink.ai/mangou-uploads/image.png",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            file_url: "https://files.evolink.ai/mangou-uploads/ref.mp4",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            file_url: "https://files.evolink.ai/mangou-uploads/bgm.mp3",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "task-unified-456" }),
+      });
+
+    await EVOLINK_PROVIDER.submit({
+      baseUrl: "https://api.evolink.ai",
+      apiKey: "test-key",
+      scope: "videos",
+      payload: {
+        model: "seedance-2.0-fast-reference-to-video",
+        prompt: "camera push in",
+        image_urls: ["data:image/png;base64,ZmFrZQ=="],
+        video_urls: ["data:video/mp4;base64,ZmFrZQ=="],
+        audio_urls: ["data:audio/mpeg;base64,ZmFrZQ=="],
+        duration: 8,
+        quality: "720p",
+        aspect_ratio: "16:9",
+        generate_audio: true,
+      },
+      fetchImpl,
+    });
+
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      4,
+      "https://api.evolink.ai/v1/videos/generations",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-key",
+        },
+        body: JSON.stringify({
+          model: "seedance-2.0-fast-reference-to-video",
+          prompt: "camera push in",
+          image_urls: ["https://files.evolink.ai/mangou-uploads/image.png"],
+          video_urls: ["https://files.evolink.ai/mangou-uploads/ref.mp4"],
+          audio_urls: ["https://files.evolink.ai/mangou-uploads/bgm.mp3"],
           duration: 8,
           quality: "720p",
           aspect_ratio: "16:9",
