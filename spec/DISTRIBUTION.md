@@ -21,10 +21,9 @@ npx skills add MangouArt/mangou-ai-motion-comics
 ### 2. 本仓职责
 
 本仓只负责：
-- core 抽象
+- dashboard 相关共享 schema / types / UI utilities
 - dashboard npm 包
 - spec / protocol
-- provider 无关 utilities
 - 开发者向测试与基础设施
 
 ### 3. 已废弃主叙事

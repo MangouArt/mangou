@@ -103,12 +103,13 @@ bun run build:dashboard:package
 # 运行全链路测试
 bun run ci
 
-# 核心 CLI 命令
-bun run mangou project init --name <my-project>
-bun run mangou storyboard generate --path <shot.yaml> --type video
-bun run mangou project stitch --id <my-project>
-bun run mangou server start --port 3000
+# dashboard / core 开发验证
+bun run build
+bun run build:dashboard:package
+bun run test
 ```
+
+产品层 CLI（`project init` / `storyboard generate` / `storyboard split` / `project stitch` / `server start`）现在以 `mangou-ai-motion-comics` 为主入口，不再把本仓视为默认执行仓。
 
 ---
 
