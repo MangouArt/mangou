@@ -26,15 +26,18 @@ npx skills add MangouArt/mangou-ai-motion-comics
 - spec / protocol
 - 开发者向测试与基础设施
 
-### 3. 已废弃主叙事
-以下内容不再是本仓的推荐主路径：
+### 3. 已清退主叙事
+以下内容都不再保留为安装或分发流程：
 - `skill-src/mangou`
-- `mangou.zip`
-- `mangou-runtime.zip`
 - `build:skill`
+- 任何 zip 包分发
 - 以 zip 手工拼装 runtime 的安装方式
 
-迁移期内历史文件可暂存，但不再作为 SSOT。
+当前唯一推荐安装路径：
+
+```bash
+npx skills add MangouArt/mangou-ai-motion-comics
+```
 
 ## 开发态约束
 

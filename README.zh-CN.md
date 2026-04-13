@@ -68,13 +68,16 @@ bun run build:dashboard:package
 
 ## 迁移说明
 
-以下旧模型正在退役：
+以下旧模型已经清退，不再保留为安装主流程：
 - `skill-src/mangou`
 - `build:skill`
-- `mangou.zip`
-- `mangou-runtime.zip`
+- 任何 zip 包分发
 
-迁移期内这些历史结构可能仍存在于仓库中，但不再是推荐路径或 SSOT。
+当前唯一推荐安装路径：
+
+```bash
+npx skills add MangouArt/mangou-ai-motion-comics
+```
 
 ## 工作区说明
 
