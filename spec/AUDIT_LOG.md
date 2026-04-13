@@ -3,7 +3,7 @@
 为了提供任务防重 (Deduplication) 和操作审计 (Traceability)，Mangou 维护一个追加式的全局日志文件。
 
 ## 1. 存储位置
-- **路径**：`projects/{project_id}/tasks.jsonl`
+- **路径**：`<workspaceRoot>/projects/{project_id}/tasks.jsonl`
 - **格式**：JSONL (JSON Lines)
 
 ## 2. 日志结构 (JSONL Row)

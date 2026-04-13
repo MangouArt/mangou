@@ -41,7 +41,7 @@ mangou/
 
 ## 工作区结构 (Runtime Workspace)
 
-Agent 在执行任务时，会管理如下结构的目录：
+Agent 在执行任务时，会管理如下结构的工作区目录；这里描述的是**外部工作区根目录**，不是 `mangou/` 仓库内部：
 
 ```text
 <workspaceRoot>/
@@ -68,7 +68,7 @@ Agent 在执行任务时，会管理如下结构的目录：
 - `spec/` 是协议与数据结构说明入口。
 - `dist/` 与其他构建产物都不是编辑源。
 - `mangou` 里的脚本只负责单仓内逻辑；不要在这里编排 `Mango` 母仓或其他 submodule。
-- `workspace_template/` 是工作区模板；仓库内示例/测试项目已迁到 `examples/projects/`，不要再把它们当成真实工作区。
+- `workspace_template/` 是工作区模板；本仓不再保留任何仓内 `projects/` 目录，不要把 core 仓当成真实工作区。
 
 ### 1. 任务循环 (Task Loop)
 Agent 与 Mangou 的交互遵循 **"编辑-执行-回填"** 循环：
@@ -79,7 +79,7 @@ Agent 与 Mangou 的交互遵循 **"编辑-执行-回填"** 循环：
 
 ### 2. 真相源 (Source of Truth)
 - **配置真相**: YAML 文件中的 `params` 字段。
-- **状态真相**: `projects/<projectId>/tasks.jsonl`。
+- **状态真相**: `<workspaceRoot>/projects/<projectId>/tasks.jsonl`。
 - **展示缓存**: YAML 中的 `latest` 字段仅用于 Agent 快速阅读和 UI 展示，若与 `tasks.jsonl` 冲突，以 `tasks.jsonl` 为准。
 
 ### 3. AIGC 逻辑

@@ -51,4 +51,4 @@ npx skills add MangouArt/mangou-ai-motion-comics
 Mango/workspace/projects/
 ```
 
-本仓库内示例/测试项目现已收拢到 `examples/projects/`，不再承载真实工作区语义。
+本仓库不再保留任何仓内 `projects/` 目录；真实工作区语义只属于 `Mango/workspace/projects/`。

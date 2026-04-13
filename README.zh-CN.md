@@ -83,4 +83,4 @@ bun run build:dashboard:package
 Mango/workspace/projects/
 ```
 
-本仓库内的示例/测试项目已经迁移到 `examples/projects/`；不要再把仓库内目录当成真实工作区。
+本仓库不再保留任何仓内 `projects/` 目录；真实创作项目只存在于 `Mango/workspace/projects/`。

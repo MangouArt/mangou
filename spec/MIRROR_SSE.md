@@ -3,7 +3,7 @@
 WEB Server 是 Mangou 系统的实时“投影仪”。它通过监听文件变动 (Watcher) 和数据热推送 (SSE) 实现 UI 的无感刷新。
 
 ## 1. 实时监听 (File System Watcher)
-WEB Server 启动时，必须通过 `fs.watch` 或 `chokidar` 递归监听 `projects/` 目录。
+WEB Server 启动时，必须通过 `fs.watch` 或 `chokidar` 递归监听 `<workspaceRoot>/projects/` 目录，而不是 `mangou/` 仓库内部目录。
 - **监听目标**：`*.yaml`, `*.png`, `*.mp4`。
 - **过滤规则**：忽略 `node_modules`, `.git`, `.agent_logs`。
 
