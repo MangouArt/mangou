@@ -29,16 +29,12 @@
 
 ```text
 mangou/
-├── src/                    # CLI 与 runtime 源码
-│   ├── commands/           # CLI 子命令实现
-│   ├── logic/              # 核心业务逻辑 (AIGC, Build, Workflows)
-│   ├── server/             # 本地只读服务
-│   └── web/                # 可视化 Dashboard 源码 (React)
-├── skill-src/mangou/       # 唯一 skill 文档源
+├── src/                    # core / server / utilities（逐步移除产品层 provider 真相源）
 ├── packages/dashboard/     # dashboard npm 包源码
 ├── spec/                   # 核心数据协议规范 (YAML/JSON)
-├── workspace_template/     # 新项目初始化模板
-└── bundled-skills/         # 本地/CI 构建产物 (不作为编辑源, 不手改)
+├── test/                   # 核心测试
+├── workspace_template/     # 工作区模板（迁移期保留）
+└── examples/ or fixtures/  # 未来承接示例与测试项目
 ```
 
 ---
@@ -66,13 +62,13 @@ Agent 在执行任务时，会管理如下结构的目录：
 ## Agent 开发准则
 
 ### 0. 仓库组织规则
-- `skill-src/mangou/` 是主仓库里唯一允许手改的 skill 文档目录。
-- 仓库根目录不再保留 `SKILL.md` 入口文件；不要依赖软链接或顶层副本。
-- 轻量 skill 的 GitHub 分发仓库单独维护在 `MangouArt/mangou-ai-motion-comics`。
-- dashboard 的源码入口是 `packages/dashboard/`；仓库根 `dist/` 只是构建输出。
-- `bundled-skills/` 与 `dist/` 都是构建输出，不是编辑源。
+- `mangou` 现在是 core 仓，不再是主产品安装仓。
+- 主产品仓与 Hermes 自进化默认落点是 `MangouArt/mangou-ai-motion-comics`。
+- `packages/dashboard/` 是本仓唯一 dashboard 包源码目录。
+- `spec/` 是协议与数据结构说明入口。
+- `dist/` 与其他构建产物都不是编辑源。
 - `mangou` 里的脚本只负责单仓内逻辑；不要在这里编排 `Mango` 母仓或其他 submodule。
-- 跨仓同步、submodule 初始化、发布顺序统一放在 `Mango` 母仓脚本里处理。
+- `workspace_template/` 是工作区模板；仓库内示例/测试项目已迁到 `examples/projects/`，不要再把它们当成真实工作区。
 
 ### 1. 任务循环 (Task Loop)
 Agent 与 Mangou 的交互遵循 **"编辑-执行-回填"** 循环：
@@ -101,8 +97,8 @@ bun run dev
 # 构建可视化面板
 bun run build
 
-# 打包 Skill Bundle (输出到 bundled-skills/)
-bun run build:skill
+# 同步 dashboard 包产物
+bun run build:dashboard:package
 
 # 运行全链路测试
 bun run ci
@@ -138,11 +134,11 @@ bun run mangou server start --port 3000
 ## 协作建议
 
 如果你是负责 **Core 开发** 的 Agent：
-- 确保 `src/cli` 下的 entrypoints 具有良好的错误处理，并返回标准化的 JSON 结果。
+- 确保 `src/` 下的底层 entrypoints 与 utilities 具有良好的错误处理，并返回标准化结果。
 - 维护 `spec/` 的同步更新。
-- 保持 `build:skill` 和 dashboard 发布脚本稳定，但不要把构建输出当成源码修改。
-- `build:skill` 只负责在 `mangou` 仓内生成 `bundled-skills/` 产物；不要把 `mangou-ai-motion-comics` 的同步逻辑写回这里。
-- 不要在主仓库里维护 `skills/`、`skill-repos/` 或仓库根 `SKILL.md` 的副本；轻量 skill 仓库单独维护在 `MangouArt/mangou-ai-motion-comics`。
+- 保持 `build` 与 `build:dashboard:package` 稳定，但不要把构建输出当成源码修改。
+- 新的主产品层逻辑（skill 文档、provider 产品实现、安装入口）应优先落到 `mangou-ai-motion-comics`，不要在本仓再新增平行真相源。
+- 不要在主仓库里重新引入 `skill-src/`、`skills/`、zip 分发主流程或仓库根 `SKILL.md` 副本。
 
 如果你是负责 **项目制作 (Storyboard Agent)** 的 Agent：
 - 遵守 YAML 嵌套规范，不要随意移动文件。

@@ -1,253 +1,86 @@
-# 🎬 Mangou 漫剧导演 Agent 插件
+# Mangou Core
 
-[English](./README.md) | 🌐 [www.mangou.art](https://www.mangou.art)
+Mangou 现在定位为对外 core engine 仓，而不是最终产品安装仓。
 
-**Mangou** 是一款专为 AI Agent（如 Cursor / Claude Desktop / Cline 等）打造的漫剧调度插件（技能包）。它将你的本地工作区彻底升级为一个自动化的 AI 漫剧生产车间。
+主产品入口已经迁移到：
+- `MangouArt/mangou-ai-motion-comics`
 
-无需再折腾在线工具的复杂交互，只需用自然语言向你的 AI 助手下达命令。Mangou 为你的 Agent 注入了完整的能力，使其可以自主完成角色设定、分镜解析、图片绘制以及最终的视频合成。
+本仓当前职责：
+- provider 无关的 core 抽象
+- dashboard npm 包
+- spec / protocol / utilities
+- 开发者向基础设施与测试
 
-## ✨ 赋予你本地 Agent 的核心能力
+## 这里应该放什么
 
-- **零代码基建**：一键让 Agent 替你初始化标准化的漫剧本地项目与工作区目录。
-- **YAML 驱动引擎**：用 Agent 最擅长读写的纯文本 YAML 来管理角色、道具、场景和分镜剧本。
-- **状态可视化**：为你的工作区配套一个本地 Web 监视器，实时观影你的 Agent 进度。
-- **自动化 AIGC**：内置封装好的本地化脚本，让 Agent 可以直接驱动各类大模型产出精美画作与视频。
-- **无缝视频拼接**：全自动的分镜拼接，将生成散碎视频片段一键组装为完整大片。
+- `src/` 中与 provider 无关的基础能力
+- `packages/dashboard/`
+- `spec/`
+- `test/`
+- `examples/` / `fixtures/`（迁移完成后）
 
-## 📄 许可证
+## 这里不再承担什么
 
-本项目采用 [`FSL-1.1-Apache-2.0`](./LICENSE)。
+- skill 文档真相源
+- 对外主安装入口
+- 以 zip 技能包为中心的主分发流程
+- provider 产品层最终真相源
 
-这意味着：
-- 源码可见、可修改、可分发。
-- 不允许直接拿去做竞争性 SaaS 商用托管。
-- 到变更日期后自动转为 Apache-2.0 协议。
+## 产品边界
 
-如果你需要商业合作或授权咨询，请联系 `business@mangou.art`。
+以下内容应优先去 `mangou-ai-motion-comics/` 修改：
+- `SKILL.md` / `INSTALL.md` / `COMMANDS.md`
+- provider adapters 与 registry
+- CLI/runtime 产品行为
+- provider 文档与 Hermes 自进化规则
 
-## 适用场景
+以下内容留在本仓：
+- dashboard
+- spec / schema / protocol
+- provider 无关的共用 utilities
+- 底层 task / workspace / server 抽象
 
-- 你有自己的 code agent，并且它支持安装或调用本地 `SKILL`
-- 你希望在本地目录里管理漫剧项目，而不是依赖数据库后台
-- 你需要一个可追踪、可回放、可脚本化的 AIGC 工作流
+## 当前安装模型
 
-## 环境要求
+主安装路径已经收敛为：
 
-- Bun `>= 1.1`
-- `ffmpeg` 可执行文件在系统 PATH 中
-- 至少一套可用的 AIGC 提供商配置
-
-## 安装模型
-
-Mangou 现在分成三层安装面：
-
-- **Skill**：通过 `vercel-labs/skills` 或 `mangou.zip` 安装到 agent
-- **Runtime**：需要执行 Bun CLI 时，再安装 `mangou-runtime.zip`
-- **Dashboard**：通过独立 npm 包分发
-
-这样 skill 保持轻量，runtime 和前端页面继续独立演进。
-
-仓库规则：
-
-- `skill-src/mangou/` 是本仓库唯一的 skill 文档源。
-- `packages/dashboard/` 是本仓库唯一的 dashboard 包源码目录。
-- 仓库根 `dist/` 只是构建输出，不是编辑源。
-- 仓库根目录不再保留 `SKILL.md` 软链接或兼容副本。
-- 短 GitHub 安装路径由独立轻量仓库 `MangouArt/mangou-ai-motion-comics` 提供。
-
-## 快速开始
-
-如果你使用的是支持工具调用、能够执行本地脚本的 Agent，你可以直接将以下指令复制并发送给 AI：
-
-```text
-请直接通过轻量 skill 仓库安装 Mangou。
-如果需要生成图片、视频或启动本地服务，再安装 mangou-runtime.zip。
+```bash
+npx skills add MangouArt/mangou-ai-motion-comics
 ```
 
-手动兜底地址：
+本仓不再作为推荐的直接安装入口。
 
-```text
-https://www.mangou.art/downloads/mangou.zip
-https://www.mangou.art/downloads/mangou-runtime.zip
-```
-
-## 开发者指南
-
-如果你是开发者，希望深入修改源码或手动构建，请参考以下步骤：
-
-### 1. 安装依赖
+## 开发
 
 ```bash
 bun install
+bun run typecheck
+bun run test
+bun run build
 ```
 
-### 2. 配置环境变量
+如果你在调整 dashboard：
 
 ```bash
-cp .env.example .env.local
+bun run build:dashboard:package
 ```
 
-按需填写你的模型服务配置。默认示例文件不会包含真实密钥。
-请在 `.env.local` 中设置 `JIEKOU_API_KEY`, `KIE_API_KEY` 或 `BLTAI_API_KEY`。详细注册和取 token 流程请参考：
-- **JieKou AI (推荐)**: [`knowledge/provider-jiekou.md`](./skill-src/mangou/knowledge/provider-jiekou.md)
-- **KIE AI**: [`knowledge/provider-kie.md`](./skill-src/mangou/knowledge/provider-kie.md)
-- **BLTAI**: [`knowledge/provider-bltai.md`](./skill-src/mangou/knowledge/provider-bltai.md)
+## 迁移说明
 
-### 3. 构建技能包
+以下旧模型正在退役：
+- `skill-src/mangou`
+- `build:skill`
+- `mangou.zip`
+- `mangou-runtime.zip`
 
-```bash
-npm run build
-npm run build:skill
-```
+迁移期内这些历史结构可能仍存在于仓库中，但不再是推荐路径或 SSOT。
 
-构建后会得到：
+## 工作区说明
 
-- 压缩包：`bundled-skills/mangou.zip`
-- 统一资源包：`bundled-skills/mangou-runtime.zip`
-
-### 4. 安装到你的 agent skill 目录
-
-推荐方式：
-
-```bash
-npx skills add MangouArt/mangou-ai-motion-comics -a claude-code -y
-```
-
-如果你在本地开发 `mangou` 主仓库，也可以改用：
-
-```bash
-npx skills add ./skill-src/mangou --agent claude-code
-```
-
-兜底方式：
-
-- 安装 `bundled-skills/mangou.zip` 作为基础 skill
-- 需要执行 Bun CLI 时，再把 `bundled-skills/mangou-runtime.zip` 合并到同一个技能根目录
-
-### 5. 单独安装 dashboard
-
-本地只读 dashboard 不再并入基础 skill 包。
-
-目标安装方式：
-
-```bash
-npx @mangou/dashboard
-```
-
-### 5. 快速入门 (CLI)
-
-所有核心指令已统一至入口 `src/main.ts`。无论是在源码仓库开发还是作为技能安装，调用方式完全一致：
-
-```bash
-# 初始化项目
-bun run src/main.ts project init --name [id]
-
-# 创作分镜 (图片/视频)
-bun run src/main.ts storyboard generate --path [path] --type [image|video]
-
-# 启动本地可视化服务 (SSE)
-bun run src/main.ts server start --port 3000
-```
-
-访问：`http://localhost:3000`
-
-## 工作区结构
+真实创作项目目录只保留在母仓：
 
 ```text
-<workspace>/
-  .mangou/
-  config.json
-  projects.json
-  projects/
-    <projectId>/
-      project.json
-      tasks.jsonl
-      storyboards/
-      asset_defs/
-      assets/
+Mango/workspace/projects/
 ```
 
-说明：
-
-- `tasks.jsonl` 是任务状态唯一真相源
-- `storyboards/` 与 `asset_defs/` 存放 YAML 定义
-- `assets/` 存放生成产物
-- `projects.json` 只保存项目索引
-
-## 常用命令
-
-```bash
-# 开发前端
-bun run dev
-
-# 类型检查
-bun run typecheck
-
-# 运行测试
-bun test
-
-# 构建前端与 skill
-bun run build
-bun run build:skill
-
-# 一次跑完发布前校验
-bun run ci
-```
-
-## CLI 命令
-
-构建后的技能遵循 "资源-动作" 模式：
-
-- `project init`: 初始化一个新的项目目录。
-- `project stitch`: 合成项目最终影片。
-- `storyboard generate`: 渲染单个分镜 YAML 的图片或视频。
-- `storyboard split`: 对 grid 分镜图执行物理切分。
-- `asset generate`: 渲染资产图片。
-- `server start`: 启动本地只读可视化服务。
-
-职责拆分保持不变：
-
-- **逻辑层**: CLI 负责初始化、启动服务、调用上游、写入任务状态
-- **展示层**: Web 负责展示与只读 API
-- **决策层**: Agent 负责组织参数、修改 YAML，并触发 CLI 任务
-
-## 发布物
-
-当前推荐的分发物是：
-
-- `bundled-skills/mangou.zip`
-- `bundled-skills/mangou-runtime.zip`
-- `MangouArt/mangou-ai-motion-comics`
-
-其中 `MangouArt/mangou-ai-motion-comics` 是独立轻量 skill 仓库。
-在主仓库中，本地 `npx skills add` 测试直接使用 `skill-src/mangou/` 即可。
-不要把 `skills add` 指向仓库根目录，否则安装器可能把整个仓库复制进 agent 的技能目录。
-`mangou.zip` 是标准兜底基础技能包。
-需要 Bun CLI 和工作区模板时，再额外下载 `mangou-runtime.zip`。
-
-## 安全说明
-
-- 不要提交 `.env.local`
-- 不要把真实 API Key 打进截图、日志或压缩包
-- 如需报告安全问题，请查看 [`SECURITY.md`](./SECURITY.md)
-
-## 贡献与支持
-
-- 贡献流程：[`CONTRIBUTING.md`](./CONTRIBUTING.md)
-- 行为准则：[`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
-- 安全策略：[`SECURITY.md`](./SECURITY.md)
-- 变更记录：[`CHANGELOG.md`](./CHANGELOG.md)
-
-问题反馈请提交 GitHub Issue：
-
-- `https://github.com/MangouArt/mangou/issues`
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=MangouArt%2Fmangou&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=MangouArt/mangou&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=MangouArt/mangou&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=MangouArt/mangou&type=date&legend=top-left" />
- </picture>
-</a>
+本仓库内的示例/测试项目已经迁移到 `examples/projects/`；不要再把仓库内目录当成真实工作区。

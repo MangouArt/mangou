@@ -10,7 +10,7 @@ Run the following checks locally before opening a pull request:
 bun run typecheck
 bun test
 bun run build
-bun run build:skill
+bun run build:dashboard:package
 ```
 
 ## Development Principles
