@@ -40,6 +40,8 @@ Mangou 现在定位为对外 core engine 仓，而不是最终产品安装仓。
 - provider 无关的共用 utilities
 - 底层 task / workspace / server 抽象
 
+运行时产品行为及其回归测试现在优先收敛到 `mangou-ai-motion-comics`；本仓测试应逐步聚焦 dashboard、spec 与少量真正共享的 core 边界。
+
 ## 当前安装模型
 
 主安装路径已经收敛为：

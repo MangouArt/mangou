@@ -29,7 +29,6 @@
   "files": [
     "src",
     "packages/dashboard",
-    "workspace_template",
     "spec",
     "tsconfig.json",
     "index.html",
@@ -44,7 +43,6 @@
     "build:dashboard": "bun run build && bun run build:dashboard:package",
     "prepack": "bun run build && bun run build:dashboard:package",
     "preview": "vite preview",
-    "build:assets": "mkdir -p src/assets && cd workspace_template && zip -r ../src/assets/workspace_template.zip .",
     "typecheck": "tsc --noEmit",
     "ci": "bun run typecheck && bun run test && bun run build && bun run build:dashboard:package",
     "test": "vitest run",

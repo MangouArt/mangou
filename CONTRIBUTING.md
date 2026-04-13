@@ -19,6 +19,7 @@ bun run build:dashboard:package
 - Keep `tasks.jsonl` as the single source of truth for task state
 - Prefer fixing scripts and data structures instead of piling on edge-case patches
 - Preserve backward compatibility for workspace layout and YAML conventions
+- Product-runtime regression tests should land in `mangou-ai-motion-comics`; keep this repo focused on dashboard, spec, and genuinely shared core behavior
 
 ## Pull Request Process
 
